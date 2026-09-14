@@ -7839,14 +7839,30 @@ def _render_dance_studio():
         st.subheader("1. Video Nhảy Mẫu")
         video_source_mode = st.radio(
             "Nguồn video nhảy:",
-            ["Dán Link TikTok / Douyin / Shorts", "Tải video từ máy (.mp4)"],
+            ["Video Mẫu Test Sẵn Có (7s)", "Dán Link TikTok / Douyin / Shorts", "Tải video từ máy (.mp4)"],
             horizontal=True,
             key="dance_source_radio",
         )
 
         from app.services import dance as dance_service
 
-        if video_source_mode == "Dán Link TikTok / Douyin / Shorts":
+        if video_source_mode == "Video Mẫu Test Sẵn Có (7s)":
+            sample_vid_path = "storage/dance/sample_dance_7s.mp4"
+            if os.path.isfile(sample_vid_path):
+                if st.session_state.get("dance_motion_video_path") != sample_vid_path:
+                    v_info = dance_service.get_video_info(sample_vid_path)
+                    st.session_state["dance_ref_info"] = {
+                        "video_path": sample_vid_path,
+                        "duration": v_info["duration"],
+                        "fps": v_info["fps"],
+                        "width": v_info["width"],
+                        "height": v_info["height"],
+                    }
+                    st.session_state["dance_motion_video_path"] = sample_vid_path
+                st.success("Đã chọn video vũ đạo mẫu 7s chuẩn 9:16 (1080x1920)!")
+            else:
+                st.info("Chưa tìm thấy file storage/dance/sample_dance_7s.mp4")
+        elif video_source_mode == "Dán Link TikTok / Douyin / Shorts":
             tiktok_url = st.text_input(
                 "Dán link video TikTok/Douyin nhảy mẫu:",
                 placeholder="https://vt.tiktok.com/... hoặc https://www.tiktok.com/@.../video/...",
@@ -7890,6 +7906,7 @@ def _render_dance_studio():
                     "height": v_info["height"],
                 }
                 st.session_state["dance_motion_video_path"] = str(v_path)
+
 
         # Hiển thị video mẫu và công cụ cắt đoạn
         ref_info = st.session_state.get("dance_ref_info")
@@ -7948,13 +7965,23 @@ def _render_dance_studio():
     # --- CỘT 2: ẢNH NGƯỜI MẪU & GÓI KLING AI ---
     with col2:
         st.subheader("2. Ảnh Người Mẫu")
-        if st.button("Lấy Ảnh Vừa Thử Đồ Xong", icon=":material/sync:", use_container_width=True, key="dance_btn_use_tryon"):
-            latest_tryon = st.session_state.get("latest_tryon_result")
-            if latest_tryon and os.path.isfile(latest_tryon):
-                st.session_state["dance_model_image_path"] = latest_tryon
-                st.success("Đã nạp ảnh người mẫu từ Tab Thử Đồ Ảo!")
-            else:
-                st.warning("Chưa có ảnh thử đồ từ Tab 2. Bạn có thể tải ảnh lên từ máy tính bên dưới.")
+        c_m1, c_m2 = st.columns(2)
+        with c_m1:
+            if st.button("Lấy Ảnh Thử Đồ", icon=":material/sync:", use_container_width=True, key="dance_btn_use_tryon"):
+                latest_tryon = st.session_state.get("latest_tryon_result")
+                if latest_tryon and os.path.isfile(latest_tryon):
+                    st.session_state["dance_model_image_path"] = latest_tryon
+                    st.success("Đã nạp ảnh người mẫu từ Tab Thử Đồ!")
+                else:
+                    st.warning("Chưa có ảnh thử đồ từ Tab 2.")
+        with c_m2:
+            if st.button("Dùng Mẫu Nữ Test", icon=":material/face:", use_container_width=True, key="dance_btn_use_sample_model"):
+                sample_model_path = "storage/models/model_vietnamese_girl.png"
+                if os.path.isfile(sample_model_path):
+                    st.session_state["dance_model_image_path"] = sample_model_path
+                    st.success("Đã nạp người mẫu Việt Nam xinh đẹp!")
+                else:
+                    st.warning("Chưa tìm thấy file ảnh mẫu.")
 
         uploaded_model_file = st.file_uploader(
             "Hoặc tải ảnh mẫu khác (.png, .jpg):",
@@ -8004,9 +8031,26 @@ def _render_dance_studio():
                 with c_k2:
                     st.link_button("Mở Kling AI", "https://klingai.com", icon=":material/open_in_new:", use_container_width=True)
 
+                st.markdown("**Gợi ý Prompt Kling AI:**")
+                st.code(
+                    "A stunning young Vietnamese woman dancing gracefully and energetically following the reference video motion, smooth hip movement, charming smile, confident expression, photorealistic 8k, cinematic lighting, natural body physics, highly detailed fabric movement, 60fps.",
+                    language="text",
+                )
+                st.markdown("**Negative Prompt:**")
+                st.code(
+                    "deformed limbs, distorted face, extra arms, bad anatomy, blurry, flickering, jittery, low quality, artifacts, watermark",
+                    language="text",
+                )
+
     # --- CỘT 3: NÂNG CẤP 60 FPS BẰNG GPU NVIDIA RTX ---
     with col3:
         st.subheader("3. Nâng Cấp 60 FPS Bằng GPU RTX")
+        if st.button("Dùng Video Mẫu Test RTX", icon=":material/play_circle:", use_container_width=True, key="dance_btn_test_rtx"):
+            sample_vid = "storage/dance/sample_dance_7s.mp4"
+            if os.path.isfile(sample_vid):
+                st.session_state["dance_kling_raw_video"] = sample_vid
+                st.success("Đã nạp video mẫu để test GPU RTX!")
+
         uploaded_kling = st.file_uploader(
             "Kéo thả video sau khi Kling AI tạo xong vào đây:",
             type=["mp4", "mov", "webm"],
