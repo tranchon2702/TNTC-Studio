@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>TNTC Studio - Gemini Creator</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <div class="popup-logo">🎬 TNTC Studio</div>
+      <div class="popup-sub">Gemini Fashion Creator</div>
+    </div>
+
+    <div class="form-group">
+      <label for="outfit-desc">👗 Mô tả trang phục (hoặc dán link ảnh Shopee):</label>
+      <textarea id="outfit-desc" rows="3" placeholder="Ví dụ: Váy body đen ôm sát tôn dáng, áo croptop nữ tính, hoặc váy hoa nhí..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="model-style">💃 Phong cách người mẫu:</label>
+      <select id="model-style">
+        <option value="sexy">Gợi cảm, quyến rũ (Dáng chuẩn TikTok)</option>
+        <option value="cute">Dễ thương, trẻ trung, năng động</option>
+        <option value="lookbook">Thương mại, Lookbook sang trọng</option>
+        <option value="streetwear">Cá tính đường phố (Streetwear)</option>
+      </select>
+    </div>
+
+    <button id="btn-open-gemini" class="btn-primary">
+      ✨ Tạo Ảnh Trên Gemini Web
+    </button>
+
+    <div class="divider"></div>
+
+    <button id="btn-open-studio" class="btn-secondary">
+      🌐 Mở WebUI TNTC Studio
+    </button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
