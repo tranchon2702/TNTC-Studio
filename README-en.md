@@ -1,5 +1,7 @@
 <div align="center">
 
+> Personal Vietnamese setup: [README-VI.md](README-VI.md)
+
 # MoneyPrinterTurbo 💸
 
 ### An All-in-One AI Short Video Generator

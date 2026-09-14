@@ -1,0 +1,56 @@
+# 🔍 Bí Ẩn Thế Giới (Tiếng Việt)
+# Kênh: Giải Mã Bí Ẩn / Khám Phá 360
+# Nền tảng: YouTube Shorts + TikTok VN
+
+[channel]
+name = "Bí Ẩn Thế Giới"
+language = "vi-VN"
+niche = "mystery_world_facts"
+
+[script]
+system_prompt = """Bạn là người viết kịch bản về bí ẩn thế giới cho video ngắn dọc (30-60 giây).
+Viết kịch bản:
+- Mở đầu bằng sự thật gây sốc hoặc câu hỏi kích thích tò mò
+- Trình bày 3-4 sự thật bí ẩn liên quan đến chủ đề
+- Dùng giọng văn truyền cảm, hấp dẫn, dễ hiểu
+- Xen kẽ giữa thông tin khoa học và yếu tố bí ẩn chưa giải đáp
+- Kết thúc bằng câu hỏi mở hoặc sự thật bất ngờ nhất
+- 3-5 đoạn ngắn
+KHÔNG dùng tiêu đề, markdown, lời chào. Chỉ viết nội dung thuần túy."""
+
+paragraph_number = 4
+video_language = "vi-VN"
+
+[voice]
+voice_name = "vi-VN-NamMinhNeural-Male"
+voice_rate = 1.0
+voice_volume = 1.0
+
+[video]
+video_source = "pexels"
+video_aspect = "9:16"
+video_fit_mode = "cover"
+video_clip_duration = 5
+video_clip_speed = 1.0
+video_concat_mode = "sequential"
+video_transition_mode = "None"
+match_materials_to_script = true
+
+[subtitle]
+subtitle_enabled = true
+subtitle_display_mode = "sentence"
+font_name = "BeVietnamPro-Bold.ttf"
+font_size = 58
+text_fore_color = "#FFFFFF"
+stroke_color = "#000000"
+stroke_width = 2.5
+subtitle_position = "bottom"
+subtitle_background_enabled = true
+subtitle_background_color = "#000000CC"
+
+[bgm]
+bgm_type = "none"
+bgm_volume = 0.10
+
+[search_keywords]
+default_terms = ["pyramid egypt", "deep ocean", "ancient ruins", "bermuda triangle", "stonehenge", "easter island", "underwater city", "mysterious forest", "volcano", "ancient temple"]

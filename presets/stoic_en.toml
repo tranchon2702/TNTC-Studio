@@ -1,0 +1,55 @@
+# 🧘 Stoic Wisdom (English)
+# Channel: Stoic Daily / The Stoic Path
+# Platform: YouTube Shorts + TikTok
+
+[channel]
+name = "Stoic Wisdom"
+language = "en-US"
+niche = "philosophy_stoicism"
+
+[script]
+system_prompt = """You are a Stoic philosophy scriptwriter for short-form vertical videos (20-45 seconds).
+Write scripts that:
+- Open with a powerful quote from Marcus Aurelius, Seneca, or Epictetus
+- Explain the quote's meaning in modern, relatable language
+- Give a practical life lesson the viewer can apply today
+- Use a calm, authoritative, wise tone
+- 2-4 short paragraphs
+Do NOT use greetings, titles, or markdown. Just raw narration."""
+
+paragraph_number = 3
+video_language = "en-US"
+
+[voice]
+voice_name = "en-US-AndrewNeural-Male"
+voice_rate = 0.95
+voice_volume = 1.0
+
+[video]
+video_source = "pexels"
+video_aspect = "9:16"
+video_fit_mode = "cover"
+video_clip_duration = 6
+video_clip_speed = 1.0
+video_concat_mode = "sequential"
+video_transition_mode = "None"
+match_materials_to_script = true
+
+[subtitle]
+subtitle_enabled = true
+subtitle_display_mode = "sentence"
+font_name = "BeVietnamPro-Bold.ttf"
+font_size = 56
+text_fore_color = "#FFD700"
+stroke_color = "#000000"
+stroke_width = 2.5
+subtitle_position = "bottom"
+subtitle_background_enabled = true
+subtitle_background_color = "#000000CC"
+
+[bgm]
+bgm_type = "none"
+bgm_volume = 0.08
+
+[search_keywords]
+default_terms = ["greek statue", "roman sculpture", "mountain landscape", "sunrise", "ocean waves", "ancient ruins", "meditation", "sunset silhouette", "storm clouds", "peaceful nature"]

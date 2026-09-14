@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from time import perf_counter
 from typing import List
 
@@ -359,11 +360,22 @@ def _generate_response(prompt: str, app_config=None) -> str:
             from google.genai import types
 
             http_options = types.HttpOptions(base_url=base_url) if base_url else None
+            gemini_thinking = str(
+                runtime_app_config.get("gemini_thinking_level", "high")
+            ).strip().upper()
+            thinking_config = None
+            if gemini_thinking in ("HIGH", "MEDIUM", "LOW", "MINIMAL"):
+                thinking_level = getattr(types.ThinkingLevel, gemini_thinking, types.ThinkingLevel.HIGH)
+                thinking_config = types.ThinkingConfig(thinking_level=thinking_level)
+            elif gemini_thinking in ("OFF", "DISABLE", "DISABLED", "0"):
+                thinking_config = types.ThinkingConfig(thinking_budget=0)
+
             generation_config = types.GenerateContentConfig(
                 temperature=0.5,
                 top_p=1,
                 top_k=1,
                 max_output_tokens=2048,
+                thinking_config=thinking_config,
                 safety_settings=[
                     types.SafetySetting(
                         category="HARM_CATEGORY_HARASSMENT",
@@ -784,22 +796,24 @@ def generate_script(
                 response = _generate_response(prompt=prompt)
             else:
                 response = _generate_response(prompt=prompt, app_config=app_config)
-            if response:
+            if response and not response.startswith("Error:"):
                 final_script = format_response(response)
+                # Some upstream providers may return quota errors as plain text.
+                if final_script and "当日额度已消耗完" in final_script:
+                    raise ValueError(final_script)
+
+                if final_script:
+                    break
             else:
-                logging.error("gpt returned an empty response")
-
-            # Some upstream providers may return quota errors as plain text.
-            if final_script and "当日额度已消耗完" in final_script:
-                raise ValueError(final_script)
-
-            if final_script:
-                break
+                err_detail = response if response else "empty response"
+                logger.warning(f"generation attempt {i + 1} failed: {err_detail}")
+                time.sleep(1.5 * (i + 1))
         except Exception as e:
             logger.error(f"failed to generate script: {e}")
+            time.sleep(1.5 * (i + 1))
 
         if i < _max_retries - 1:
-            logger.warning(f"failed to generate video script, trying again... {i + 1}")
+            logger.warning(f"retrying video script generation... attempt {i + 2}")
     if "Error: " in final_script:
         logger.error(f"failed to generate video script: {final_script}")
     else:

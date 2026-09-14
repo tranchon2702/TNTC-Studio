@@ -64,17 +64,16 @@ from app.services import version_checker
 from app.utils.logging_utils import configure_terminal_logger
 from app.utils import utils
 
+PROJECT_NAME = str(getattr(config, "project_name", "") or "TNTC Studio").strip()
+
 st.set_page_config(
-    page_title="MoneyPrinterTurbo",
-    page_icon="🤖",
+    page_title=PROJECT_NAME,
+    page_icon="🎬",
     layout="wide",
     initial_sidebar_state="auto",
     menu_items={
         "Report a bug": "https://github.com/harry0703/MoneyPrinterTurbo/issues",
-        "About": "# MoneyPrinterTurbo\nSimply provide a topic or keyword for a video, and it will "
-        "automatically generate the video copy, video materials, video subtitles, "
-        "and video background music before synthesizing a high-definition short "
-        "video.\n\nhttps://github.com/harry0703/MoneyPrinterTurbo",
+        "About": f"# {PROJECT_NAME}\nTrợ lý sáng tạo video ngắn thông minh cho YouTube và TikTok.",
     },
 )
 
@@ -1064,7 +1063,16 @@ def _open_task_path(task_path):
         rel_path = os.path.relpath(normalized_path, os.path.dirname(tasks_root))
         st.toast(f"{tr('Open Task Folder')}: ./storage/{rel_path}", icon="📂")
         return
-    webbrowser.open(f"file://{normalized_path}")
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", normalized_path])
+        elif sys.platform.startswith("win"):
+            os.startfile(normalized_path)  # type: ignore[attr-defined]
+        else:
+            subprocess.Popen(["xdg-open", normalized_path])
+    except Exception as e:
+        logger.error(f"failed to open task folder: {normalized_path}, {e}")
+        webbrowser.open(f"file://{normalized_path}")
 
 
 def _open_task_video(video_file):
@@ -1624,32 +1632,12 @@ def _open_material_settings_dialog():
 
 
 def _render_brand(available_update: str | None = None):
-    """渲染项目名称、当前版本和可选的更新入口。"""
-    update_link = ""
-    if available_update:
-        update_label = html.escape(
-            tr("Update Available").format(version=available_update)
-        )
-        # Streamlit 会继续用 Markdown 解析传入的 HTML。这里保持链接为单行，
-        # 避免多行字符串的缩进被识别成代码块，导致页面直接显示 HTML 源码。
-        update_link = (
-            '<a class="mpt-brand__update" '
-            f'href="{version_checker.LATEST_RELEASE_PAGE_URL}" '
-            'target="_blank" rel="noopener noreferrer" '
-            f'aria-label="{update_label}" title="{update_label}">'
-            f"{update_label}</a>"
-        )
+    """Render tên dự án và phiên bản cá nhân hóa."""
     st.markdown(
         f"""
         <h1 class="mpt-brand">
-            <span class="mpt-brand__name">MoneyPrinterTurbo</span>
-            <a class="mpt-brand__version"
-               href="https://github.com/harry0703/MoneyPrinterTurbo"
-               target="_blank"
-               rel="noopener noreferrer"
-               aria-label="Open MoneyPrinterTurbo on GitHub"
-               title="Open project on GitHub">v{html.escape(str(config.project_version))}</a>
-            {update_link}
+            <span class="mpt-brand__name">{html.escape(PROJECT_NAME)}</span>
+            <span class="mpt-brand__version" style="opacity: 0.75; font-size: 0.85rem; font-weight: normal; margin-left: 8px;">v{html.escape(str(config.project_version))}</span>
         </h1>
         """,
         unsafe_allow_html=True,
@@ -1799,7 +1787,15 @@ def open_task_folder(task_id):
             return
 
         if os.path.isdir(path):
-            webbrowser.open(f"file://{path}")
+            try:
+                if sys.platform == "darwin":
+                    subprocess.Popen(["open", path])
+                elif sys.platform.startswith("win"):
+                    os.startfile(path)  # type: ignore[attr-defined]
+                else:
+                    subprocess.Popen(["xdg-open", path])
+            except Exception as e:
+                webbrowser.open(f"file://{path}")
     except Exception as e:
         logger.exception(f"failed to open task folder: task_id={task_id}, error={e}")
 
@@ -3425,6 +3421,30 @@ def _render_settings_dialog():
                         field.default_value,
                     ),
                 )
+
+            if llm_provider == "gemini":
+                thinking_options = [
+                    "HIGH (Tư duy sâu - Khuyên dùng)",
+                    "MEDIUM (Trung bình)",
+                    "LOW (Thấp)",
+                    "OFF (Tắt suy nghĩ)",
+                ]
+                current_thinking = str(
+                    config.app.get("gemini_thinking_level", "high")
+                ).lower()
+                index_map = {"high": 0, "medium": 1, "low": 2, "off": 3}
+                sel_idx = index_map.get(current_thinking, 0)
+                selected_thinking = llm_form_panel.selectbox(
+                    "Mức độ suy nghĩ (Thinking Level)",
+                    options=thinking_options,
+                    index=sel_idx,
+                    key="gemini_thinking_level_select",
+                    help="Gemini 3.8 Flash hỗ trợ cơ chế suy nghĩ (Thinking) để kịch bản sâu sắc, logic và tránh hời hợt.",
+                )
+                level_code = ["high", "medium", "low", "off"][
+                    thinking_options.index(selected_thinking)
+                ]
+                _set_runtime_config("app", "gemini_thinking_level", level_code)
 
             if llm_form_panel.button(
                 tr("Test LLM Connection"),

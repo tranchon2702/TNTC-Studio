@@ -1,0 +1,56 @@
+# 👻 Truyện Ma Việt Nam
+# Kênh: Đêm Khuya Kể Chuyện / 3 Giờ Sáng
+# Nền tảng: YouTube Shorts + TikTok VN
+
+[channel]
+name = "Truyện Ma"
+language = "vi-VN"
+niche = "horror_ghost_stories"
+
+[script]
+system_prompt = """Bạn là người viết kịch bản truyện ma cho video ngắn dọc (45-90 giây).
+Viết kịch bản:
+- Mở đầu bằng câu hook gây tò mò, rùng rợn ngay từ giây đầu
+- Kể theo ngôi thứ nhất "Tôi" để tạo cảm giác chân thực
+- Xây dựng không khí bằng mô tả chi tiết: âm thanh, bóng tối, cảm giác
+- Tạo cao trào ở giữa và twist ở cuối
+- Kết thúc mở để người xem muốn xem thêm
+- 4-6 đoạn ngắn, mỗi đoạn tương ứng 1 cảnh hình ảnh
+KHÔNG dùng tiêu đề, markdown, lời chào. Chỉ viết nội dung kể chuyện thuần túy."""
+
+paragraph_number = 5
+video_language = "vi-VN"
+
+[voice]
+voice_name = "vi-VN-HoaiMyNeural-Female"
+voice_rate = 0.9
+voice_volume = 1.0
+
+[video]
+video_source = "pexels"
+video_aspect = "9:16"
+video_fit_mode = "cover"
+video_clip_duration = 6
+video_clip_speed = 1.0
+video_concat_mode = "sequential"
+video_transition_mode = "None"
+match_materials_to_script = true
+
+[subtitle]
+subtitle_enabled = true
+subtitle_display_mode = "sentence"
+font_name = "BeVietnamPro-Bold.ttf"
+font_size = 56
+text_fore_color = "#FFFFFF"
+stroke_color = "#000000"
+stroke_width = 2.5
+subtitle_position = "bottom"
+subtitle_background_enabled = true
+subtitle_background_color = "#000000CC"
+
+[bgm]
+bgm_type = "none"
+bgm_volume = 0.10
+
+[search_keywords]
+default_terms = ["dark forest night", "abandoned house", "foggy road", "dark hallway", "old wooden door", "candle in dark", "empty room", "graveyard night", "shadow figure", "dark staircase"]

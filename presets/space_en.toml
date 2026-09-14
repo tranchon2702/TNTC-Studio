@@ -1,0 +1,58 @@
+# 🌌 Space & Universe Facts (English)
+# Channel: CosmicMind / Beyond Earth
+# Platform: YouTube Shorts + TikTok
+
+[channel]
+name = "Space & Universe"
+language = "en-US"
+niche = "space_science"
+
+[script]
+# Prompt template for LLM to generate space content
+system_prompt = """You are a space science scriptwriter for short-form vertical videos (30-60 seconds).
+Write scripts that are:
+- Fascinating and mind-blowing
+- Easy to understand for a general audience
+- Starting with a strong hook question or shocking statement
+- Using vivid descriptions that pair well with space imagery
+- Ending with a thought-provoking statement or call-to-action
+- 3-5 short paragraphs, each matching one visual scene
+Do NOT use greetings, titles, or markdown formatting. Just raw narration text."""
+
+paragraph_number = 4
+video_language = "en-US"
+
+[voice]
+voice_name = "en-US-GuyNeural-Male"
+voice_rate = 1.0
+voice_volume = 1.0
+
+[video]
+video_source = "pexels"
+video_aspect = "9:16"
+video_fit_mode = "cover"
+video_clip_duration = 5
+video_clip_speed = 1.0
+video_concat_mode = "sequential"
+video_transition_mode = "None"
+match_materials_to_script = true
+
+[subtitle]
+subtitle_enabled = true
+subtitle_display_mode = "sentence"
+font_name = "BeVietnamPro-Bold.ttf"
+font_size = 58
+text_fore_color = "#FFFFFF"
+stroke_color = "#000000"
+stroke_width = 2.5
+subtitle_position = "bottom"
+subtitle_background_enabled = true
+subtitle_background_color = "#000000CC"
+
+[bgm]
+bgm_type = "none"
+bgm_volume = 0.10
+
+[search_keywords]
+# Preferred Pexels search terms for this niche
+default_terms = ["space", "galaxy", "planet", "stars", "nebula", "astronaut", "universe", "earth from space", "solar system", "black hole"]
