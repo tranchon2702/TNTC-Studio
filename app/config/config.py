@@ -500,6 +500,8 @@ def save_config():
         config_to_save["kokoro"] = dict(kokoro)
         config_to_save["fish_audio"] = dict(fish_audio)
         config_to_save["ui"] = dict(ui)
+        config_to_save["tryon"] = dict(tryon)
+        config_to_save["dance"] = dict(dance)
         serialized_config = toml.dumps(config_to_save)
 
         # WebUI 完整 rerun 结束时会调用保存。内容没有变化时直接返回，避免每次
@@ -564,6 +566,8 @@ ui = _SynchronizedConfig(
         },
     )
 )
+tryon = _SynchronizedConfig(_cfg.get("tryon", {}))
+dance = _SynchronizedConfig(_cfg.get("dance", {}))
 
 hostname = socket.gethostname()
 
