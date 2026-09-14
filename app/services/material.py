@@ -1141,28 +1141,18 @@ def _openai_image_size(video_aspect: VideoAspect) -> str:
     return OPENAI_IMAGE_DEFAULT_SIZES.get(VideoAspect(video_aspect), "1024x1024")
 
 
-def _openai_image_prompt(search_term: str) -> str:
+def _openai_image_prompt(search_term: str, character_prompt: str = "") -> str:
     """
-    把脚本关键词包装成最终提示词。
-
-    可选配置 ``openai_image_prompt_template`` 支持 ``{term}`` 占位符，
-    用于统一附加风格修饰（如画质、构图、镜头语言），提升图文匹配度：
-
-    .. code-block:: toml
-
-        openai_image_prompt_template = "cinematic photo of {term}, photorealistic"
-
-    留空或不含占位符时退回关键词原文，行为与旧版本完全一致。占位符
-    替换失败（如模板误写了格式化语法）也回退原文，不让配置错误中断
-    整个生成任务。
+    把脚本关键词包装成最终提示词。支持可选的 character_prompt 实现角色一致性。
     """
+    term = f"{character_prompt}, {search_term}" if character_prompt else search_term
     template = str(config.app.get("openai_image_prompt_template", "") or "").strip()
     if not template or "{term}" not in template:
-        return search_term
+        return term
     try:
-        return template.replace("{term}", search_term)
+        return template.replace("{term}", term)
     except Exception:
-        return search_term
+        return term
 
 
 def _response_json_safely(response: Any) -> Any:
@@ -1408,14 +1398,10 @@ def generate_images_openai(
     minimum_duration: int,
     video_aspect: VideoAspect = VideoAspect.portrait,
     save_dir: str = "",
+    character_prompt: str = "",
 ) -> List[MaterialInfo]:
     """
     用 OpenAI 兼容文生图接口为一个脚本关键词生成一张图片并保存到本地。
-
-    与 generate_videos_wavespeed 保持同一签名和空列表失败约定。图片没有
-    原生时长，``duration`` 记录目标片段时长（秒），供按需下载流程核算
-    是否已经凑够配音时长。API 返回的实际尺寸可能与请求不一致，这里以
-    图片真实尺寸写入 rendition，不依赖请求参数。
     """
     aspect = VideoAspect(video_aspect)
     clip_duration = max(int(minimum_duration), 1)
@@ -1423,7 +1409,7 @@ def generate_images_openai(
     image_size = _openai_image_size(aspect)
     payload = {
         "model": model,
-        "prompt": _openai_image_prompt(search_term),
+        "prompt": _openai_image_prompt(search_term, character_prompt=character_prompt),
         "n": 1,
         "size": image_size,
     }
@@ -1490,25 +1476,18 @@ def _download_videos_openai_image_on_demand(
     audio_duration: float,
     max_clip_duration: int,
     material_directory: str,
+    character_prompt: str = "",
 ) -> List[str]:
     """
     按脚本片段顺序逐张生成 OpenAI 兼容文生图素材，凑够所需总时长立即停止。
-
-    与 WaveSpeed 按需生成同一付费安全语义：文生图按张计费，先全量生成再
-    挑选会为用不到的画面付费。每张图片生成后立即渲染成 mp4 片段并累计
-    有效时长（与库存流程一致，按片段时长封顶），累计达到所需配音时长后
-    不再发起新的付费请求。单张失败按素材源约定跳过并继续下一个关键词。
     """
     if not material_directory:
-        # 生成图片按任务计费且不可复用，默认落在任务目录便于追溯。
         material_directory = utils.task_dir(task_id)
 
     video_paths: List[str] = []
     material_sources: list[dict[str, Any]] = []
     total_duration = 0.0
 
-    # 非正数配音时长会让"累计达到所需时长"的判断失去意义，直接空手返回，
-    # 避免为不可能凑够的任务持续按张付费（与 Seedance 预检语义一致）。
     try:
         required_duration = float(audio_duration)
     except (TypeError, ValueError):
@@ -1527,6 +1506,7 @@ def _download_videos_openai_image_on_demand(
             minimum_duration=max_clip_duration,
             video_aspect=video_aspect,
             save_dir=material_directory,
+            character_prompt=character_prompt,
         )
         for item in items:
             video_file = _render_openai_image_video(item.url, max_clip_duration)
@@ -1664,6 +1644,7 @@ def download_videos(
     audio_duration: float = 0.0,
     max_clip_duration: int = 5,
     match_script_order: bool = False,
+    character_prompt: str = "",
 ) -> List[str]:
     provider = "pexels"
     remote_search_videos = search_videos_pexels
@@ -1694,10 +1675,6 @@ def download_videos(
         material_directory = ""
 
     if source == "wavespeed":
-        # AI 生成按条计费，不能沿用库存源"先为全部关键词取回候选、再挑选"
-        # 的流程，否则会为用不到的片段付费。生成源改为逐段按需生成，凑够
-        # 所需时长立即停止；也不参与 24 小时搜索缓存——产物 URL 是会过期
-        # 的签名地址，且复用缓存会让不同任务反复得到同一段生成视频。
         return _download_videos_wavespeed_on_demand(
             task_id=task_id,
             search_terms=search_terms,
@@ -1707,8 +1684,6 @@ def download_videos(
             material_directory=material_directory,
         )
     if source == "volcengine_seedance":
-        # 与 WaveSpeed 相同，方舟官方接口会创建异步付费任务。必须按需逐段
-        # 生成，只购买当前配音时长真正需要的素材。
         return _download_videos_seedance_on_demand(
             task_id=task_id,
             search_terms=search_terms,
@@ -1718,9 +1693,6 @@ def download_videos(
             material_directory=material_directory,
         )
     if source == "ofox":
-        # 与 WaveSpeed/方舟相同的按需付费语义：OFox 网关的 /v1/videos 会创建
-        # 异步付费任务，必须逐段生成、凑够所需时长立即停止；产物地址是会过
-        # 期的临时直链，也不参与 24 小时搜索缓存。
         return _download_videos_ofox_on_demand(
             task_id=task_id,
             search_terms=search_terms,
@@ -1730,9 +1702,6 @@ def download_videos(
             material_directory=material_directory,
         )
     if source == "metaso_minimax":
-        # 秘塔 MiniMax 同样按远端异步任务计费。它与火山方舟的请求体相似，
-        # 但任务查询路径和响应结构不同，因此只共享本地按需生成语义，不复用
-        # 供应商客户端，避免协议差异渗入素材编排层。
         return _download_videos_metaso_minimax_on_demand(
             task_id=task_id,
             search_terms=search_terms,
@@ -1742,9 +1711,6 @@ def download_videos(
             material_directory=material_directory,
         )
     if source == "openai_image":
-        # 与 WaveSpeed 相同的按需付费语义：文生图按张计费，逐段生成、凑够
-        # 所需时长立即停止。生成结果是一次性的本地图片文件，也不参与 24
-        # 小时搜索缓存——缓存会让不同任务反复拿到同一张图。
         return _download_videos_openai_image_on_demand(
             task_id=task_id,
             search_terms=search_terms,
@@ -1752,6 +1718,7 @@ def download_videos(
             audio_duration=audio_duration,
             max_clip_duration=max_clip_duration,
             material_directory=material_directory,
+            character_prompt=character_prompt,
         )
 
     if match_script_order:

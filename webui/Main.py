@@ -4919,6 +4919,84 @@ def _render_script_settings(panel, params):
                 height=180,
                 key="video_script",
             )
+
+            # Khối tùy chọn: Đồng nhất nhân vật cố định (Consistent Character)
+            with st.expander(":material/person: Nhân Vật Cố Định Cho Video (Tùy Chọn)", expanded=False):
+                params.character_anchor_enabled = st.checkbox(
+                    "Đồng nhất một nhân vật duy nhất cho toàn bộ video",
+                    value=bool(st.session_state.get("char_anchor_enabled", False)),
+                    help="AI sẽ giữ nguyên khuôn mặt, vóc dáng và phong cách của một người mẫu cố định trong mọi phân cảnh.",
+                    key="char_anchor_enabled_checkbox",
+                )
+                st.session_state["char_anchor_enabled"] = params.character_anchor_enabled
+
+                if params.character_anchor_enabled:
+                    char_source = st.radio(
+                        "Cách nạp nhân vật:",
+                        ["Dùng ảnh người mẫu tham chiếu", "Chỉ nhập mô tả nhân vật bằng chữ"],
+                        horizontal=True,
+                        key="char_source_radio",
+                    )
+                    if char_source == "Dùng ảnh người mẫu tham chiếu":
+                        col_c1, col_c2 = st.columns(2)
+                        with col_c1:
+                            if st.button(
+                                "Lấy ảnh vừa Thử Đồ",
+                                icon=":material/sync:",
+                                use_container_width=True,
+                                key="char_get_tryon_btn",
+                            ):
+                                last_tryon = st.session_state.get("latest_tryon_result")
+                                if last_tryon and os.path.isfile(last_tryon):
+                                    st.session_state["char_img_selected"] = last_tryon
+                                    st.success("Đã nạp ảnh người mẫu từ Tab Thử Đồ!")
+                                else:
+                                    st.warning("Chưa có ảnh từ Tab Thử Đồ Ảo.")
+
+                        uploaded_char_img = st.file_uploader(
+                            "Hoặc tải ảnh người mẫu từ máy tính:",
+                            type=["png", "jpg", "jpeg", "webp"],
+                            key="char_model_file_uploader",
+                        )
+                        if uploaded_char_img:
+                            temp_dir = Path("storage/models")
+                            temp_dir.mkdir(parents=True, exist_ok=True)
+                            c_p = temp_dir / f"model_{uploaded_char_img.name}"
+                            with open(c_p, "wb") as f:
+                                f.write(uploaded_char_img.getbuffer())
+                            st.session_state["char_img_selected"] = str(c_p)
+
+                        selected_char_img = st.session_state.get("char_img_selected")
+                        if selected_char_img and os.path.isfile(selected_char_img):
+                            params.character_image_path = selected_char_img
+                            st.image(selected_char_img, caption="Người mẫu tham chiếu", use_container_width=True)
+
+                            if st.button(
+                                "Trích Xuất Nhận Dạng AI (Gemini Vision)",
+                                icon=":material/auto_awesome:",
+                                use_container_width=True,
+                                key="char_extract_vision_btn",
+                            ):
+                                with st.spinner("Gemini Vision đang quét khuôn mặt và phong cách..."):
+                                    ok, desc = llm.extract_character_profile_from_image(selected_char_img)
+                                    if ok:
+                                        st.session_state["character_prompt_val"] = desc
+                                        st.success("Trích xuất nhận dạng thành công!")
+                                    else:
+                                        st.error(f"Lỗi: {desc}")
+
+                    params.character_prompt = st.text_area(
+                        "Mô tả nhận dạng nhân vật (Character Anchor Prompt):",
+                        value=st.session_state.get(
+                            "character_prompt_val",
+                            "young 22-year-old Vietnamese female model, slender, delicate oval face, long wavy dark hair, elegant modern outfit",
+                        ),
+                        height=90,
+                        help="Mô tả này sẽ được AI khóa vào từng phân cảnh để đảm bảo cùng 1 người mẫu xuất hiện.",
+                        key="character_prompt_input_box",
+                    ).strip()
+                    st.session_state["character_prompt_val"] = params.character_prompt
+
             if _effective_script_generation_backend() == "loomloom":
                 st.caption(tr("LoomLoom Video Terms Reuse Help"))
             elif st.button(
@@ -4934,6 +5012,11 @@ def _render_script_settings(panel, params):
                     st.warning(tr("Please Enter the Video Subject"))
                 else:
                     with st.spinner(tr("Generating Video Keywords")):
+                        char_p = (
+                            params.character_prompt
+                            if params.character_anchor_enabled
+                            else ""
+                        )
                         terms = _run_llm_read_operation(
                             "generate_terms",
                             lambda app_config_snapshot: llm.generate_terms(
@@ -4942,6 +5025,7 @@ def _render_script_settings(panel, params):
                                 amount=8 if params.match_materials_to_script else 5,
                                 match_script_order=params.match_materials_to_script,
                                 app_config=app_config_snapshot,
+                                character_prompt=char_p,
                             ),
                         )
                         if "Error: " in terms:

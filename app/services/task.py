@@ -313,6 +313,11 @@ def generate_terms(task_id, params, video_script):
     logger.info("\n\n## generating video terms")
     video_terms = params.video_terms
     if not video_terms:
+        char_prompt = (
+            params.character_prompt
+            if getattr(params, "character_anchor_enabled", False)
+            else ""
+        )
         # 开启素材按文案顺序匹配后，关键词本身也必须按脚本叙事顺序生成；
         # 否则后续即使顺序下载和顺序拼接，也只能复用一组全局主题词，
         # 无法改善“后面内容的画面提前出现”的问题。
@@ -321,6 +326,7 @@ def generate_terms(task_id, params, video_script):
             video_script=utils.remove_pause_tags(video_script),
             amount=8 if params.match_materials_to_script else 5,
             match_script_order=params.match_materials_to_script,
+            character_prompt=char_prompt,
         )
     else:
         if isinstance(video_terms, str):
@@ -734,6 +740,11 @@ def get_video_materials(
                 audio_duration=audio_duration * params.video_count,
                 max_clip_duration=params.video_clip_duration,
                 match_script_order=params.match_materials_to_script,
+                character_prompt=(
+                    params.character_prompt
+                    if getattr(params, "character_anchor_enabled", False)
+                    else ""
+                ),
             )
         except volcengine_seedance.VolcEngineSeedanceError as exc:
             # 未确认状态和已生成但下载失败都对应一个可在方舟控制台恢复的远端

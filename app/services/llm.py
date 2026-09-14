@@ -843,6 +843,7 @@ def generate_terms(
     amount: int = 5,
     match_script_order: bool = False,
     app_config=None,
+    character_prompt: str = "",
 ) -> List[str]:
     video_script = utils.remove_pause_tags(video_script or "").strip()
     if match_script_order:
@@ -873,6 +874,13 @@ def generate_terms(
             '"search term 4", "search term 5"]'
         )
 
+    character_rule = ""
+    if character_prompt:
+        character_rule = (
+            f"7. The video features a consistent main character: '{character_prompt}'. "
+            f"Every visual search term must feature this exact character in that scene's action or setting."
+        )
+
     prompt = f"""
 # Role: Video Search Terms Generator
 
@@ -886,6 +894,7 @@ def generate_terms(
 4. the search terms must be related to the subject of the video.
 5. reply with english search terms only.
 {ordering_rule}
+{character_rule}
 
 ## Output Example:
 {output_example}
@@ -1206,6 +1215,54 @@ def generate_social_metadata(
 
     logger.warning("falling back to heuristic social metadata")
     return _fallback_social_metadata(video_subject, video_script, platform)
+
+
+def extract_character_profile_from_image(image_path: str, app_config=None) -> tuple[bool, str]:
+    """
+    Sử dụng Gemini Vision để phân tích ảnh người mẫu và trích xuất
+    đoạn mô tả nhận dạng nhân vật (Character Anchor Prompt) đồng nhất.
+    """
+    if not os.path.isfile(image_path):
+        return False, "File ảnh không tồn tại."
+
+    runtime_app_config = app_config if app_config is not None else config.app
+    api_key = str(runtime_app_config.get("gemini_api_key", "") or "").strip()
+    if not api_key:
+        return False, "Chưa cấu hình gemini_api_key trong config.toml."
+
+    try:
+        from google import genai
+        from PIL import Image
+
+        client = genai.Client(api_key=api_key)
+        img = Image.open(image_path)
+        prompt = (
+            "Analyze this person in detail for visual consistency in AI image generation. "
+            "Identify: age, gender, ethnicity, facial features (eyes, nose, lips), "
+            "hairstyle and color, skin tone, body build, and default clothing style. "
+            "Output ONLY a single concise, high-detail English visual description (max 35 words) "
+            "that can be appended to AI image prompts to reproduce this exact character consistently. "
+            "Example format: 'young 22-year-old Vietnamese female model, slender, delicate oval face, "
+            "long wavy dark brown hair, warm eyes, elegant chic outfit'."
+        )
+        for model in ["gemini-3.6-flash", "gemini-2.5-flash"]:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=[img, prompt],
+                )
+                text = response.text.strip().strip('"').strip("'")
+                if text:
+                    return True, text
+            except Exception as me:
+                logger.warning(f"Vision model {model} attempt failed: {me}")
+                continue
+
+        return False, "Không nhận được phản hồi mô tả từ Gemini Vision."
+    except Exception as e:
+        logger.error(f"Lỗi trích xuất nhận dạng nhân vật: {e}")
+        return False, f"Lỗi: {str(e)}"
+
 
 
 if __name__ == "__main__":

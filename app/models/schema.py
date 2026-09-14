@@ -160,6 +160,11 @@ class VideoParams(BaseModel):
     video_script_prompt: str = Field(default="", max_length=2000)
     custom_system_prompt: str = Field(default="", max_length=8000)
 
+    # Khóa nhân vật đồng nhất (Consistent Character)
+    character_anchor_enabled: bool = False
+    character_image_path: str = ""
+    character_prompt: str = Field(default="", max_length=2000)
+
 
 class SubtitleRequest(BaseModel):
     video_script: str
