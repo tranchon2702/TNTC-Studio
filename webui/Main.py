@@ -8015,7 +8015,7 @@ def _render_dance_studio():
                 st.caption("AI tự động phân tích khung xương, tạo video nhảy và nâng cấp 60 FPS ngay trong tool, không cần mở web.")
                 dance_token = st.text_input(
                     "Replicate API Token:",
-                    value=config.dance.get("replicate_api_token", "") or config.tryon.get("replicate_api_token", ""),
+                    value=(getattr(config, "dance", {}) or {}).get("replicate_api_token", "") or (getattr(config, "tryon", {}) or {}).get("replicate_api_token", ""),
                     type="password",
                     help="Nhập token từ replicate.com để chạy tự động mô hình MimicMotion/Kling trong tool.",
                     key="dance_api_token_input",
