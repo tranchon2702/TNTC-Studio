@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import shutil
 import subprocess
 from pathlib import Path
@@ -409,11 +410,20 @@ def generate_dance_video_api(
                     },
                 )
 
-            # Output is an URL / FileOutput object
-            video_url = str(output)
+            # Xử lý kết quả trả về từ Replicate
+            if hasattr(output, "read"):
+                with open(dest_path, "wb") as f:
+                    f.write(output.read())
+                logger.success(f"Đã lưu video nhảy về: {dest_path}")
+                return True, dest_path, "Tạo video nhảy thành công!"
+
+            video_url = getattr(output, "url", str(output))
+            if isinstance(output, list) and output:
+                video_url = getattr(output[0], "url", str(output[0]))
+
             logger.info(f"Replicate đã tạo video thành công: {video_url}")
 
-            resp = requests.get(video_url, timeout=120, stream=True)
+            resp = requests.get(video_url, timeout=180, stream=True)
             if resp.status_code == 200:
                 with open(dest_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):

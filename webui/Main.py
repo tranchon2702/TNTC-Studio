@@ -8013,13 +8013,28 @@ def _render_dance_studio():
 
             if "Tự Động" in dance_mode:
                 st.caption("AI tự động phân tích khung xương, tạo video nhảy và nâng cấp 60 FPS ngay trong tool, không cần mở web.")
-                dance_token = st.text_input(
-                    "Replicate API Token:",
-                    value=(getattr(config, "dance", {}) or {}).get("replicate_api_token", "") or (getattr(config, "tryon", {}) or {}).get("replicate_api_token", ""),
-                    type="password",
-                    help="Nhập token từ replicate.com để chạy tự động mô hình MimicMotion/Kling trong tool.",
-                    key="dance_api_token_input",
-                )
+                config_token = (getattr(config, "dance", {}) or {}).get("replicate_api_token", "") or (getattr(config, "tryon", {}) or {}).get("replicate_api_token", "")
+
+                if config_token:
+                    st.caption(":material/check_circle: **Đã nạp API Token từ cấu hình (`config.toml`)**")
+                    with st.expander("Thay đổi API Token (Tùy chọn)"):
+                        custom_token = st.text_input(
+                            "Replicate Token mới:",
+                            value=config_token,
+                            type="password",
+                            key="dance_api_token_input",
+                        )
+                        if custom_token:
+                            config_token = custom_token
+                else:
+                    config_token = st.text_input(
+                        "Replicate API Token:",
+                        value="",
+                        type="password",
+                        help="Nhập token từ replicate.com để chạy tự động mô hình MimicMotion/Kling trong tool.",
+                        key="dance_api_token_input",
+                    )
+
                 btn_auto_dance = st.button(
                     "Tạo Video Nhảy AI (1-Click Trong Tool)",
                     icon=":material/smart_toy:",
@@ -8029,14 +8044,14 @@ def _render_dance_studio():
                     key="dance_btn_run_auto_api",
                 )
                 if btn_auto_dance:
-                    if not dance_token:
-                        st.error("Vui lòng nhập Replicate API Token để chạy tự động trong tool, hoặc chuyển sang chế độ 'Xuất Gói Cho Kling Web' bên dưới để dùng tài khoản miễn phí.")
+                    if not config_token:
+                        st.error("Chưa có API Token. Vui lòng cấu hình replicate_api_token trong config.toml.")
                     else:
                         with st.spinner("AI đang tạo video nhảy từ ảnh và cử động... (khoảng 1-2 phút)"):
                             ok, res_vid, msg = dance_service.generate_dance_video_api(
                                 model_img_path,
                                 st.session_state["dance_motion_video_path"],
-                                api_token=dance_token,
+                                api_token=config_token,
                             )
                             if ok:
                                 st.session_state["dance_kling_raw_video"] = res_vid
