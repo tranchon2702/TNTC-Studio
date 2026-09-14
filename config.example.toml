@@ -663,3 +663,10 @@ rounded_subtitle_background = true
 # subtitle_background_enabled = false
 # subtitle_background_color = "#000000"
 # rounded_subtitle_background = false
+
+[tryon]
+# Provider: "free_hf" (Hugging Face IDM-VTON, 100% free) or "replicate" (Paid, ultra-fast)
+provider = "free_hf"
+replicate_api_token = ""
+fal_api_key = ""
+denoise_steps = 30

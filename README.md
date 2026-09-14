@@ -40,6 +40,16 @@
   * Tự động trộn nhạc nền ngẫu nhiên từ kho 29 bản nhạc chất lượng cao có sẵn trong hệ thống.
   * Tự động căn chỉnh âm lượng giọng nói nổi bật hơn nhạc nền.
 
+* 👗 **Thử Đồ Ảo AI (Virtual Try-On cho Shopee & TikTok Affiliate)**:
+  * Tích hợp công nghệ **IDM-VTON** thử đồ ảo trực tiếp trên WebUI.
+  * Hỗ trợ 2 chế độ: **Free 100%** (qua Cloud GPU Hugging Face ZeroGPU) và **Replicate API** siêu tốc.
+  * Tự động mặc quần áo, váy đầm từ Shopee/TikTok lên người mẫu AI xinh đẹp mà vẫn giữ nguyên khuôn mặt và dáng vóc.
+
+* 🧩 **Chrome / Edge Extension (Gemini AI Studio & Shopee Downloader)**:
+  * Tiện ích mở rộng nằm tại thư mục `extension/`.
+  * Hỗ trợ tải ảnh sản phẩm sạch chuẩn HD từ Shopee/TikTok Shop chỉ với 1 click.
+  * Tạo prompt tiếng Việt chuẩn fashion model cho Gemini Web để tự sinh mẫu ảnh theo ý muốn.
+
 * ⚡ **Hiệu Năng & Bảo Mật Tuyệt Đối (Local 100%)**:
   * Tận dụng card đồ họa rời NVIDIA RTX (NVENC `h264_nvenc`) giúp render video 1080x1920 60fps cực nhanh.
   * Chạy hoàn toàn cục bộ trên máy tính cá nhân. File cấu hình API (`config.toml`) và video xuất bản (`storage/`) được bảo vệ nghiêm ngặt, không bao giờ đẩy lên mạng.

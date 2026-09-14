@@ -7603,38 +7603,198 @@ def _render_application():
     if restore_applied or restore_succeeded:
         st.success(tr("Task Configuration Loaded"))
 
-    with st.container(key="main_settings_grid"):
-        panel = st.columns(4)
-    left_panel = panel[0]
-    middle_panel = panel[1]
-    audio_panel = panel[2]
-    right_panel = panel[3]
+def _render_tryon_studio():
+    st.markdown("### 👗 Thử Đồ Ảo AI Cho Người Mẫu (Shopee & TikTok Affiliate)")
+    st.caption("Cho người mẫu AI của kênh mặc chuẩn xác bộ trang phục thật từ ảnh sản phẩm Shopee hoặc TikTok Shop.")
 
-    params = VideoParams(video_subject="")
-    params.match_materials_to_script = bool(
-        st.session_state.get("match_materials_to_script", False)
-    )
-    _render_script_settings(left_panel, params)
+    col1, col2, col3 = st.columns([1, 1, 1.2])
 
-    uploaded_files = _render_video_settings(middle_panel, params)
-    uploaded_audio_file, uploaded_bgm_file, voice_mode = _render_audio_settings(
-        audio_panel, params
-    )
+    person_file_path = None
+    garment_file_path = None
 
-    _render_subtitle_settings(right_panel, params)
+    with col1:
+        st.subheader("1. Ảnh Người Mẫu")
+        existing_models = []
+        models_dir = Path("storage/models")
+        if models_dir.is_dir():
+            for f in sorted(models_dir.glob("*.png"), key=os.path.getmtime, reverse=True):
+                existing_models.append(str(f))
+            for f in sorted(models_dir.glob("*.jpg"), key=os.path.getmtime, reverse=True):
+                existing_models.append(str(f))
 
-    generation_submitted = _render_generation_controls(
-        params,
-        uploaded_files,
-        uploaded_audio_file,
-        uploaded_bgm_file,
-        voice_mode,
-    )
+        model_source = st.radio(
+            "Nguồn ảnh người mẫu:",
+            ["Tải lên từ máy tính", "Chọn từ thư viện mẫu / Extension"],
+            horizontal=True,
+            key="tryon_model_source_radio",
+        )
 
-    # 生成分支在启动后台线程前已经请求过保存。普通控件交互继续请求非阻塞保存；
-    # 如果后台任务正在使用配置，配置层会在任务结束时自动应用并落盘最新值。
-    if not generation_submitted:
-        _save_runtime_config()
+        if model_source == "Tải lên từ máy tính":
+            uploaded_person = st.file_uploader(
+                "Tải ảnh người mẫu (Toàn thân hoặc nửa người):",
+                type=["png", "jpg", "jpeg", "webp"],
+                key="tryon_person_uploader",
+            )
+            if uploaded_person:
+                temp_dir = Path("storage/temp")
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                p_path = temp_dir / f"person_{uploaded_person.name}"
+                with open(p_path, "wb") as f:
+                    f.write(uploaded_person.getbuffer())
+                person_file_path = str(p_path)
+                st.image(str(p_path), caption="Người mẫu được chọn", use_container_width=True)
+        else:
+            if existing_models:
+                selected_model_path = st.selectbox(
+                    "Chọn ảnh từ thư viện:",
+                    options=existing_models,
+                    format_func=lambda x: Path(x).name,
+                    key="tryon_existing_model_select",
+                )
+                person_file_path = selected_model_path
+                st.image(selected_model_path, caption="Người mẫu được chọn", use_container_width=True)
+            else:
+                st.info("Chưa có ảnh trong thư viện. Hãy tải ảnh lên từ máy tính hoặc dùng Extension tải về.")
+
+    with col2:
+        st.subheader("2. Ảnh Trang Phục")
+        uploaded_garment = st.file_uploader(
+            "Tải ảnh trang phục (váy, áo, đầm Shopee/TikTok):",
+            type=["png", "jpg", "jpeg", "webp"],
+            key="tryon_garment_uploader",
+        )
+        if uploaded_garment:
+            temp_dir = Path("storage/temp")
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            g_path = temp_dir / f"garment_{uploaded_garment.name}"
+            with open(g_path, "wb") as f:
+                f.write(uploaded_garment.getbuffer())
+            garment_file_path = str(g_path)
+            st.image(str(g_path), caption="Trang phục mẫu", use_container_width=True)
+
+        garment_desc = st.text_input(
+            "Loại trang phục (ngắn gọn):",
+            value="váy thời trang nữ tính",
+            help="Ví dụ: đầm xòe, váy body, áo sơ mi, áo croptop...",
+            key="tryon_garment_desc_input",
+        )
+
+    with col3:
+        st.subheader("3. Tùy Chọn & Kết Quả")
+        tryon_cfg = config.app.get("tryon", {})
+        engine_mode = st.radio(
+            "Chế độ xử lý:",
+            ["Miễn Phí 100% (Hugging Face IDM-VTON)", "Trả Phí Tốc Độ Cao (Replicate API)"],
+            index=0 if tryon_cfg.get("provider", "free_hf") == "free_hf" else 1,
+            key="tryon_engine_mode_select",
+        )
+
+        provider = "free_hf" if "Miễn Phí" in engine_mode else "replicate"
+        api_token = None
+        if provider == "replicate":
+            api_token = st.text_input(
+                "Replicate API Token:",
+                value=tryon_cfg.get("replicate_api_token", ""),
+                type="password",
+                help="Lấy tại replicate.com/account/api-tokens (chỉ dùng khi muốn xử lý nhanh tức thì dưới 5s)",
+                key="tryon_replicate_token_input",
+            )
+
+        start_tryon = st.button(
+            "✨ Bắt Đầu Ghép Đồ Cho Mẫu",
+            type="primary",
+            use_container_width=True,
+            disabled=not (person_file_path and garment_file_path),
+            key="start_tryon_button",
+        )
+
+        if start_tryon:
+            from app.services import tryon as tryon_service
+            with st.spinner("Đang kết nối AI và ghép trang phục lên người mẫu... Quá trình có thể mất từ 30s đến 60s..."):
+                success, result_path, msg = tryon_service.run_tryon(
+                    person_image_path=person_file_path,
+                    garment_image_path=garment_file_path,
+                    garment_description=garment_desc,
+                    provider=provider,
+                    api_token=api_token,
+                )
+                if success:
+                    st.success("Ghép đồ thành công!")
+                    st.session_state["latest_tryon_result"] = result_path
+                else:
+                    st.error(f"Thất bại: {msg}")
+
+        latest_result = st.session_state.get("latest_tryon_result")
+        if latest_result and os.path.isfile(latest_result):
+            st.image(latest_result, caption="Kết quả mẫu mặc đồ thật", use_container_width=True)
+            with open(latest_result, "rb") as file:
+                st.download_button(
+                    label="📥 Tải ảnh kết quả về máy",
+                    data=file,
+                    file_name=Path(latest_result).name,
+                    mime="image/png",
+                    use_container_width=True,
+                    key="download_tryon_result_button",
+                )
+
+
+def _render_application():
+    """按固定顺序渲染顶部栏、弹窗、生成表单和任务结果。"""
+    _render_top_bar()
+
+    if st.session_state.get("settings_dialog_open", False):
+        _render_settings_dialog()
+
+    if _apply_pending_settings_preset():
+        st.success(tr("Settings Preset Imported"))
+
+    restore_applied = _apply_pending_task_restore()
+    restore_candidate_id = st.session_state.get("task_restore_candidate_id")
+    if restore_candidate_id:
+        _render_task_restore_dialog(restore_candidate_id)
+    restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
+    if restore_applied or restore_succeeded:
+        st.success(tr("Task Configuration Loaded"))
+
+    tab_video, tab_tryon = st.tabs([
+        "🎬 " + tr("Generate Video"),
+        "👗 Thử Đồ Ảo AI (Shopee & TikTok Affiliate)",
+    ])
+
+    with tab_video:
+        with st.container(key="main_settings_grid"):
+            panel = st.columns(4)
+        left_panel = panel[0]
+        middle_panel = panel[1]
+        audio_panel = panel[2]
+        right_panel = panel[3]
+
+        params = VideoParams(video_subject="")
+        params.match_materials_to_script = bool(
+            st.session_state.get("match_materials_to_script", False)
+        )
+        _render_script_settings(left_panel, params)
+
+        uploaded_files = _render_video_settings(middle_panel, params)
+        uploaded_audio_file, uploaded_bgm_file, voice_mode = _render_audio_settings(
+            audio_panel, params
+        )
+
+        _render_subtitle_settings(right_panel, params)
+
+        generation_submitted = _render_generation_controls(
+            params,
+            uploaded_files,
+            uploaded_audio_file,
+            uploaded_bgm_file,
+            voice_mode,
+        )
+
+        if not generation_submitted:
+            _save_runtime_config()
+
+    with tab_tryon:
+        _render_tryon_studio()
 
 
 _render_application()
