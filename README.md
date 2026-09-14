@@ -50,6 +50,13 @@
   * Hỗ trợ tải ảnh sản phẩm sạch chuẩn HD từ Shopee/TikTok Shop chỉ với 1 click.
   * Tạo prompt tiếng Việt chuẩn fashion model cho Gemini Web để tự sinh mẫu ảnh theo ý muốn.
 
+* 💃 **Video Nhảy AI & Nâng Cấp 60 FPS Bằng GPU RTX**:
+  * Tự động bắt link video nhảy TikTok / Douyin không watermark qua `yt-dlp`.
+  * Cắt đoạn nhảy điệp khúc tối ưu (5s - 7s) kích thích vòng lặp (Loop) tăng đề xuất TikTok.
+  * Chuẩn hóa tỉ lệ 9:16 và xuất gói chuẩn bị cho **Kling AI**.
+  * Tận dụng card rời **NVIDIA RTX (NVENC)** nội suy nâng tốc độ khung hình lên **60 FPS siêu mượt** và làm nét từng chi tiết trang phục.
+  * Chuẩn SEO TikTok: Video khớp chuẩn xác từng mili-giây với bản nhạc gốc, sẵn sàng chọn "Dùng âm thanh này" trên TikTok để ăn đề xuất Trending Sound.
+
 * ⚡ **Hiệu Năng & Bảo Mật Tuyệt Đối (Local 100%)**:
   * Tận dụng card đồ họa rời NVIDIA RTX (NVENC `h264_nvenc`) giúp render video 1080x1920 60fps cực nhanh.
   * Chạy hoàn toàn cục bộ trên máy tính cá nhân. File cấu hình API (`config.toml`) và video xuất bản (`storage/`) được bảo vệ nghiêm ngặt, không bao giờ đẩy lên mạng.
