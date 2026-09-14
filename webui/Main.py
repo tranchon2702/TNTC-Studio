@@ -68,7 +68,7 @@ PROJECT_NAME = str(getattr(config, "project_name", "") or "TNTC Studio").strip()
 
 st.set_page_config(
     page_title=PROJECT_NAME,
-    page_icon="🎬",
+    page_icon=":material/videocam:",
     layout="wide",
     initial_sidebar_state="auto",
     menu_items={
@@ -1061,7 +1061,7 @@ def _open_task_path(task_path):
     if _is_headless_server():
         # storage 目录通常以卷挂载映射回宿主机，提示相对路径即可定位文件。
         rel_path = os.path.relpath(normalized_path, os.path.dirname(tasks_root))
-        st.toast(f"{tr('Open Task Folder')}: ./storage/{rel_path}", icon="📂")
+        st.toast(f"{tr('Open Task Folder')}: ./storage/{rel_path}", icon=":material/folder_open:")
         return
     try:
         if sys.platform == "darwin":
@@ -7604,7 +7604,7 @@ def _render_application():
         st.success(tr("Task Configuration Loaded"))
 
 def _render_tryon_studio():
-    st.markdown("### 👗 Thử Đồ Ảo AI Cho Người Mẫu (Shopee & TikTok Affiliate)")
+    st.markdown("### Thử Đồ Ảo Cho Người Mẫu (Shopee & TikTok Affiliate)")
     st.caption("Cho người mẫu AI của kênh mặc chuẩn xác bộ trang phục thật từ ảnh sản phẩm Shopee hoặc TikTok Shop.")
 
     col1, col2, col3 = st.columns([1, 1, 1.2])
@@ -7701,7 +7701,8 @@ def _render_tryon_studio():
             )
 
         start_tryon = st.button(
-            "✨ Bắt Đầu Ghép Đồ Cho Mẫu",
+            "Ghép Đồ Cho Người Mẫu",
+            icon=":material/auto_awesome:",
             type="primary",
             use_container_width=True,
             disabled=not (person_file_path and garment_file_path),
@@ -7729,7 +7730,8 @@ def _render_tryon_studio():
             st.image(latest_result, caption="Kết quả mẫu mặc đồ thật", use_container_width=True)
             with open(latest_result, "rb") as file:
                 st.download_button(
-                    label="📥 Tải ảnh kết quả về máy",
+                    label="Tải ảnh kết quả về máy",
+                    icon=":material/download:",
                     data=file,
                     file_name=Path(latest_result).name,
                     mime="image/png",
@@ -7740,7 +7742,7 @@ def _render_tryon_studio():
 
 def _render_dance_studio():
     """Giao diện tạo video người mẫu AI nhảy theo video mẫu TikTok/Douyin, chuẩn hóa 60 FPS bằng GPU NVIDIA RTX."""
-    st.header("💃 Video Nhảy AI (TikTok Motion & 60 FPS RTX)")
+    st.header("Video Nhảy AI (Motion Transfer & 60 FPS RTX)")
     st.caption(
         "Tạo video người mẫu AI nhảy theo video mẫu TikTok/Douyin, chuẩn hóa chuyển động & thời lượng khớp 100% "
         "để chọn âm thanh xu hướng trực tiếp trên TikTok, nâng cấp 60 FPS siêu mượt bằng GPU NVIDIA RTX."
@@ -7767,14 +7769,15 @@ def _render_dance_studio():
                 key="dance_tiktok_url_input",
             )
             btn_download = st.button(
-                "📥 Bắt Link & Tải Video Sạch",
+                "Tải Video Sạch",
+                icon=":material/download:",
                 type="primary",
                 use_container_width=True,
                 disabled=not tiktok_url,
                 key="dance_btn_download_tiktok",
             )
             if btn_download:
-                with st.spinner("Đang cào video TikTok chất lượng cao không watermark..."):
+                with st.spinner("Đang tải video TikTok chất lượng cao không watermark..."):
                     res = dance_service.download_tiktok_video(tiktok_url)
                     if res.get("status") == "success":
                         st.session_state["dance_ref_info"] = res
@@ -7809,12 +7812,12 @@ def _render_dance_studio():
         if ref_info and os.path.isfile(ref_info["video_path"]):
             st.video(ref_info["video_path"])
             st.info(
-                f"⏱️ Độ dài: **{ref_info.get('duration', 0)}s** | "
+                f"Thời lượng: **{ref_info.get('duration', 0)}s** | "
                 f"FPS: **{ref_info.get('fps', 30)}** | "
                 f"Kích thước: **{ref_info.get('width', 1080)}x{ref_info.get('height', 1920)}**"
             )
 
-            st.markdown("**✂️ Cắt đoạn nhảy tối ưu (Khuyên dùng 5s - 7s):**")
+            st.markdown("**Cắt đoạn nhảy tối ưu (Khuyên dùng 5s - 7s):**")
             dur_choice = st.selectbox(
                 "Thời lượng mong muốn:",
                 [
@@ -7839,7 +7842,7 @@ def _render_dance_studio():
                     key="dance_trim_slider",
                 )
 
-                if st.button("✂️ Cắt & Chuẩn Hóa 9:16 (30 FPS)", use_container_width=True, key="dance_btn_trim"):
+                if st.button("Cắt & Chuẩn Hóa 9:16 (30 FPS)", icon=":material/content_cut:", use_container_width=True, key="dance_btn_trim"):
                     trimmed_target = f"storage/dance/trimmed_{int(start_val)}_{int(chosen_sec)}s.mp4"
                     ok, msg = dance_service.trim_dance_video(
                         ref_info["video_path"],
@@ -7861,7 +7864,7 @@ def _render_dance_studio():
     # --- CỘT 2: ẢNH NGƯỜI MẪU & GÓI KLING AI ---
     with col2:
         st.subheader("2. Ảnh Người Mẫu")
-        if st.button("✨ Lấy Ảnh Vừa Thử Đồ Xong (Tab 2)", use_container_width=True, key="dance_btn_use_tryon"):
+        if st.button("Lấy Ảnh Vừa Thử Đồ Xong", icon=":material/sync:", use_container_width=True, key="dance_btn_use_tryon"):
             latest_tryon = st.session_state.get("latest_tryon_result")
             if latest_tryon and os.path.isfile(latest_tryon):
                 st.session_state["dance_model_image_path"] = latest_tryon
@@ -7888,7 +7891,8 @@ def _render_dance_studio():
 
             st.markdown("---")
             btn_kling = st.button(
-                "📦 Chuẩn Hóa & Xuất Cho Kling AI",
+                "Chuẩn Hóa & Xuất Cho Kling AI",
+                icon=":material/inventory_2:",
                 type="primary",
                 use_container_width=True,
                 disabled=not st.session_state.get("dance_motion_video_path"),
@@ -7908,13 +7912,13 @@ def _render_dance_studio():
 
             kling_pkg = st.session_state.get("dance_kling_pkg")
             if kling_pkg:
-                st.info(f"📂 Thư mục: `{kling_pkg['folder']}`")
+                st.info(f"Thư mục: `{kling_pkg['folder']}`")
                 c_k1, c_k2 = st.columns(2)
                 with c_k1:
-                    if st.button("📁 Mở Thư Mục", use_container_width=True, key="dance_btn_open_pkg"):
+                    if st.button("Mở Thư Mục", icon=":material/folder_open:", use_container_width=True, key="dance_btn_open_pkg"):
                         os.startfile(kling_pkg["folder"])
                 with c_k2:
-                    st.link_button("🌐 Mở Kling AI", "https://klingai.com", use_container_width=True)
+                    st.link_button("Mở Kling AI", "https://klingai.com", icon=":material/open_in_new:", use_container_width=True)
 
     # --- CỘT 3: NÂNG CẤP 60 FPS BẰNG GPU NVIDIA RTX ---
     with col3:
@@ -7938,23 +7942,24 @@ def _render_dance_studio():
             st.video(kling_raw)
 
             chk_60fps = st.checkbox(
-                "⚡ Nâng cấp 60 FPS siêu mượt (Smooth 60 FPS)",
+                "Nâng cấp 60 FPS mượt mà (Smooth 60 FPS)",
                 value=True,
                 key="dance_chk_60fps",
             )
             chk_sharpen = st.checkbox(
-                "✨ Tăng độ nét chi tiết trang phục bằng GPU RTX",
+                "Tăng độ nét chi tiết trang phục bằng GPU RTX",
                 value=True,
                 key="dance_chk_sharpen",
             )
             chk_ultra = st.checkbox(
-                "Nội suy nâng cao (Motion Interpolation cực mượt)",
+                "Nội suy nâng cao (Motion Interpolation)",
                 value=False,
                 key="dance_chk_ultra",
             )
 
             btn_enhance = st.button(
-                "🚀 Nâng Cấp Bằng GPU NVIDIA RTX (NVENC)",
+                "Nâng Cấp Bằng GPU RTX (NVENC)",
+                icon=":material/bolt:",
                 type="primary",
                 use_container_width=True,
                 key="dance_btn_run_enhance",
@@ -7972,28 +7977,29 @@ def _render_dance_studio():
                     )
                     if ok:
                         st.session_state["dance_final_enhanced_video"] = res_path
-                        st.success("🎉 Nâng cấp 60 FPS thành công bằng GPU RTX!")
+                        st.success("Nâng cấp 60 FPS thành công bằng GPU RTX!")
                     else:
                         st.error(f"Lỗi nâng cấp: {res_path}")
 
         final_vid = st.session_state.get("dance_final_enhanced_video")
         if final_vid and os.path.isfile(final_vid):
-            st.caption("🎬 Video 60 FPS siêu nét sẵn sàng đăng TikTok:")
+            st.caption("Video 60 FPS sẵn sàng đăng TikTok:")
             st.video(final_vid)
             with open(final_vid, "rb") as f:
                 st.download_button(
-                    "📥 Tải Video 60 FPS Về Máy",
+                    "Tải Video 60 FPS Về Máy",
+                    icon=":material/download:",
                     data=f,
                     file_name="dance_model_60fps.mp4",
                     mime="video/mp4",
                     use_container_width=True,
                     key="dance_download_final_btn",
                 )
-            if st.button("📁 Mở Thư Mục Chứa Video", use_container_width=True, key="dance_open_final_folder_btn"):
+            if st.button("Mở Thư Mục Chứa Video", icon=":material/folder_open:", use_container_width=True, key="dance_open_final_folder_btn"):
                 os.startfile(str(Path(final_vid).parent.resolve()))
 
             st.markdown(
-                """> 💡 **Bí Quyết Đăng TikTok Lên Xu Hướng:**
+                """> **Quy trình đăng TikTok lên xu hướng:**
 > 1. Mở app TikTok trên điện thoại, bấm dấu **+** và chọn video 60 FPS này.
 > 2. Bấm **"Thêm âm thanh"** -> Chọn đúng bài nhạc gốc của clip nhảy.
 > 3. Từng cú lắc hông, nhún nhảy sẽ **khớp 100% từng nhịp drop bass**, vừa chuẩn thuật toán âm thanh thịnh hành vừa không lo dính bản quyền!"""
@@ -8019,9 +8025,9 @@ def _render_application():
         st.success(tr("Task Configuration Loaded"))
 
     tab_video, tab_tryon, tab_dance = st.tabs([
-        "🎬 " + tr("Generate Video"),
-        "👗 Thử Đồ Ảo AI (Shopee & TikTok Affiliate)",
-        "💃 Video Nhảy AI (TikTok Motion & 60 FPS RTX)",
+        ":material/videocam: " + tr("Generate Video"),
+        ":material/checkroom: Thử Đồ Ảo AI (Affiliate)",
+        ":material/motion_photos_auto: Video Nhảy AI & 60 FPS RTX",
     ])
 
     with tab_video:
@@ -8064,4 +8070,5 @@ def _render_application():
 
 
 _render_application()
+
 
