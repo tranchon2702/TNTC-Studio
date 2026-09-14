@@ -36,6 +36,7 @@ dependencies = [
     "google-genai==2.11.0",
     "gradio-client>=2.7.0",
     "yt-dlp>=2026.8.19",
+    "replicate>=1.0.7",
 ]
 
 [project.optional-dependencies]

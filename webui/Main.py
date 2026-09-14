@@ -8001,46 +8001,102 @@ def _render_dance_studio():
             st.image(model_img_path, caption="Người mẫu được chọn", use_container_width=True)
 
             st.markdown("---")
-            btn_kling = st.button(
-                "Chuẩn Hóa & Xuất Cho Kling AI",
-                icon=":material/inventory_2:",
-                type="primary",
-                use_container_width=True,
-                disabled=not st.session_state.get("dance_motion_video_path"),
-                key="dance_btn_prepare_kling",
+            st.markdown("##### Chế độ tạo video:")
+            dance_mode = st.radio(
+                "Phương thức tạo video nhảy:",
+                [
+                    "Tạo Tự Động 100% Trong Tool (1-Click AI)",
+                    "Xuất Gói Cho Kling Web (Miễn phí 0đ)",
+                ],
+                key="dance_engine_mode_radio",
             )
-            if btn_kling:
-                with st.spinner("Đang chuẩn hóa ảnh mẫu 9:16 và video chuyển động..."):
-                    ok, pkg = dance_service.prepare_kling_package(
-                        model_img_path,
-                        st.session_state["dance_motion_video_path"],
-                    )
-                    if ok:
-                        st.session_state["dance_kling_pkg"] = pkg
-                        st.success("Đã chuẩn hóa ảnh 9:16 và video nhảy!")
+
+            if "Tự Động" in dance_mode:
+                st.caption("AI tự động phân tích khung xương, tạo video nhảy và nâng cấp 60 FPS ngay trong tool, không cần mở web.")
+                dance_token = st.text_input(
+                    "Replicate API Token:",
+                    value=config.app.get("tryon", {}).get("replicate_api_token", "") if isinstance(config.app.get("tryon"), dict) else "",
+                    type="password",
+                    help="Nhập token từ replicate.com để chạy tự động mô hình MimicMotion/Kling trong tool.",
+                    key="dance_api_token_input",
+                )
+                btn_auto_dance = st.button(
+                    "Tạo Video Nhảy AI (1-Click Trong Tool)",
+                    icon=":material/smart_toy:",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=not st.session_state.get("dance_motion_video_path"),
+                    key="dance_btn_run_auto_api",
+                )
+                if btn_auto_dance:
+                    if not dance_token:
+                        st.error("Vui lòng nhập Replicate API Token để chạy tự động trong tool, hoặc chuyển sang chế độ 'Xuất Gói Cho Kling Web' bên dưới để dùng tài khoản miễn phí.")
                     else:
-                        st.error(f"Thất bại: {pkg.get('error')}")
-
-            kling_pkg = st.session_state.get("dance_kling_pkg")
-            if kling_pkg:
-                st.info(f"Thư mục: `{kling_pkg['folder']}`")
-                c_k1, c_k2 = st.columns(2)
-                with c_k1:
-                    if st.button("Mở Thư Mục", icon=":material/folder_open:", use_container_width=True, key="dance_btn_open_pkg"):
-                        os.startfile(kling_pkg["folder"])
-                with c_k2:
-                    st.link_button("Mở Kling AI", "https://klingai.com", icon=":material/open_in_new:", use_container_width=True)
-
-                st.markdown("**Gợi ý Prompt Kling AI:**")
-                st.code(
-                    "A stunning young Vietnamese woman dancing gracefully and energetically following the reference video motion, smooth hip movement, charming smile, confident expression, photorealistic 8k, cinematic lighting, natural body physics, highly detailed fabric movement, 60fps.",
-                    language="text",
+                        with st.spinner("AI đang tạo video nhảy từ ảnh và cử động... (khoảng 1-2 phút)"):
+                            ok, res_vid, msg = dance_service.generate_dance_video_api(
+                                model_img_path,
+                                st.session_state["dance_motion_video_path"],
+                                api_token=dance_token,
+                            )
+                            if ok:
+                                st.session_state["dance_kling_raw_video"] = res_vid
+                                st.success("Tạo video thành công! Đang tự động nâng cấp 60 FPS...")
+                                out_enhanced = f"storage/dance/final_dance_60fps_{int(time.time())}.mp4"
+                                ok_gpu, res_60fps = dance_service.enhance_video_60fps_gpu(
+                                    res_vid,
+                                    out_enhanced,
+                                    target_fps=60,
+                                    sharpen=True,
+                                )
+                                if ok_gpu:
+                                    st.session_state["dance_final_enhanced_video"] = res_60fps
+                                    st.success("Hoàn tất tạo video nhảy 60 FPS siêu mượt!")
+                                else:
+                                    st.session_state["dance_final_enhanced_video"] = res_vid
+                            else:
+                                st.error(f"Lỗi tạo video: {msg}")
+            else:
+                st.caption("Dành cho bạn muốn dùng 66 credit miễn phí mỗi ngày trên web klingai.com mà không cần mua API.")
+                btn_kling = st.button(
+                    "Chuẩn Hóa & Xuất Cho Kling AI Web",
+                    icon=":material/inventory_2:",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=not st.session_state.get("dance_motion_video_path"),
+                    key="dance_btn_prepare_kling",
                 )
-                st.markdown("**Negative Prompt:**")
-                st.code(
-                    "deformed limbs, distorted face, extra arms, bad anatomy, blurry, flickering, jittery, low quality, artifacts, watermark",
-                    language="text",
-                )
+                if btn_kling:
+                    with st.spinner("Đang chuẩn hóa ảnh mẫu 9:16 và video chuyển động..."):
+                        ok, pkg = dance_service.prepare_kling_package(
+                            model_img_path,
+                            st.session_state["dance_motion_video_path"],
+                        )
+                        if ok:
+                            st.session_state["dance_kling_pkg"] = pkg
+                            st.success("Đã chuẩn hóa ảnh 9:16 và video nhảy!")
+                        else:
+                            st.error(f"Thất bại: {pkg.get('error')}")
+
+                kling_pkg = st.session_state.get("dance_kling_pkg")
+                if kling_pkg:
+                    st.info(f"Thư mục: `{kling_pkg['folder']}`")
+                    c_k1, c_k2 = st.columns(2)
+                    with c_k1:
+                        if st.button("Mở Thư Mục", icon=":material/folder_open:", use_container_width=True, key="dance_btn_open_pkg"):
+                            os.startfile(kling_pkg["folder"])
+                    with c_k2:
+                        st.link_button("Mở Kling AI", "https://klingai.com", icon=":material/open_in_new:", use_container_width=True)
+
+                    st.markdown("**Gợi ý Prompt Kling AI:**")
+                    st.code(
+                        "A stunning young Vietnamese woman dancing gracefully and energetically following the reference video motion, smooth hip movement, charming smile, confident expression, photorealistic 8k, cinematic lighting, natural body physics, highly detailed fabric movement, 60fps.",
+                        language="text",
+                    )
+                    st.markdown("**Negative Prompt:**")
+                    st.code(
+                        "deformed limbs, distorted face, extra arms, bad anatomy, blurry, flickering, jittery, low quality, artifacts, watermark",
+                        language="text",
+                    )
 
     # --- CỘT 3: NÂNG CẤP 60 FPS BẰNG GPU NVIDIA RTX ---
     with col3:

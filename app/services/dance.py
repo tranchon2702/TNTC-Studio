@@ -345,3 +345,87 @@ def prepare_kling_package(
         "duration": v_info.get("duration", 5.0),
         "fps": v_info.get("fps", 30.0),
     }
+
+
+def generate_dance_video_api(
+    person_image_path: str,
+    motion_video_path: str,
+    provider: str = "replicate",
+    api_token: str = "",
+    denoise_steps: int = 25,
+    guidance_scale: float = 2.0,
+    output_dir: str = "storage/dance",
+) -> tuple[bool, str, str]:
+    """
+    Tạo video người mẫu AI nhảy trực tiếp 100% trong Tool qua API:
+    - Provider 'replicate': Sử dụng mô hình MimicMotion (zsxkib/mimic-motion) tạo video nhảy từ ảnh người mẫu và video cử động.
+    - Tự động tải video thành phẩm về máy.
+    """
+    if not (os.path.isfile(person_image_path) and os.path.isfile(motion_video_path)):
+        return False, "", "Không tìm thấy file ảnh người mẫu hoặc video chuyển động."
+
+    token = (api_token or "").strip()
+    if not token:
+        token = os.environ.get("REPLICATE_API_TOKEN", "")
+
+    if not token:
+        try:
+            from app.config import config
+            dance_cfg = getattr(config, "dance", {}) or {}
+            if isinstance(dance_cfg, dict):
+                token = dance_cfg.get("replicate_api_token", "")
+            if not token:
+                tryon_cfg = getattr(config, "tryon", {}) or {}
+                if isinstance(tryon_cfg, dict):
+                    token = tryon_cfg.get("replicate_api_token", "")
+        except Exception:
+            pass
+
+    if not token:
+        return False, "", "Vui lòng nhập Replicate API Token để kích hoạt chế độ tạo tự động trong tool."
+
+    out_folder = Path(output_dir)
+    out_folder.mkdir(parents=True, exist_ok=True)
+    timestamp = int(time.time())
+    dest_path = str(out_folder / f"ai_rendered_dance_{timestamp}.mp4")
+
+    if provider == "replicate":
+        try:
+            import replicate
+            import requests
+
+            client = replicate.Client(api_token=token)
+            logger.info("Đang gửi yêu cầu tạo video nhảy đến Replicate AI (MimicMotion)...")
+
+            with open(person_image_path, "rb") as img_f, open(motion_video_path, "rb") as vid_f:
+                output = client.run(
+                    "zsxkib/mimic-motion:2e7f79edf416dd7edd32dce85b7835be98eeb1d8eca2bebb2b8db8c996e5efad",
+                    input={
+                        "appearance_image": img_f,
+                        "motion_video": vid_f,
+                        "denoising_steps": denoise_steps,
+                        "guidance_scale": guidance_scale,
+                        "output_frames_per_second": 15,
+                    },
+                )
+
+            # Output is an URL / FileOutput object
+            video_url = str(output)
+            logger.info(f"Replicate đã tạo video thành công: {video_url}")
+
+            resp = requests.get(video_url, timeout=120, stream=True)
+            if resp.status_code == 200:
+                with open(dest_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                logger.success(f"Đã lưu video nhảy về: {dest_path}")
+                return True, dest_path, "Tạo video nhảy thành công!"
+            else:
+                return False, "", f"Không thể tải video từ Replicate (HTTP {resp.status_code})"
+
+        except Exception as e:
+            logger.error(f"Lỗi tạo video qua Replicate API: {e}")
+            return False, "", f"Lỗi Replicate API: {str(e)}"
+
+    return False, "", f"Provider '{provider}' chưa được hỗ trợ."
+
