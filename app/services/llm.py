@@ -396,22 +396,41 @@ def _generate_response(prompt: str, app_config=None) -> str:
                 ],
             )
 
-            try:
-                # 新版 google-genai 通过统一 Client 暴露模型服务。上下文管理器
-                # 会在请求结束后关闭底层 HTTP 连接，避免频繁生成时积累连接资源。
-                with genai.Client(
-                    api_key=api_key,
-                    http_options=http_options,
-                ) as client:
-                    response = client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                        config=generation_config,
-                    )
-                generated_text = response.text
-            except (AttributeError, IndexError, ValueError) as e:
-                logger.warning(f"gemini returned invalid response content: {str(e)}")
-                raise ValueError(f"[{llm_provider}] returned invalid response content")
+            gemini_attempts = 3
+            last_gemini_error = None
+            generated_text = ""
+            for g_idx in range(gemini_attempts):
+                try:
+                    # 新版 google-genai 通过统一 Client 暴露模型服务。上下文管理器
+                    # 会在请求结束后关闭底层 HTTP 连接，避免频繁生成时积累连接资源。
+                    with genai.Client(
+                        api_key=api_key,
+                        http_options=http_options,
+                    ) as client:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt,
+                            config=generation_config,
+                        )
+                    generated_text = response.text
+                    break
+                except (AttributeError, IndexError, ValueError) as e:
+                    logger.warning(f"gemini returned invalid response content: {str(e)}")
+                    raise ValueError(f"[{llm_provider}] returned invalid response content")
+                except Exception as e:
+                    last_gemini_error = e
+                    err_text = str(e)
+                    if any(code in err_text for code in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "DeadlineExceeded")) and g_idx < gemini_attempts - 1:
+                        backoff = 2 * (g_idx + 1)
+                        logger.warning(
+                            f"gemini service spike ({err_text[:120]}), retrying in {backoff}s... (attempt {g_idx + 1}/{gemini_attempts})"
+                        )
+                        time.sleep(backoff)
+                        continue
+                    raise e
+
+            if not generated_text and last_gemini_error:
+                raise last_gemini_error
 
             return _normalize_text_response(generated_text, llm_provider)
 
@@ -920,12 +939,15 @@ Please note that you must use English for generating video search terms; Chinese
             else:
                 response = _generate_response(prompt, app_config=app_config)
             if response.startswith("Error: "):
-                # generate_terms 的公开返回类型是 List[str]。如果把 Provider 的
-                # 错误文案原样返回，下游只做空值判断时会把非空字符串误认为成功，
-                # 素材下载循环还会按字符遍历错误文案，产生无意义的外部请求。
-                # 这里统一返回空列表，让任务编排层在真实故障位置立即结束任务。
-                logger.error(f"failed to generate video terms: {response}")
-                return []
+                logger.warning(
+                    f"attempt {i + 1}/{_max_retries} to generate terms returned error: {response}"
+                )
+                if i < _max_retries - 1:
+                    time.sleep(2 * (i + 1))
+                    continue
+                else:
+                    logger.error(f"failed to generate video terms after {_max_retries} attempts: {response}")
+                    return []
             search_terms = json.loads(_strip_code_fence(response))
             if not isinstance(search_terms, list) or not all(
                 isinstance(term, str) for term in search_terms
