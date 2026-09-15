@@ -1,6 +1,9 @@
 @echo off
 chcp 65001 >nul
-setlocal
 cd /d "%~dp0"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-studio.ps1"
-endlocal
+echo ========================================
+echo   TNTC Studio - AI Video Studio
+echo   WebUI: http://127.0.0.1:8501
+echo ========================================
+uv run streamlit run webui/Main.py --server.address 127.0.0.1 --server.port 8501
+pause
