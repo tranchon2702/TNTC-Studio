@@ -45,6 +45,7 @@ from app.models.schema import (
 )
 from app.services import bgm as bgm_service
 from app.services import (
+    bridge,
     cache_manager,
     llm,
     loomloom,
@@ -4427,6 +4428,119 @@ def _loomloom_script_signature(
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+@st.fragment(run_every=2)
+def _render_antigravity_bridge_status(params):
+    state = bridge.get_bridge_state()
+    status = state.get("status", "idle")
+    progress = state.get("progress", 0)
+    message = state.get("message", "")
+    images = state.get("images", [])
+    script = state.get("script", "")
+    terms = state.get("terms", [])
+    total_imgs = state.get("total_images", 5)
+
+    if status in ("pending", "processing"):
+        st.info(f"⏳ **Antigravity Bridge:** {message}")
+        st.progress(min(max(progress, 0), 100) / 100.0)
+        st.caption(
+            f"Tiến độ: **{progress}%** • {len(images)}/{total_imgs} ảnh hoàn thành • Đang kết nối Antigravity..."
+        )
+        if images:
+            st.write("Ảnh đã tạo xong:")
+            cols = st.columns(min(len(images), 4))
+            for idx, img in enumerate(images[-4:]):
+                with cols[idx]:
+                    if os.path.exists(img.get("path", "")):
+                        st.image(
+                            img["path"],
+                            caption=img.get("name", ""),
+                            use_container_width=True,
+                        )
+    elif status == "completed":
+        st.success(f"🎉 **Antigravity hoàn thành:** {message}")
+        st.progress(1.0)
+        c_apply, c_reset = st.columns([3, 1])
+        with c_apply:
+            if st.button(
+                "📥 Áp dụng Kịch bản & Danh sách ảnh vào Studio",
+                key="apply_bridge_result",
+                type="primary",
+                use_container_width=True,
+            ):
+                if script:
+                    st.session_state["video_script"] = script
+                if terms:
+                    st.session_state["video_terms"] = ", ".join(terms)
+                st.session_state["use_existing_local_folder"] = True
+                _set_runtime_config("app", "video_source", "local")
+                st.toast("Đã nạp kịch bản và ảnh vào Studio!")
+                bridge.update_bridge_state(status="applied")
+                st.rerun()
+        with c_reset:
+            if st.button("Đóng", key="reset_bridge_state_btn"):
+                bridge.reset_bridge_state()
+                st.rerun()
+        if images:
+            with st.expander(
+                f"Xem trước {len(images)} ảnh 9:16 do Antigravity tạo", expanded=True
+            ):
+                cols = st.columns(min(len(images), 4))
+                for idx, img in enumerate(images[:4]):
+                    with cols[idx]:
+                        if os.path.exists(img.get("path", "")):
+                            st.image(
+                                img["path"],
+                                caption=img.get("name", ""),
+                                use_container_width=True,
+                            )
+                if len(images) > 4:
+                    st.caption(
+                        f"...và {len(images) - 4} ảnh khác trong thư mục storage/local_videos/"
+                    )
+    elif status == "failed":
+        st.error(f"❌ Lỗi: {message}")
+        if st.button("Thử lại", key="retry_bridge_btn"):
+            bridge.reset_bridge_state()
+            st.rerun()
+
+
+def _render_antigravity_bridge_panel(params):
+    """Khối Cầu nối Antigravity Bridge: Tự động viết kịch bản & tạo trọn bộ ảnh 9:16 có Live Progress."""
+    with st.container(border=True):
+        c_title, c_badge = st.columns([3, 1])
+        with c_title:
+            st.markdown("##### 🚀 Antigravity Bridge (Tạo Kịch Bản & Trọn Bộ Ảnh)")
+        with c_badge:
+            st.caption("DeepMind Pro")
+
+        st.caption(
+            "Tự động kết nối Antigravity để viết kịch bản và vẽ toàn bộ ảnh phân cảnh 9:16 lưu vào thư mục máy tính."
+        )
+
+        state = bridge.get_bridge_state()
+        curr_status = state.get("status", "idle")
+
+        if curr_status not in ("pending", "processing"):
+            if st.button(
+                "✨ Yêu Cầu Antigravity Tạo Kịch Bản & Bộ Ảnh",
+                key="send_antigravity_bridge_btn",
+                type="primary",
+                use_container_width=True,
+                icon=":material/rocket_launch:",
+                disabled=not bool((params.video_subject or "").strip()),
+                help="Gửi chủ đề sang Antigravity để sinh kịch bản và vẽ trọn bộ ảnh 9:16.",
+            ):
+                bridge.create_bridge_request(
+                    subject=params.video_subject, total_images=5
+                )
+                tools_dir = os.path.join(root_dir, "tools", "process_bridge.py")
+                subprocess.Popen([sys.executable, tools_dir])
+                st.toast("Đã kích hoạt Antigravity Bridge!")
+                st.rerun()
+
+        _render_antigravity_bridge_status(params)
+
+
 def _render_local_script_generation(params):
     """保留 MoneyPrinterTurbo 原有的本地 LLM 脚本生成路径。"""
     if not st.button(
@@ -4934,6 +5048,7 @@ def _render_script_settings(panel, params):
                 _render_loomloom_script_generation(params)
             else:
                 _render_local_script_generation(params)
+                _render_antigravity_bridge_panel(params)
             params.video_script = st.text_area(
                 tr("Video Script"),
                 help=tr("Video Script Help"),
