@@ -598,6 +598,27 @@ def _build_uploaded_file_path(uploaded_file, target_dir, allowed_extensions, pre
     return file_path
 
 
+def _get_existing_local_media_files(local_videos_dir: str) -> list[str]:
+    """Quét các tệp ảnh và video hợp lệ trong thư mục local_videos, bỏ qua tệp tạm."""
+    if not os.path.isdir(local_videos_dir):
+        return []
+    valid_files = []
+    try:
+        entries = sorted(os.listdir(local_videos_dir))
+    except Exception:
+        return []
+    for entry in entries:
+        full_path = os.path.join(local_videos_dir, entry)
+        if not os.path.isfile(full_path):
+            continue
+        if entry.endswith(".png.mp4") or entry.endswith(".temp") or entry.endswith(".cache"):
+            continue
+        ext = os.path.splitext(entry)[1].lower()
+        if ext in LOCAL_MATERIAL_EXTENSIONS or ext == ".webp":
+            valid_files.append(full_path)
+    return valid_files
+
+
 def _initialize_session_state():
     """集中初始化跨 rerun 保留的页面状态。"""
     if not st.session_state.get("cross_post_recovery_checked"):
@@ -5111,6 +5132,46 @@ def _render_video_settings(panel, params):
                     key="local_video_materials_uploader",
                 )
 
+                local_videos_dir = utils.storage_dir("local_videos", create=True)
+                existing_media = _get_existing_local_media_files(local_videos_dir)
+                with st.expander(
+                    f"📁 Thư mục Local / Antigravity AI ({len(existing_media)} tệp có sẵn)",
+                    expanded=not bool(uploaded_files) and bool(existing_media),
+                ):
+                    st.caption(f"Đường dẫn: `{local_videos_dir}`")
+                    c1, c2 = st.columns([2, 1])
+                    with c1:
+                        st.checkbox(
+                            "Sử dụng tệp có sẵn trong thư mục nếu không tải file mới",
+                            value=True,
+                            key="use_existing_local_folder",
+                        )
+                    with c2:
+                        if st.button("🔄 Quét lại", key="refresh_local_files_btn"):
+                            st.rerun()
+
+                    if existing_media:
+                        st.success(
+                            f"Đã phát hiện **{len(existing_media)} tệp** (ảnh/video). "
+                            "Hệ thống sẽ tự động ghép các tệp này theo thứ tự tên tệp!"
+                        )
+                        preview_cols = st.columns(min(len(existing_media), 4))
+                        for idx, pth in enumerate(existing_media[:4]):
+                            with preview_cols[idx]:
+                                fname = os.path.basename(pth)
+                                ext = os.path.splitext(fname)[1].lower()
+                                if ext in (".png", ".jpg", ".jpeg", ".webp"):
+                                    st.image(pth, caption=fname, use_container_width=True)
+                                else:
+                                    st.write(f"🎬 {fname}")
+                        if len(existing_media) > 4:
+                            st.caption(f"Và {len(existing_media) - 4} tệp khác...")
+                    else:
+                        st.info(
+                            "Chưa có tệp trong thư mục. Bạn có thể yêu cầu Antigravity tạo ảnh "
+                            "hoặc nạp ảnh vào thư mục trên."
+                        )
+
             # 文案顺序匹配会从关键词生成到最终合成全程保持叙事顺序，因此开启时
             # 顺序拼接是唯一符合实际执行逻辑的选项。同步控件值可避免界面仍显示
             # “随机拼接”，同时保留用户原选择，关闭后自动恢复。
@@ -7308,8 +7369,17 @@ def _render_generation_controls(
     restore_upload_requirements = st.session_state.get(
         "task_restore_upload_requirements", {}
     )
+    local_dir_has_files = False
+    if params.video_source == "local":
+        local_dir = utils.storage_dir("local_videos", create=True)
+        local_dir_has_files = bool(_get_existing_local_media_files(local_dir)) and st.session_state.get(
+            "use_existing_local_folder", True
+        )
+
     has_local_materials = bool(
-        uploaded_files or st.session_state.get("local_video_materials", [])
+        uploaded_files
+        or local_dir_has_files
+        or st.session_state.get("local_video_materials", [])
     )
     has_custom_audio = bool(uploaded_audio_file)
     unmet_restore_requirements = _get_unmet_restore_upload_requirements(
@@ -7607,7 +7677,21 @@ def _render_generation_controls(
             # 将已上传并保存到本地的视频素材写入会话，供后续只改文案时直接复用。
             st.session_state["local_video_materials"] = persisted_local_materials
         elif (
-            params.video_source == "local" and st.session_state["local_video_materials"]
+            params.video_source == "local"
+            and st.session_state.get("use_existing_local_folder", True)
+            and _get_existing_local_media_files(utils.storage_dir("local_videos", create=True))
+        ):
+            # Tự động nạp toàn bộ ảnh/video do Antigravity hoặc người dùng đặt trong storage/local_videos
+            local_videos_dir = utils.storage_dir("local_videos", create=True)
+            existing_files = _get_existing_local_media_files(local_videos_dir)
+            params.video_materials = []
+            for fpath in existing_files:
+                m = MaterialInfo()
+                m.provider = "local"
+                m.url = fpath
+                params.video_materials.append(m)
+        elif (
+            params.video_source == "local" and st.session_state.get("local_video_materials")
         ):
             # 当用户没有重新上传文件时，复用最近一次已经保存到磁盘的本地素材列表。
             params.video_materials = []
