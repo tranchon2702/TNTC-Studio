@@ -1393,6 +1393,25 @@ def _save_openai_image_file(
     return image_path, width, height
 
 
+def _request_pollinations_image(prompt: str, video_aspect: VideoAspect) -> bytes | None:
+    """Tự động sinh ảnh AI chất lượng cao miễn phí qua Pollinations (Flux) khi endpoint OpenAI/Google bị lỗi hoặc không có key."""
+    try:
+        import urllib.parse
+        encoded_prompt = urllib.parse.quote(prompt[:400])
+        aspect_val = VideoAspect(video_aspect)
+        width, height = (768, 1344) if aspect_val == VideoAspect.portrait else (1344, 768)
+        seed = random.randint(1, 9999999)
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true&seed={seed}"
+        logger.info(f"generating image via Pollinations AI (Flux): prompt={prompt[:70]!r}...")
+        resp = requests.get(url, timeout=45, proxies=config.proxy, verify=_get_tls_verify())
+        if resp.status_code == 200 and resp.content and len(resp.content) > 1000:
+            return resp.content
+        logger.warning(f"pollinations returned non-image response: status={resp.status_code}")
+    except Exception as e:
+        logger.warning(f"pollinations image request failed: {e}")
+    return None
+
+
 def generate_images_openai(
     search_term: str,
     minimum_duration: int,
@@ -1407,9 +1426,10 @@ def generate_images_openai(
     clip_duration = max(int(minimum_duration), 1)
     endpoint, model = _openai_image_endpoint()
     image_size = _openai_image_size(aspect)
+    image_prompt = _openai_image_prompt(search_term, character_prompt=character_prompt)
     payload = {
         "model": model,
-        "prompt": _openai_image_prompt(search_term, character_prompt=character_prompt),
+        "prompt": image_prompt,
         "n": 1,
         "size": image_size,
     }
@@ -1419,8 +1439,14 @@ def generate_images_openai(
     )
     image_bytes, failure_detail = _request_openai_image(endpoint, payload)
     if image_bytes is None:
+        logger.warning(
+            f"primary image provider failed ({failure_detail}), attempting fallback via Pollinations AI: term={search_term!r}"
+        )
+        image_bytes = _request_pollinations_image(image_prompt, aspect)
+
+    if image_bytes is None:
         logger.error(
-            f"openai image generation failed: term={search_term!r}, "
+            f"all image generation providers failed: term={search_term!r}, "
             f"detail={failure_detail}"
         )
         return []
