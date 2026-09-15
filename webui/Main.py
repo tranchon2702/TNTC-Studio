@@ -5060,6 +5060,40 @@ def _render_script_settings(panel, params):
                 key="video_terms",
             )
 
+            if params.video_terms.strip():
+                if st.button(
+                    "🎨 Tạo trước bộ ảnh AI vào thư mục Local",
+                    key="generate_local_ai_images_btn",
+                    use_container_width=True,
+                    help="Tự động vẽ ảnh AI chuẩn 9:16 cho từng từ khóa trên và lưu thẳng vào thư mục storage/local_videos để xem trước!",
+                    icon=":material/palette:",
+                ):
+                    raw_terms = [t.strip() for t in params.video_terms.split(",") if t.strip()]
+                    if not raw_terms:
+                        st.warning("Vui lòng có ít nhất một từ khóa video.")
+                    else:
+                        local_dir = utils.storage_dir("local_videos", create=True)
+                        progress_bar = st.progress(0, text="Đang bắt đầu vẽ ảnh AI...")
+                        success_count = 0
+                        for idx, term in enumerate(raw_terms):
+                            progress_bar.progress(
+                                (idx) / len(raw_terms),
+                                text=f"Đang vẽ ảnh {idx + 1}/{len(raw_terms)}: {term}...",
+                            )
+                            prompt = f"digital illustration of {term}, cinematic lighting, 9:16 vertical composition, ultra detailed"
+                            if params.character_anchor_enabled and params.character_prompt:
+                                prompt = f"{params.character_prompt}, {prompt}"
+                            img_bytes = material._request_pollinations_image(prompt, params.video_aspect)
+                            if img_bytes:
+                                fname = f"{(idx + 1):02d}_ai_{re.sub(r'[^a-zA-Z0-9]', '_', term)[:25]}.png"
+                                save_path = os.path.join(local_dir, fname)
+                                with open(save_path, "wb") as f:
+                                    f.write(img_bytes)
+                                success_count += 1
+                        progress_bar.progress(1.0, text=f"Hoàn thành! Đã tạo {success_count}/{len(raw_terms)} ảnh.")
+                        st.toast(f"Đã tạo {success_count} ảnh AI vào thư mục storage/local_videos!")
+                        st.rerun()
+
 
 def _render_video_settings(panel, params):
     """渲染视频设置并返回本次选择的本地素材。"""
