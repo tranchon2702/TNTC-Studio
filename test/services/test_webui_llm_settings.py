@@ -21,7 +21,7 @@ def _widget_by_key(elements, key):
 
 
 def test_kimi_platform_selection_keeps_endpoint_configuration_consistent():
-    """Kimi 平台切换必须同步 Base URL，并只允许自定义模式编辑地址。"""
+    """Chuyển đổi nền tảng Kimi phải đồng bộ hóa URL cơ sở và chỉ cho phép chỉnh sửa địa chỉ ở chế độ tùy chỉnh."""
     app_config = dict(
         config.app,
         llm_provider="moonshot",
@@ -67,7 +67,7 @@ def test_kimi_platform_selection_keeps_endpoint_configuration_consistent():
         )
         assert china_base_url.value == "https://api.moonshot.cn/v1"
         assert china_base_url.disabled is True
-        # 中国站是 Registry 的兼容默认值，不应重复写入用户配置。
+        # Trang tiếng Trung là giá trị mặc định tương thích của Cơ quan đăng ký và không được ghi nhiều lần vào cấu hình người dùng.
         assert app_config["moonshot_base_url"] == ""
 
         endpoint_select = _widget_by_key(
@@ -99,7 +99,7 @@ def test_kimi_platform_selection_keeps_endpoint_configuration_consistent():
 
 
 def test_configure_llm_link_opens_settings_on_llm_tab():
-    """视频主题旁的快捷入口应一次点击就打开并定位大模型设置。"""
+    """Phím tắt bên cạnh chủ đề video sẽ mở và định vị cài đặt mô hình ngôn ngữ lớn (LLM) chỉ bằng một cú nhấp chuột."""
     with patch.object(config, "try_save_config", return_value=True):
         app = AppTest.from_file(str(WEBUI_MAIN), default_timeout=60)
         app.session_state["ui_language"] = "en"
@@ -110,13 +110,13 @@ def test_configure_llm_link_opens_settings_on_llm_tab():
         assert [str(item.value) for item in app.exception] == []
         assert app.session_state["settings_dialog_open"] is True
         assert app.session_state["settings_dialog_tabs_en"] == "LLM Settings"
-        # 业务目标只用于一次定向打开。渲染后立即消费，避免普通“设置”入口
-        # 在之后被历史目标强制切回大模型标签页。
+        # Mục tiêu kinh doanh chỉ được sử dụng cho một mục tiêu mở. Tiêu thụ ngay sau khi kết xuất để tránh mục "cài đặt" thông thường
+        # Sau đó, mục tiêu lịch sử buộc tôi phải chuyển về tab mô hình ngôn ngữ lớn (LLM).
         assert "settings_dialog_target_tab" not in app.session_state
 
 
 def test_material_settings_target_uses_localized_tab_state_and_is_consumed():
-    """素材快捷入口保存稳定业务 ID，渲染时再解析当前语言标签。"""
+    """Mục nhập nhanh tài liệu sẽ lưu ID doanh nghiệp ổn định và sau đó phân tích cú pháp thẻ ngôn ngữ hiện tại khi hiển thị."""
     with patch.object(config, "try_save_config", return_value=True):
         app = AppTest.from_file(str(WEBUI_MAIN), default_timeout=60)
         app.session_state["ui_language"] = "zh"
@@ -130,7 +130,7 @@ def test_material_settings_target_uses_localized_tab_state_and_is_consumed():
 
 
 def test_ai_video_settings_prioritize_sponsors_and_own_shengsuan_key():
-    """视频 Provider 应按约定的赞助商顺序展示，胜算云密钥只在设置中管理。"""
+    """Nhà cung cấp video phải được hiển thị theo thứ tự nhà tài trợ đã thỏa thuận và khóa đám mây tỷ lệ cược chỉ được quản lý trong cài đặt."""
     app_config = dict(
         config.app,
         llm_provider="openai",

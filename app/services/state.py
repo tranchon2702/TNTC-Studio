@@ -36,7 +36,7 @@ class BaseState(ABC):
 
     @abstractmethod
     def patch_task(self, task_id: str, **kwargs) -> bool:
-        """只更新已有任务的指定字段；任务不存在时返回 False。"""
+        """Chỉ cập nhật các trường được chỉ định của nhiệm vụ hiện có; trả về Sai nếu tác vụ không tồn tại."""
         pass
 
 
@@ -79,9 +79,9 @@ class MemoryState(BaseState):
             return copy.deepcopy(task) if task is not None else None
 
     def patch_task(self, task_id: str, **kwargs) -> bool:
-        # 异步发布只应补充发布状态，不能覆盖已经保存的视频、字幕等结果。
-        # 在同一把锁内完成存在性判断和字段合并，也可避免任务删除后
-        # 被后台线程重建。
+        # Xuất bản không đồng bộ chỉ nên bổ sung trạng thái xuất bản và không thể ghi đè video, phụ đề và các kết quả khác đã lưu.
+        # Hoàn thành phán đoán tồn tại và hợp nhất trường trong cùng một khóa cũng có thể tránh được vấn đề xóa nhiệm vụ.
+        # Được xây dựng lại bằng chủ đề nền.
         with self._lock:
             task = self._tasks.get(task_id)
             if task is None:
@@ -118,9 +118,9 @@ class RedisState(BaseState):
         cursor = 0
         total = 0
         while True:
-            # Redis 数据库中除了任务 Hash，还可能存在 RedisTaskManager 使用的
-            # List 队列。只扫描 Hash 可以避免对队列执行 HGETALL 时触发
-            # WRONGTYPE，同时保证 total 只统计真正的任务记录。
+            # Ngoài tác vụ Hash trong cơ sở dữ liệu Redis, còn có thể có Hash được RedisTaskManager sử dụng.
+            # Danh sách hàng đợi. Chỉ quét Hash mới có thể tránh kích hoạt khi thực hiện HGETALL trên hàng đợi.
+            # WRONGTYPE, trong khi vẫn đảm bảo rằng tổng số chỉ tính các bản ghi tác vụ thực.
             cursor, keys = self._redis.scan(
                 cursor,
                 count=page_size,
@@ -130,9 +130,9 @@ class RedisState(BaseState):
             batch_size = len(keys)
             total += batch_size
 
-            # Redis SCAN 是分批返回 key。分页切片必须基于“当前批次起始索引”
-            # 计算，而不能用累积后的 total 反推，否则第一页会切到空数组，
-            # 第二页也可能只返回部分数据。
+            # Redis SCAN trả về các khóa theo lô. Việc cắt phân trang phải dựa trên "chỉ mục bắt đầu lô hiện tại"
+            # Tính toán nhưng không thể sử dụng tổng tích lũy để tính ngược, nếu không trang đầu tiên sẽ bị cắt thành một mảng trống.
+            # Trang thứ hai cũng có thể chỉ trả về một phần dữ liệu.
             if batch_start < end and total > start:
                 slice_start = max(0, start - batch_start)
                 slice_end = min(batch_size, end - batch_start)
@@ -144,8 +144,8 @@ class RedisState(BaseState):
                     }
                     tasks.append(task)
 
-            # 即使当前页已经取满，也要继续 SCAN 到 cursor=0，
-            # 因为调用方需要准确 total 来渲染分页信息。
+            # Ngay cả khi trang hiện tại đã đầy, hãy tiếp tục QUÉT tới con trỏ=0,
+            # Bởi vì người gọi cần tổng số chính xác để hiển thị thông tin phân trang.
             if cursor == 0:
                 break
         return tasks, total
@@ -190,9 +190,9 @@ class RedisState(BaseState):
         for field, value in kwargs.items():
             arguments.extend((field, str(value)))
 
-        # EXISTS 和 HSET 如果分成两条命令，后台发布线程与删除请求并发时，
-        # HSET 可能在删除后重新创建一条残缺任务。Lua 脚本由 Redis 原子执行，
-        # 可以保证任务不存在时不写入，且不会改变现有字段之外的数据。
+        # Nếu EXISTS và HSET được chia thành hai lệnh, khi luồng xuất bản nền và yêu cầu xóa đồng thời,
+        # HSET có thể tạo lại tác vụ chưa hoàn thành sau khi xóa. Các tập lệnh Lua được Redis thực thi nguyên tử,
+        # Có thể đảm bảo rằng sẽ không có hoạt động ghi nào xảy ra khi tác vụ không tồn tại và dữ liệu bên ngoài các trường hiện có sẽ không bị thay đổi.
         updated = self._redis.eval(
             _PATCH_EXISTING_TASK_SCRIPT,
             1,

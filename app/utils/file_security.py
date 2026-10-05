@@ -7,10 +7,10 @@ def resolve_path_within_directory(
     *,
     require_file: bool = True,
 ) -> str:
-    # 用户传入的路径可能是文件名、相对路径、绝对路径，也可能夹带 `../`。
-    # 这里统一解析成真实路径，并用 commonpath 判断它是否仍在允许目录内。
-    # 这样比简单判断字符串前缀可靠，可以覆盖符号链接、重复分隔符、相对路径
-    # 等场景，适用于上传目录、素材目录、任务产物目录这类白名单目录。
+    # Đường dẫn người dùng truyền vào có thể là tên tệp, đường dẫn tương đối, đường dẫn tuyệt đối hoặc chứa `../`.
+    # Tại đây đường dẫn được phân giải thống nhất thành đường dẫn thực tế (realpath) và dùng commonpath để xác định xem nó có còn nằm trong thư mục được phép hay không.
+    # Cách này đáng tin cậy hơn so với việc so khớp chuỗi tiền tố đơn thuần, xử lý được cả liên kết tượng trưng (symlink), dấu phân cách trùng lặp, đường dẫn tương đối,
+    # phù hợp cho các thư mục trong danh sách trắng như thư mục tải lên, thư mục tài nguyên, thư mục sản phẩm tác vụ.
     if not unsafe_path:
         raise ValueError("empty path is not allowed")
 
@@ -23,7 +23,7 @@ def resolve_path_within_directory(
     try:
         common_path = os.path.commonpath([base_dir_real, resolved_path])
     except ValueError as exc:
-        # Windows 下不同盘符会触发 ValueError，这类路径一定不属于允许目录。
+        # Các ký tự ổ đĩa khác nhau trong Windows sẽ kích hoạt ValueError. Những đường dẫn như vậy không được thuộc các thư mục được phép.
         raise ValueError("path is outside the allowed directory") from exc
 
     if common_path != base_dir_real:

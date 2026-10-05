@@ -349,8 +349,8 @@ def missing_config(config_path: Path, cli_args: list[str]) -> tuple[str, list[st
     if source not in SUPPORTED_SOURCES:
         raise SkillError(f"unsupported video source: {source}")
     if source == "volcengine_seedance":
-        # 与运行时 Provider 保持完全一致的凭据优先级，避免 Skill 预检通过后
-        # 主程序却读取了另一把 Key。ARK_API_KEY 语义过于宽泛，明确不再兼容。
+        # Duy trì độ ưu tiên thông tin xác thực hoàn toàn nhất quán với Provider lúc chạy, tránh việc sau khi Skill vượt qua kiểm tra trước
+        # thì chương trình chính lại đọc một Key khác. Ý nghĩa của ARK_API_KEY quá rộng nên rõ ràng không còn tương thích nữa.
         value = (
             _plain_config_value(text, "volcengine_seedance_api_key")
             or os.environ.get("VOLCENGINE_ARK_API_KEY", "").strip()
@@ -361,8 +361,8 @@ def missing_config(config_path: Path, cli_args: list[str]) -> tuple[str, list[st
         if not has_cli_option(cli_args, "--confirm-seedance-charge"):
             missing.append("confirm_seedance_charge")
     elif source == "ofox":
-        # 与运行时 Provider 保持完全一致的凭据优先级：配置键优先，其次是
-        # 语义明确的 OFOX_API_KEY 环境变量。
+        # Duy trì độ ưu tiên thông tin xác thực hoàn toàn nhất quán với Provider lúc chạy: khóa cấu hình ưu tiên trước, tiếp theo là
+        # biến môi trường OFOX_API_KEY có ngữ nghĩa rõ ràng.
         value = (
             _plain_config_value(text, "ofox_api_key")
             or os.environ.get("OFOX_API_KEY", "").strip()
@@ -372,8 +372,8 @@ def missing_config(config_path: Path, cli_args: list[str]) -> tuple[str, list[st
         if not has_cli_option(cli_args, "--confirm-ofox-charge"):
             missing.append("confirm_ofox_charge")
     elif source == "metaso_minimax":
-        # 秘塔 Key 与 MiniMax 官方 LLM Key 不互通，Skill 必须沿用运行时的
-        # 独立配置优先级，不能因为已经配置 minimax_api_key 就误判为可用。
+        # Key Metaso và Key LLM chính thức của MiniMax không dùng chung được, Skill phải tuân theo thứ tự ưu tiên
+        # cấu hình độc lập lúc chạy, không thể phán đoán nhầm là khả dụng chỉ vì đã cấu hình minimax_api_key.
         value = (
             _plain_config_value(text, "metaso_minimax_api_key")
             or os.environ.get("METASO_MINIMAX_API_KEY", "").strip()

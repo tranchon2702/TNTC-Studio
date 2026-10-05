@@ -32,10 +32,10 @@ def get_api_key(request: Request):
 
 
 def get_api_key_values(request: Request) -> list[str]:
-    """返回请求中全部 API Key Header，保留重复值用于安全校验。"""
+    """Trả về tất cả Tiêu đề khóa API trong yêu cầu, giữ lại các giá trị trùng lặp để xác minh bảo mật."""
 
-    # Starlette Headers 提供 getlist()，可以区分代理或客户端发送的重复 Header。
-    # 单元测试中的轻量 Request 替身只使用普通 dict，因此保留兼容回退。
+    # Tiêu đề Starlette cung cấp getlist(), có thể phân biệt các tiêu đề trùng lặp được gửi bởi proxy hoặc ứng dụng khách.
+    # Yêu cầu gấp đôi nhẹ trong các bài kiểm tra đơn vị chỉ sử dụng một lệnh đơn giản, do đó, các dự phòng tương thích được giữ nguyên.
     get_list = getattr(request.headers, "getlist", None)
     if callable(get_list):
         return [value for value in get_list("x-api-key") if isinstance(value, str)]
@@ -48,19 +48,19 @@ def verify_token(
     request: Request,
     x_api_key: Annotated[str | None, Header(alias="x-api-key")] = None,
 ):
-    """按配置决定是否校验 API Key。
+    """Xác định xem có xác minh Khóa API theo cấu hình hay không.
 
-    空 Key 保留现有的本地免认证模式；管理员显式配置非空 Key 后，API
-    路由和任务产物下载都会要求客户端通过 ``x-api-key`` 请求头提供同一
-    个值。参数声明同时让 Swagger 展示该请求头，便于受保护环境调试。
+    Khóa trống vẫn giữ lại chế độ không cần xác thực cục bộ hiện có; sau khi quản trị viên định cấu hình rõ ràng Khóa không trống, API
+    Việc tải xuống sản phẩm nhiệm vụ và định tuyến sẽ yêu cầu khách hàng cung cấp cùng một tiêu đề yêu cầu thông qua tiêu đề yêu cầu ``x-api-key``.
+    giá trị. Việc khai báo tham số cũng cho phép Swagger hiển thị tiêu đề yêu cầu để tạo điều kiện gỡ lỗi trong môi trường được bảo vệ.
     """
 
     configured_key = config.app.get("api_key", "")
     if configured_key in (None, ""):
         return None
 
-    # 配置项必须是字符串。这里拒绝列表、数字等错误类型，避免字符串隐式
-    # 转换产生难以发现的认证行为；错误信息也不包含实际 Key。
+    # Các mục cấu hình phải là chuỗi. Ở đây, các loại lỗi như danh sách và số bị từ chối để tránh ẩn ý chuỗi.
+    # Việc chuyển đổi tạo ra hành vi xác thực khó phát hiện; thông báo lỗi cũng không chứa khóa thực tế.
     if not isinstance(configured_key, str):
         raise HttpException(
             task_id=get_task_id(request),
@@ -68,9 +68,9 @@ def verify_token(
             message="API authentication is misconfigured",
         )
 
-    # FastAPI 参数用于在 OpenAPI 中声明 x-api-key；实际校验始终读取 Request，
-    # 才能识别同名 Header 被重复发送的情况。普通客户端和反向代理对重复 Header
-    # 的取值顺序可能不同，因此必须拒绝，而不能隐式采用第一个或最后一个值。
+    # Tham số FastAPI dùng để khai báo x-api-key trong OpenAPI; xác minh thực tế luôn đọc Yêu cầu,
+    # Chỉ bằng cách này, tiêu đề có cùng tên mới có thể được gửi đi lặp lại. Tiêu đề trùng lặp cho các cặp proxy thông thường và proxy ngược
+    # Thứ tự các giá trị của có thể khác nhau và do đó phải bị từ chối thay vì ngầm lấy giá trị đầu tiên hoặc cuối cùng.
     token_values = get_api_key_values(request)
     if not token_values and isinstance(x_api_key, str):
         token_values = [x_api_key]
@@ -82,9 +82,9 @@ def verify_token(
             message="invalid API key",
         )
 
-    # compare_digest 对 str 只支持 ASCII。请求 Header 属于不可信输入，攻击者
-    # 可以发送 Latin-1 字符触发 TypeError。统一编码为 UTF-8 bytes 后既保留
-    # 恒定时间比较，也支持 TOML 中合法的 Unicode Key。
+    # Compare_digest chỉ hỗ trợ ASCII cho str. Tiêu đề yêu cầu là đầu vào không đáng tin cậy và kẻ tấn công
+    # Có thể gửi các ký tự Latin-1 để kích hoạt TypeError. Được mã hóa thống nhất thành byte UTF-8 và được giữ lại
+    # So sánh thời gian liên tục, cũng hỗ trợ Khóa Unicode hợp pháp trong TOML.
     token = token_values[0]
     if not secrets.compare_digest(
         token.encode("utf-8"), configured_key.encode("utf-8")

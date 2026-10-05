@@ -76,9 +76,9 @@ GEMINI_TTS_VOICES = (
 )
 _MINIMAX_TTS_MAX_AUDIO_HEX_CHARS = 100 * 1024 * 1024
 NO_VOICE_NAME = "no-voice"
-# `none` 是 PR #981 里曾使用过的无配音标识。这里短期兼容这个值，避免
-# 已经手动调用过该分支的 API 用户升级后立即失效；WebUI 和新代码统一使用
-# 更明确的 `no-voice`。
+# `none` là cờ không lồng tiếng được sử dụng trong PR #981. Giá trị này tương thích với giá trị này trong thời gian ngắn để tránh
+# Người dùng API đã gọi nhánh này theo cách thủ công sẽ không hợp lệ ngay sau khi nâng cấp; WebUI và mã mới sẽ được sử dụng thống nhất
+# Rõ ràng hơn `không có giọng nói`.
 _NO_VOICE_ALIASES = {NO_VOICE_NAME, "none"}
 
 
@@ -90,11 +90,11 @@ def _configure_pydub_ffmpeg(audio_segment_cls):
 
 def mktimestamp(time_unit: float) -> str:
     """
-    将 edge_tts 使用的 100 纳秒时间单位转换为字幕时间戳。
+    Chuyển đổi đơn vị thời gian 100 nano giây được edge_tts sử dụng thành dấu thời gian phụ đề.
 
-    edge_tts 7.x 不再导出旧版本里的 `mktimestamp`，但项目里旧字幕链路
-    还需要这个格式化函数来兼容 Azure v2、Gemini、SiliconFlow 这些
-    手工构造的字幕时间轴，因此这里内置一个等价实现。
+    edge_tts 7.x không còn xuất `mktimestamp` trong phiên bản cũ nữa mà là liên kết phụ đề cũ trong dự án
+    Chức năng định dạng này cũng cần thiết để tương thích với Azure v2, Gemini, SiliconFlow, v.v.
+    Dòng thời gian phụ đề được xây dựng theo cách thủ công, do đó việc triển khai tương đương được tích hợp ở đây.
     """
     hour = math.floor(time_unit / 10**7 / 3600)
     minute = math.floor((time_unit / 10**7 / 60) % 60)
@@ -104,12 +104,12 @@ def mktimestamp(time_unit: float) -> str:
 
 def get_siliconflow_voices() -> list[str]:
     """
-    获取硅基流动的声音列表
+    Nhận danh sách âm thanh chảy dựa trên silicon
 
     Returns:
-        声音列表，格式为 ["siliconflow:FunAudioLLM/CosyVoice2-0.5B:alex", ...]
+        Danh sách giọng nói, ở định dạng ["siliconflow:FunAudioLLM/CosyVoice2-0.5B:alex", ...]
     """
-    # 硅基流动的声音列表和对应的性别（用于显示）
+    # Danh sách âm thanh và giới tính tương ứng dựa trên silicon (để hiển thị)
     voices_with_gender = [
         ("FunAudioLLM/CosyVoice2-0.5B", "alex", "Male"),
         ("FunAudioLLM/CosyVoice2-0.5B", "anna", "Female"),
@@ -121,7 +121,7 @@ def get_siliconflow_voices() -> list[str]:
         ("FunAudioLLM/CosyVoice2-0.5B", "diana", "Female"),
     ]
 
-    # 添加siliconflow:前缀，并格式化为显示名称
+    # Thêm siliconflow: tiền tố và định dạng làm tên hiển thị
     return [
         f"siliconflow:{model}:{voice}-{gender}"
         for model, voice, gender in voices_with_gender
@@ -130,26 +130,26 @@ def get_siliconflow_voices() -> list[str]:
 
 def get_gemini_voices() -> list[str]:
     """
-    获取 Gemini TTS 官方预置音色列表。
+    Nhận danh sách giai điệu cài sẵn Gemini TTS chính thức.
 
-    Google 没有为这些音色发布性别元数据，因此下拉框使用官方风格描述，
-    避免把推测的性别写进持久化 voice id。音色目录来源：
+    Google không xuất bản siêu dữ liệu giới tính cho những âm thanh này nên hộp thả xuống sử dụng mô tả kiểu chính thức.
+    Tránh viết giới tính giả định vào id giọng nói liên tục. Nguồn danh mục âm thanh:
     https://ai.google.dev/gemini-api/docs/speech-generation#voice-options
 
     Returns:
-        声音列表，格式为 ["gemini:Zephyr-Bright", "gemini:Puck-Upbeat", ...]
+        Danh sách âm thanh ở định dạng ["gemini:Zephyr-Bright", "gemini:Puck-Upbeat", ...]
     """
     return [f"gemini:{voice}-{style}" for voice, style in GEMINI_TTS_VOICES]
 
 
 def get_mimo_voices() -> list[str]:
     """
-    获取 Xiaomi MiMo V2.5 TTS 的预置音色列表。
+    Nhận danh sách âm cài sẵn cho Xiaomi MiMo V2.5 TTS.
 
-    当前只接入官方文档里的 `mimo-v2.5-tts` 预置音色模式。音色设计
-    `mimo-v2.5-tts-voicedesign` 和音色复刻 `mimo-v2.5-tts-voiceclone`
-    需要额外的输入表单和素材上传流程，先不混入普通 TTS 下拉框，避免
-    用户误以为选择一个 voice id 就能完成所有高级能力。
+    Hiện tại, chỉ có chế độ âm cài sẵn `mimo-v2.5-tts` trong tài liệu chính thức được kết nối. thiết kế âm thanh
+    `mimo-v2.5-tts-voicedesign` và bản sao âm thanh `mimo-v2.5-tts-voiceclone`
+    Cần có các biểu mẫu đầu vào bổ sung và quy trình tải lên tài liệu. Không trộn chúng vào các hộp thả xuống TTS thông thường để tránh
+    Người dùng lầm tưởng rằng việc chọn id giọng nói sẽ hoàn thành tất cả các khả năng nâng cao.
     """
     voices_with_gender = [
         ("mimo_default", "Female"),
@@ -167,7 +167,7 @@ def get_mimo_voices() -> list[str]:
 
 
 def get_minimax_voices(voice_id: str | None = None) -> list[str]:
-    """返回当前配置的 MiniMax 音色，供统一的 TTS 调度格式使用。"""
+    """Trả về bản vá MiniMax hiện được định cấu hình để sử dụng theo định dạng lập lịch TTS thống nhất."""
     voice_id = str(
         voice_id
         or config.minimax_tts.get("voice_id", MINIMAX_TTS_DEFAULT_VOICE)
@@ -228,7 +228,7 @@ KOKORO_DEFAULT_VOICE = "af_heart"
 
 
 def _normalize_kokoro_voices(entries) -> list[str]:
-    """统一手工配置与服务端新旧格式，只接收真实 ID，避免把对象转成音色名。"""
+    """Thống nhất cấu hình thủ công và định dạng cũ và mới phía máy chủ, chỉ nhận ID thực và tránh chuyển đổi đối tượng thành tên âm sắc."""
     if isinstance(entries, str):
         entries = entries.split(",")
     if not isinstance(entries, list):
@@ -247,10 +247,10 @@ def _normalize_kokoro_voices(entries) -> list[str]:
 
 
 def get_kokoro_voices(*, fallback: bool = True) -> list[str]:
-    """手工音色优先，否则查询服务器；UI 可禁用默认值以识别断线并保留选择。
+    """Âm thanh thủ công được ưu tiên, nếu không thì máy chủ sẽ được truy vấn; giao diện người dùng có thể tắt các cài đặt mặc định để nhận biết các ngắt kết nối và duy trì các lựa chọn.
 
-    旧版服务器返回字符串列表，新版返回包含 id 的对象列表。失败时不在服务层
-    缓存会话状态；由 WebUI 保留上次成功目录，避免不同用户/端点互相污染。
+    Phiên bản cũ của máy chủ trả về danh sách các chuỗi, phiên bản mới trả về danh sách các đối tượng chứa id. Không ở lớp dịch vụ khi thất bại
+    Trạng thái phiên bộ đệm; thư mục thành công cuối cùng được WebUI giữ lại để ngăn những người dùng/điểm cuối khác nhau lây nhiễm lẫn nhau.
     """
     voices = _normalize_kokoro_voices(config.kokoro.get("voices"))
     if not voices:
@@ -275,7 +275,7 @@ def get_kokoro_voices(*, fallback: bool = True) -> list[str]:
                         f"kokoro voices request failed with status {response.status_code}"
                     )
             except Exception as e:
-                # 不输出 URL/异常正文，避免自托管地址的查询参数或认证信息进入日志。
+                # Không xuất URL/văn bản ngoại lệ để ngăn các tham số truy vấn hoặc thông tin xác thực từ các địa chỉ tự lưu trữ vào nhật ký.
                 logger.warning(f"kokoro voice list unavailable ({type(e).__name__})")
     return voices or ([f"kokoro:{KOKORO_DEFAULT_VOICE}"] if fallback else [])
 
@@ -331,7 +331,7 @@ def get_all_azure_voices(filter_locals=None) -> list[str]:
     for item in _load_azure_voices():
         name = item["name"]
         gender = item["gender"]
-        # 应用过滤条件
+        # Áp dụng bộ lọc
         if filter_locals and any(
             name.lower().startswith(fl.lower()) for fl in filter_locals
         ):
@@ -359,24 +359,24 @@ def is_azure_v2_voice(voice_name: str):
 
 
 def is_siliconflow_voice(voice_name: str):
-    """检查是否是硅基流动的声音"""
+    """Kiểm tra xem đó có phải là âm thanh của dòng chảy dựa trên silicon không"""
     return voice_name.startswith("siliconflow:")
 
 
 def is_gemini_voice(voice_name: str):
-    """检查是否是Gemini TTS的声音"""
+    """Kiểm tra xem đó có phải là âm thanh của Gemini TTS không"""
     return voice_name.startswith("gemini:")
 
 
 def parse_gemini_voice_name(voice_name: str | None) -> str:
-    """从新旧 Gemini 下拉框值中提取 Google API 使用的预置音色名称。"""
+    """Trích xuất tên bản vá đặt trước được API Google sử dụng từ các giá trị thả xuống Gemini cũ và mới."""
     if not is_gemini_voice(voice_name or ""):
         return ""
     return (voice_name or "").split(":", 1)[1].split("-", 1)[0].strip()
 
 
 def is_mimo_voice(voice_name: str):
-    """检查是否是 Xiaomi MiMo TTS 的声音"""
+    """Kiểm tra xem đó có phải là âm thanh của Xiaomi MiMo TTS không"""
     return voice_name.startswith("mimo:")
 
 
@@ -390,11 +390,11 @@ def is_elevenlabs_voice(voice_name: str) -> bool:
 
 def get_elevenlabs_api_key() -> str:
     """
-    读取 ElevenLabs TTS 使用的 API Key。
+    Đọc Khóa API được ElevenLabs TTS sử dụng.
 
-    配置文件优先，环境变量仅作为未配置时的后备来源。WebUI 和配乐功能已经
-    支持 ``ELEVENLABS_API_KEY``，TTS 必须使用相同规则，否则仅通过容器环境
-    变量部署时，音色列表可正常加载，真正合成语音却会误报未配置 Key。
+    Các tệp cấu hình được ưu tiên, các biến môi trường chỉ được sử dụng làm nguồn dự phòng nếu không được định cấu hình. Các tính năng WebUI và nhạc nền đã được
+    Hỗ trợ ``ELEVENLABS_API_KEY``, TTS phải sử dụng quy tắc tương tự, nếu không thì chỉ thông qua môi trường container
+    Khi triển khai các biến, danh sách âm sắc có thể được tải bình thường, nhưng giọng nói tổng hợp thực tế sẽ báo cáo sai rằng Khóa không được định cấu hình.
     """
     configured_key = str(config.elevenlabs.get("api_key", "") or "").strip()
     return configured_key or os.getenv("ELEVENLABS_API_KEY", "").strip()
@@ -408,6 +408,61 @@ def is_kokoro_voice(voice_name: str) -> bool:
     return (voice_name or "").startswith("kokoro:")
 
 
+def is_viettts_voice(voice_name: str) -> bool:
+    """Check whether the voice belongs to a self-hosted VietTTS server."""
+    return (voice_name or "").startswith("viettts:")
+
+
+def get_viettts_voices() -> list[str]:
+    """Return configured VietTTS voices.
+
+    VietTTS (dangvansam/viet-tts, MIT) is an open-source Vietnamese TTS with
+    an OpenAI-compatible API.  Operators list voice names via ``[viettts] voices``
+    in the config.  When the list is empty, the function tries to query the
+    server's ``/voices`` endpoint.
+    """
+    voices_cfg = config.viettts.get("voices", []) or []
+    if isinstance(voices_cfg, str):
+        voices_cfg = [v.strip() for v in voices_cfg.split(",") if v.strip()]
+    result = []
+    for v in voices_cfg:
+        v = str(v).strip()
+        if not v:
+            continue
+        result.append(v if v.startswith("viettts:") else f"viettts:{v}")
+
+    if not result:
+        base_url = (config.viettts.get("base_url", "") or "").strip().rstrip("/")
+        if base_url:
+            try:
+                headers = {}
+                api_key = config.viettts.get("api_key", "")
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                response = requests.get(
+                    f"{base_url}/voices", headers=headers, timeout=5
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    listed = data if isinstance(data, list) else data.get("voices", [])
+                    for entry in listed:
+                        name = entry.get("id") if isinstance(entry, dict) else entry
+                        if isinstance(name, str) and name.strip():
+                            value = f"viettts:{name.strip()}"
+                            if value not in result:
+                                result.append(value)
+                else:
+                    logger.warning(
+                        f"viettts voices request failed with status {response.status_code}"
+                    )
+            except Exception as e:
+                logger.warning(f"viettts voice list unavailable ({type(e).__name__})")
+
+    if not result:
+        result = ["viettts:nsnd-le-chuc"]
+    return result
+
+
 def is_fish_audio_voice(voice_name: str) -> bool:
     return (voice_name or "").startswith("fish_audio:")
 
@@ -419,21 +474,21 @@ def get_fish_audio_api_key() -> str:
 
 def is_no_voice(voice_name: str | None) -> bool:
     """
-    判断用户是否明确选择了“无配音”模式。
+    Xác định xem người dùng có chọn rõ ràng chế độ "không lồng tiếng" hay không.
 
-    这里刻意不把空字符串当成无配音：空 voice 更可能是配置损坏、旧版本
-    WebUI 状态丢失或接口参数缺失。只有明确的 sentinel 才进入静音分支，
-    这样可以避免把真实错误伪装成正常生成。
+    Ở đây, chuỗi trống được cố tình không coi là không có lồng tiếng: giọng trống có nhiều khả năng là cấu hình bị hỏng hoặc phiên bản cũ.
+    Trạng thái WebUI bị mất hoặc thiếu tham số giao diện. Chỉ những người canh gác rõ ràng mới vào nhánh im lặng,
+    Điều này ngăn chặn các lỗi thực sự được ngụy trang dưới dạng các bản dựng thông thường.
     """
     return str(voice_name or "").strip().lower() in _NO_VOICE_ALIASES
 
 
 def is_azure_v1_voice(voice_name: str | None) -> bool:
     """
-    检查是否属于 Azure TTS v1 (Edge TTS) 预置声音。
+    Kiểm tra xem âm thanh có phải là cài đặt trước Azure TTS v1 (Edge TTS) hay không.
 
-    第一版停顿标签（[pause: ...]）的分段合成链路仅针对 Edge TTS (Azure TTS v1)，
-    避免改变 Gemini、Fish Audio、SiliconFlow、Kokoro 等其他提供商的请求计费、频次与默认行为。
+    Phiên bản đầu tiên của liên kết tổng hợp được phân đoạn cho thẻ tạm dừng ([pause: ...]) chỉ dành cho Edge TTS (Azure TTS v1),
+    Tránh thay đổi yêu cầu thanh toán, tần suất và hành vi mặc định của các nhà cung cấp khác như Gemini, Fish Audio, SiliconFlow, Kokoro, v.v.
     """
     if not voice_name:
         return False
@@ -456,6 +511,8 @@ def is_azure_v1_voice(voice_name: str | None) -> bool:
         return False
     if is_kokoro_voice(name):
         return False
+    if is_viettts_voice(name):
+        return False
     if is_fish_audio_voice(name):
         return False
     return True
@@ -463,16 +520,16 @@ def is_azure_v1_voice(voice_name: str | None) -> bool:
 
 def estimate_no_voice_duration(text: str) -> float:
     """
-    为无配音模式估算一个稳定的视频时间轴长度。
+    Ước tính độ dài dòng thời gian video ổn định cho chế độ không lồng tiếng.
 
-    无配音仍需要一个音频占位来驱动现有素材裁剪、字幕时间轴和最终合成。
-    估算策略尽量简单：
-    1. 中文等 CJK 字符按约 4.2 字/秒估算；
-    2. 英文/数字按约 2.7 词/秒估算；
-    3. 其他语种文字按约 4.0 字符/秒兜底估算，覆盖俄语、阿拉伯语、
-       日文假名、韩文等非 ASCII 文本；
-    4. 每个断句补一点停顿，让字幕切换不至于过于紧凑；
-    5. 最少 3 秒，避免极短脚本生成 0 秒音频。
+    Việc không lồng tiếng vẫn yêu cầu trình giữ chỗ âm thanh để điều khiển việc cắt bớt cảnh hiện có, dòng thời gian phụ đề và bố cục cuối cùng.
+    Giữ chiến lược ước tính càng đơn giản càng tốt:
+    1. Các ký tự tiếng Trung và các ký tự CJK khác ước tính khoảng 4,2 từ/giây;
+    2. Tiếng Anh/Số ước tính khoảng 2,7 từ/giây;
+    3. Văn bản bằng các ngôn ngữ khác ước tính khoảng 4,0 ký tự/giây, bao gồm tiếng Nga, tiếng Ả Rập,
+       Các văn bản tiếng Nhật Kana, tiếng Hàn và các văn bản không phải ASCII khác;
+    4. Thêm một chút ngắt quãng ở mỗi đoạn câu để việc chuyển phụ đề không quá chặt chẽ;
+    5. Ít nhất 3 giây để tránh các tập lệnh cực ngắn tạo ra âm thanh 0 giây.
     """
     normalized_text = (text or "").strip()
     if not normalized_text:
@@ -483,8 +540,8 @@ def estimate_no_voice_duration(text: str) -> float:
     ascii_word_chars = sum(len(word) for word in re.findall(r"[A-Za-z0-9]+", normalized_text))
     other_text_chars = 0
     for char in normalized_text:
-        # Unicode category 以 L 开头表示各语种字母，N 表示数字。前面已经单独
-        # 统计了 CJK 和 ASCII 单词，这里只统计剩余文字，避免英文被重复计时。
+        # Các danh mục Unicode bắt đầu bằng L để biểu thị các chữ cái trong nhiều ngôn ngữ khác nhau và N để biểu thị các số. Trước đây đã một mình rồi
+        # Các từ CJK và ASCII được tính và chỉ văn bản còn lại được tính ở đây để tránh việc đếm tiếng Anh lặp lại.
         category = unicodedata.category(char)
         if category.startswith(("L", "N")):
             other_text_chars += 1
@@ -500,10 +557,10 @@ def estimate_no_voice_duration(text: str) -> float:
 
 def generate_silent_audio(duration_seconds: float, output_file: str) -> bool:
     """
-    生成静音音频。
+    Tạo âm thanh im lặng.
 
-    支持直接生成 16-bit mono PCM WAV 音频（精准到单个样本，无编码延迟），
-    或通过 FFmpeg anullsrc 生成 MP3 音频（作为“无配音”模式的占位）。
+    Hỗ trợ tạo trực tiếp âm thanh PCM WAV 16 bit đơn âm (chính xác đến một mẫu duy nhất, không có độ trễ mã hóa),
+    Hoặc tạo âm thanh MP3 qua FFmpeg anullsrc (làm trình giữ chỗ cho chế độ "không lồng tiếng").
     """
     ensure_file_path_exists(output_file)
     duration_seconds = max(
@@ -588,15 +645,15 @@ def _single_tts(
             voice_rate=voice_rate,
         )
     elif is_siliconflow_voice(voice_name):
-        # 从voice_name中提取模型和声音
-        # 格式: siliconflow:model:voice-Gender
+        # Trích xuất mô hình và giọng nói từ voice_name
+        # Định dạng: siliconflow:model:Voice-Giới tính
         parts = voice_name.split(":")
         if len(parts) >= 3:
             model = parts[1]
-            # 移除性别后缀，例如 "alex-Male" -> "alex"
+            # Xóa hậu tố giới tính, chẳng hạn như "alex-Male" -> "alex"
             voice_with_gender = parts[2]
             voice = voice_with_gender.split("-")[0]
-            # 构建完整的voice参数，格式为 "model:voice"
+            # Xây dựng các tham số giọng nói hoàn chỉnh theo định dạng "model:voice"
             full_voice = f"{model}:{voice}"
             return siliconflow_tts(
                 text, model, full_voice, voice_rate, voice_file, voice_volume
@@ -605,8 +662,8 @@ def _single_tts(
             logger.error(f"Invalid siliconflow voice name format: {voice_name}")
             return None
     elif is_gemini_voice(voice_name):
-        # 从voice_name中提取声音名称
-        # 格式: gemini:voice-Style；也继续兼容旧的 gemini:voice-Gender。
+        # Trích xuất tên giọng nói từ voice_name
+        # Định dạng: gemini:Voice-Style; cũng tiếp tục tương thích với gemini cũ:Voice-Gender.
         voice = parse_gemini_voice_name(voice_name)
         if voice:
             return gemini_tts(text, voice, voice_rate, voice_file, voice_volume)
@@ -614,9 +671,9 @@ def _single_tts(
             logger.error(f"Invalid gemini voice name format: {voice_name}")
             return None
     elif is_mimo_voice(voice_name):
-        # 从voice_name中提取声音名称
-        # 格式: mimo:voice-Gender；如果调用方已执行 parse_voice_name，
-        # 则可能是 mimo:voice。两种格式都兼容。
+        # Trích xuất tên giọng nói từ voice_name
+        # Định dạng: mimo:giọng-Giới tính; nếu người gọi đã thực thi phân tích cú pháp_voice_name,
+        # thì đó có thể là mimo:voice. Cả hai định dạng đều tương thích.
         parts = voice_name.split(":")
         if len(parts) >= 2:
             voice_with_gender = parts[1]
@@ -632,7 +689,7 @@ def _single_tts(
         logger.error(f"Invalid MiniMax voice name format: {voice_name}")
         return None
     elif is_elevenlabs_voice(voice_name):
-        # 格式: elevenlabs:{voice_id}:{name}
+        # Định dạng: Elevenlabs:{voice_id}:{name}
         parts = voice_name.split(":")
         if len(parts) >= 2:
             voice_id = parts[1]
@@ -641,7 +698,7 @@ def _single_tts(
             logger.error(f"Invalid elevenlabs voice name format: {voice_name}")
             return None
     elif is_chatterbox_voice(voice_name):
-        # 格式: chatterbox:<voice>，voice 可带显示用的 -Female/-Male 后缀
+        # Định dạng: chatterbox:<voice>, giọng nói có thể có hậu tố -Female/-Male để hiển thị
         parts = voice_name.split(":", 1)
         if len(parts) >= 2 and parts[1].strip():
             chatterbox_voice = parts[1].strip()
@@ -654,7 +711,7 @@ def _single_tts(
             logger.error(f"Invalid chatterbox voice name format: {voice_name}")
             return None
     elif is_kokoro_voice(voice_name):
-        # 格式: kokoro:<voice>，voice 可带显示用的 -Female/-Male 后缀
+        # Định dạng: kokoro:<voice>, giọng nói có thể có hậu tố -Female/-Male để hiển thị
         parts = voice_name.split(":", 1)
         if len(parts) >= 2 and parts[1].strip():
             kokoro_voice = parts[1].strip()
@@ -665,6 +722,17 @@ def _single_tts(
             )
         else:
             logger.error(f"Invalid kokoro voice name format: {voice_name}")
+            return None
+    elif is_viettts_voice(voice_name):
+        # Format: viettts:<voice>
+        parts = voice_name.split(":", 1)
+        if len(parts) >= 2 and parts[1].strip():
+            viet_voice = parts[1].strip()
+            return viettts_tts(
+                text, viet_voice, voice_file, voice_rate, voice_volume
+            )
+        else:
+            logger.error(f"Invalid viettts voice name format: {voice_name}")
             return None
     elif is_fish_audio_voice(voice_name):
         parts = voice_name.split(":")
@@ -677,11 +745,11 @@ def _single_tts(
 
 def _concat_audio_files(audio_files: list[str], output_file: str) -> bool:
     """
-    使用 PCM 解码与统一重编码合并多个音频分段。
+    Hợp nhất nhiều phân đoạn âm thanh bằng cách sử dụng giải mã PCM và mã hóa lại thống nhất.
 
-    将所有输入分段统一转换为标准 PCM (24000Hz 16-bit mono) 样本进行无缝拼接，
-    最后一次性编码为目标文件（如 MP3），彻底解决因每个 MP3 片段编码器延迟与填充（delay/padding）
-    累积而导致的音画不同步及字幕漂移问题。
+    Tất cả các phân đoạn đầu vào đều được chuyển đổi thống nhất thành các mẫu PCM tiêu chuẩn (24000Hz 16-bit mono) để ghép nối liền mạch.
+    Cuối cùng, mã hóa nó thành tệp đích (chẳng hạn như MP3) trong một lần, giải quyết hoàn toàn độ trễ và phần đệm (độ trễ/đệm) của bộ mã hóa của từng đoạn MP3.
+    Việc tích tụ âm thanh và video dẫn đến vấn đề không đồng bộ và trôi phụ đề.
     """
     if not audio_files:
         return False
@@ -700,7 +768,7 @@ def _concat_audio_files(audio_files: list[str], output_file: str) -> bool:
             if not os.path.exists(f) or os.path.getsize(f) == 0:
                 continue
 
-            # 检查是否已经是 24000Hz 16-bit mono WAV
+            # Kiểm tra xem nó đã là WAV đơn âm 16 bit 24000Hz chưa
             is_valid_pcm_wav = False
             if f.lower().endswith(".wav"):
                 try:
@@ -716,7 +784,7 @@ def _concat_audio_files(audio_files: list[str], output_file: str) -> bool:
                     is_valid_pcm_wav = False
 
             if not is_valid_pcm_wav:
-                # 使用 FFmpeg 将输入文件解码为 24000Hz 16-bit mono PCM WAV
+                # Giải mã tệp đầu vào thành 24000Hz 16-bit mono PCM WAV bằng FFmpeg
                 pcm_wav = os.path.join(concat_temp, f"chunk_{idx}.wav")
                 cmd = [
                     ffmpeg_binary,
@@ -786,8 +854,8 @@ def _tts_with_pauses(
     voice_volume: float = 1.0,
 ) -> Union[SubMaker, None]:
     """
-    处理包含停顿标签（如 [pause: 2s] / [pausa: 1.5s] / [停顿: 3秒]）的脚本合成。
-    分段生成语音和精确的 PCM 静音，基于真实解码样本计算字幕偏移，并在末尾执行单次统一编码。
+    Xử lý các thành phần tập lệnh chứa thẻ tạm dừng (ví dụ: [tạm dừng: 2s] / [tạm dừng: 1,5 giây] / [tạm dừng: 3 giây]).
+    Giọng nói và khoảng lặng PCM chính xác được tạo theo từng phân đoạn, độ lệch phụ đề được tính toán dựa trên các mẫu được giải mã thực và một mã hóa thống nhất duy nhất được thực hiện ở cuối.
     """
     segments = utils.parse_script_with_pauses(text)
     if not segments:
@@ -832,11 +900,11 @@ def _tts_with_pauses(
                     wf.setframerate(SAMPLE_RATE)
                     wf.writeframes(b"\x00\x00" * num_silent_samples)
 
-                # 同样触发 generate_silent_audio，保证单测中若 mock 了该方法依然能被捕获调用
+                # Generator_silent_audio cũng được kích hoạt để đảm bảo rằng nếu bị mô phỏng trong một thử nghiệm duy nhất, phương thức này vẫn có thể được ghi lại và gọi.
                 generate_silent_audio(pause_duration, silence_wav)
 
                 actual_pause_duration = pause_duration
-                # 如果单测 mock 了 get_audio_duration，优先读取 mock 实际返回的时长
+                # Nếu get_audio_duration được mô phỏng trong một thử nghiệm đơn lẻ, trước tiên hãy đọc thời lượng thực tế được mô phỏng trả về.
                 mock_check_duration = get_audio_duration(silence_wav)
                 if mock_check_duration > 0 and abs(mock_check_duration - pause_duration) > 0.05:
                     actual_pause_duration = mock_check_duration
@@ -903,10 +971,10 @@ def _tts_with_pauses(
                     )
                     return None
 
-                # 字幕偏移直接依据实际样本数精确计算，不存在 MP3 帧累积漂移
+                # Độ lệch phụ đề được tính toán chính xác trực tiếp dựa trên số lượng mẫu thực tế và không có hiện tượng trôi khung hình MP3 tích lũy.
                 current_offset_seconds = cumulative_samples / float(SAMPLE_RATE)
 
-                # 1. 迁移 cues (edge_tts 7.x)
+                # 1. Di chuyển tín hiệu (edge_tts 7.x)
                 if hasattr(chunk_submaker, "cues") and chunk_submaker.cues:
                     offset_td = timedelta(seconds=current_offset_seconds)
                     for cue in chunk_submaker.cues:
@@ -918,7 +986,7 @@ def _tts_with_pauses(
                         )
                         combined_submaker.cues.append(shifted_cue)
 
-                # 2. 迁移 legacy subs/offset
+                # 2. Di chuyển phần phụ/phần bù kế thừa
                 if hasattr(chunk_submaker, "subs") and chunk_submaker.subs:
                     combined_submaker.subs.extend(chunk_submaker.subs)
                 if hasattr(chunk_submaker, "offset") and chunk_submaker.offset:
@@ -946,7 +1014,7 @@ def tts(
     voice_file: str,
     voice_volume: float = 1.0,
 ) -> Union[SubMaker, None]:
-    # 无停顿标签时，原样直通原始文本，避免无意义的正则处理或空白截断
+    # Khi không có thẻ tạm dừng, văn bản gốc sẽ được chuyển qua để tránh việc xử lý thông thường hoặc cắt bớt nội dung vô nghĩa.
     if not utils.has_pause_tags(text):
         return _single_tts(
             text=text,
@@ -956,7 +1024,7 @@ def tts(
             voice_volume=voice_volume,
         )
 
-    # 仅 Azure TTS v1 (Edge TTS) 且脚本包含停顿标签时进入分段合成
+    # Chỉ Azure TTS v1 (Edge TTS) và nhập thành phần được phân đoạn khi tập lệnh chứa thẻ tạm dừng
     if is_azure_v1_voice(voice_name):
         return _tts_with_pauses(
             text=text,
@@ -966,8 +1034,8 @@ def tts(
             voice_volume=voice_volume,
         )
 
-    # 其他声音提供商（如 Gemini、Fish Audio、SiliconFlow、Kokoro）包含停顿标签时，
-    # 清理停顿标签后以单次请求合成
+    # Khi các nhà cung cấp âm thanh khác (ví dụ: Gemini, Fish Audio, SiliconFlow, Kokoro) thêm thẻ tạm dừng,
+    # Tổng hợp trong một yêu cầu sau khi làm sạch thẻ gian hàng
     clean_text = utils.remove_pause_tags(text)
     return _single_tts(
         text=clean_text,
@@ -983,9 +1051,9 @@ def convert_rate_to_percent(rate: float) -> str:
     # Rounding can yield 0 for rates near but not equal to 1.0 (e.g. 1.004,
     # 0.997); those must still be returned as "+0%", not the unsigned "0%"
     # which edge-tts rejects with ValueError: Invalid rate '0%'.
-    # API 或批处理调用可能传入 0、0.0、None 或无法转换的空值；这些值不代表
-    # 合法语速，直接计算会变成 -100% 或抛异常。这里统一回退到正常语速，
-    # 避免生成极慢音频或让 TTS 流程在边界输入下失败。
+    # Lệnh gọi API hoặc hàng loạt có thể chuyển thành 0, 0,0, Không hoặc giá trị null không thể chuyển đổi; những giá trị này không đại diện
+    # Tốc độ nói hợp pháp, tính toán trực tiếp sẽ trở thành -100% hoặc sẽ có ngoại lệ. Ở đây, chúng ta quay lại tốc độ nói bình thường.
+    # Tránh tạo ra âm thanh cực kỳ chậm hoặc quá trình TTS không thành công ở các đầu vào ranh giới.
     try:
         rate = float(rate)
     except (TypeError, ValueError):
@@ -1000,11 +1068,11 @@ def convert_rate_to_percent(rate: float) -> str:
 
 def ensure_file_path_exists(file_path: str) -> None:
     """
-    确保输出文件所在目录一定存在。
+    Đảm bảo thư mục chứa tệp đầu ra phải tồn tại.
 
-    这里单独做一层兜底，是因为 edge_tts 7.x 在真正发起网络请求之前，
-    就会先打开目标音频文件；如果目录不存在，会直接因为本地文件路径报错，
-    从而掩盖真正的 TTS 行为结果。
+    Đây là một lớp chi tiết riêng biệt, vì edge_tts 7.x trước khi thực sự bắt đầu một yêu cầu mạng,
+    Tệp âm thanh đích sẽ được mở trước tiên; nếu thư mục không tồn tại, lỗi sẽ được báo cáo trực tiếp do đường dẫn tệp cục bộ.
+    do đó che giấu kết quả hành vi thực sự của TTS.
     """
     dir_path = os.path.dirname(file_path)
     if dir_path:
@@ -1013,11 +1081,11 @@ def ensure_file_path_exists(file_path: str) -> None:
 
 def ensure_legacy_submaker_fields(sub_maker: SubMaker) -> SubMaker:
     """
-    为项目里仍然沿用旧字幕结构的调用方补齐兼容字段。
+    Hoàn thành trường tương thích cho người gọi vẫn sử dụng cấu trúc phụ đề cũ trong dự án.
 
-    edge_tts 7.x 的 `SubMaker` 主要暴露 `cues/get_srt()`，但项目里 Azure v2、
-    Gemini、SiliconFlow 这些路径仍然会直接读写 `subs/offset`。这里统一补齐，
-    避免升级 edge_tts 后这些非 edge 路径被连带破坏。
+    `SubMaker` của edge_tts 7.x chủ yếu hiển thị `cues/get_srt()`, nhưng trong dự án Azure v2,
+    Đường dẫn Gemini và SiliconFlow vẫn sẽ trực tiếp đọc và ghi `subs/offset`. Hoàn thành nó ở đây,
+    Ngăn chặn các đường dẫn không có cạnh này bị hỏng sau khi nâng cấp edge_tts.
     """
     if not hasattr(sub_maker, "subs"):
         sub_maker.subs = []
@@ -1030,27 +1098,27 @@ def populate_legacy_submaker_with_full_text(
     sub_maker: SubMaker, text: str, audio_duration_seconds: float
 ) -> SubMaker:
     """
-    用整段文本填充项目历史沿用的 `subs/offset` 字幕结构。
+    Điền vào cấu trúc phụ đề `subs/offset` được kế thừa từ lịch sử của dự án bằng toàn bộ văn bản.
 
-    背景：
-    1. edge_tts 7.x 的 `SubMaker` 不再提供旧版本里的 `create_sub()`；
-    2. 项目里 Gemini、SiliconFlow 等非 edge 路径依然需要返回一个
-       带 `subs/offset` 的对象，供后续统一计算音频时长和生成字幕；
-    3. 对于拿不到逐词边界的 TTS 服务，需要至少按脚本断句切成多个片段，
-       这样后续 `subtitle_provider=edge` 的聚合逻辑才能继续工作，而不是
-       因为整段文本无法和脚本断句逐行匹配而回退 Whisper。
+    lý lịch:
+    1. `SubMaker` của edge_tts 7.x không còn cung cấp `create_sub()` trong phiên bản cũ;
+    2. Các đường dẫn không biên như Gemini và SiliconFlow trong dự án vẫn cần trả về
+       Đối tượng có `subs/offset` để tính toán thống nhất tiếp theo về thời lượng âm thanh và tạo phụ đề;
+    3. Đối với các dịch vụ TTS không thể phân định ranh giới từng từ, ít nhất họ cần phải chia câu thành nhiều đoạn theo kịch bản.
+       Bằng cách này, logic tổng hợp tiếp theo của `subtitle_provider=edge` có thể tiếp tục hoạt động thay vì
+       Dự phòng cho Whisper vì toàn bộ văn bản không thể khớp với từng phân đoạn tập lệnh.
 
     Args:
-        sub_maker: 需要写入兼容字段的字幕对象
-        text: 原始脚本文本
-        audio_duration_seconds: 音频总时长，单位秒
+        sub_maker: Đối tượng phụ đề cần ghi các trường tương thích
+        văn bản: văn bản kịch bản gốc
+        audio_duration_seconds: tổng thời lượng âm thanh, tính bằng giây
 
     Returns:
-        已填充兼容字幕数据的 SubMaker 对象
+        Đối tượng SubMaker được điền dữ liệu phụ đề tương thích
     """
     sub_maker = ensure_legacy_submaker_fields(sub_maker)
 
-    # 清空旧值，避免调用方重复复用对象时出现脏数据叠加。
+    # Xóa các giá trị cũ để tránh lớp phủ dữ liệu bẩn khi người gọi sử dụng lại các đối tượng.
     sub_maker.subs = []
     sub_maker.offset = []
 
@@ -1060,9 +1128,9 @@ def populate_legacy_submaker_with_full_text(
 
     audio_duration_100ns = max(int(audio_duration_seconds * 10000000), 1)
 
-    # Gemini / SiliconFlow 这类路径拿不到逐词边界时，仍然尽量沿用项目
-    # 原来的“按标点断句 + 按字符数比例分配时长”的策略。这样既能让
-    # create_subtitle() 匹配脚本断句，也能避免再次回退 Whisper。
+    # Khi các đường dẫn như Gemini/SiliconFlow không thể đạt được ranh giới từng từ, hãy cố gắng vẫn sử dụng dự án
+    # Chiến lược ban đầu là “ngắt câu theo dấu câu + phân bổ thời lượng theo số lượng ký tự”. Điều này sẽ cho phép
+    # create_subtitle() khớp với các đoạn tập lệnh và tránh quay lại Whisper lần nữa.
     sentences = utils.split_string_by_punctuations(normalized_text)
     if not sentences:
         sentences = [normalized_text]
@@ -1079,8 +1147,8 @@ def populate_legacy_submaker_with_full_text(
         if not cleaned_sentence:
             continue
 
-        # 前面的句子按字符数比例分配时长，最后一句兜底吃掉剩余时长，
-        # 避免整数取整导致总时长丢失或字幕结束时间短于音频。
+        # Thời lượng của các câu trước được phân bổ tỷ lệ với số lượng ký tự và câu cuối cùng sẽ chiếm hết thời lượng còn lại.
+        # Tránh làm tròn số nguyên khiến tổng thời lượng bị mất hoặc thời gian kết thúc phụ đề ngắn hơn âm thanh.
         if index == len(sentences) - 1:
             sentence_end = audio_duration_100ns
         else:
@@ -1102,16 +1170,16 @@ def create_edge_tts_communicate(
     text: str, voice_name: str, rate_str: str
 ) -> edge_tts.Communicate:
     """
-    按当前已安装的 edge_tts 版本构造 Communicate 对象。
+    Xây dựng đối tượng Giao tiếp dựa trên phiên bản edge_tts hiện được cài đặt.
 
-    背景：
-    1. 主线代码已经升级到 edge_tts 7.x，并使用 `boundary` 参数拿到更细的边界事件；
-    2. 但 Windows 便携包如果更新失败，现场环境可能仍然停留在旧版 edge_tts；
-    3. 旧版 `Communicate.__init__()` 不接受 `boundary`，会直接抛出
-       `unexpected keyword argument 'boundary'`，导致整个 TTS 链路失败。
+    lý lịch:
+    1. Mã dòng chính đã được nâng cấp lên edge_tts 7.x và sử dụng tham số `ranh` để nhận các sự kiện ranh giới chính xác hơn;
+    2. Tuy nhiên, nếu gói di động Windows không được cập nhật, môi trường tại chỗ có thể vẫn bị kẹt trong phiên bản cũ của edge_tts;
+    3. Phiên bản cũ của `Communicate.__init__()` không chấp nhận `ranh giới` và sẽ ném nó trực tiếp
+       `đối số từ khóa không mong đợi 'ranh giới'`, khiến toàn bộ liên kết TTS không thành công.
 
-    因此这里先根据构造函数签名探测当前版本支持的参数，再决定是否传入
-    `boundary`，让同一份代码同时兼容旧版和新版依赖。
+    Do đó, ở đây trước tiên chúng tôi phát hiện các tham số được phiên bản hiện tại hỗ trợ dựa trên chữ ký của hàm tạo và sau đó quyết định xem có chuyển chúng vào hay không.
+    `ranh giới` làm cho cùng một mã tương thích với cả phiên bản phụ thuộc cũ và mới.
     """
     communicate_kwargs = {"rate": rate_str}
     communicate_signature = inspect.signature(edge_tts.Communicate)
@@ -1124,18 +1192,18 @@ def create_edge_tts_communicate(
 
 def get_edge_tts_timeout_seconds() -> Union[float, None]:
     """
-    获取 Azure TTS V1 单次流式请求的超时时间。
+    Nhận thời gian chờ cho một yêu cầu phát trực tuyến trong Azure TTS V1.
 
-    背景：
-    Edge consumer TTS 在网络不通、服务端限流、voice 与文本语言不匹配等场景下，
-    可能长时间卡在 `stream_sync()` 内部，日志只停留在 `start`。这里提供一个
-    默认超时，避免 WebUI 任务长期无反馈。
+    lý lịch:
+    TTS dành cho người tiêu dùng biên hoạt động trong các tình huống như lỗi mạng, giới hạn dòng điện phía máy chủ, ngôn ngữ thoại và văn bản không khớp, v.v.
+    Nó có thể bị kẹt bên trong `stream_sync()` trong một thời gian dài và nhật ký chỉ ở mức `start`. Đây là một
+    Thời gian chờ mặc định ngăn các tác vụ WebUI không có phản hồi trong một thời gian dài.
 
-    使用方式：
-    - 默认 30 秒，覆盖常见短视频脚本的首包等待时间；
-    - 如用户处于慢网络或代理环境，可在 `config.toml` 里设置
+    Cách sử dụng:
+    - Mặc định là 30 giây, bao gồm thời gian chờ gói đầu tiên của các tập lệnh video ngắn phổ biến;
+    - Nếu người dùng ở trong môi trường mạng hoặc proxy chậm, nó có thể được đặt trong `config.toml`
       `edge_tts_timeout = 60`；
-    - 设置为 0 或负数表示显式禁用超时，保留完全向后兼容。
+    - Đặt thành 0 hoặc số âm để tắt rõ ràng thời gian chờ, duy trì khả năng tương thích ngược hoàn toàn.
     """
     raw_timeout = config.app.get(
         "edge_tts_timeout", _DEFAULT_EDGE_TTS_TIMEOUT_SECONDS
@@ -1159,17 +1227,17 @@ def _stream_edge_tts_sync_with_timeout(
     communicate, on_chunk, timeout_seconds: float
 ) -> None:
     """
-    带总超时地消费 edge_tts 7.x 的同步流。
+    Sử dụng luồng đồng bộ của edge_tts 7.x với tổng thời gian chờ.
 
-    实现原因：
-    `stream_sync()` 本身是阻塞迭代器，网络层卡住时主线程无法及时恢复。
-    这里把阻塞迭代放到 daemon 线程中，主线程通过 Queue 获取 chunk，
-    到达超时时间后直接抛出 TimeoutError，让外层重试和错误日志继续工作。
+    Lý do thực hiện:
+    Bản thân `stream_sync()` là một trình vòng lặp chặn và luồng chính không thể phục hồi kịp thời khi lớp mạng bị kẹt.
+    Ở đây, vòng lặp chặn được đặt trong luồng daemon và luồng chính lấy đoạn thông qua Hàng đợi.
+    Ném trực tiếp TimeoutError sau khi đạt đến khoảng thời gian chờ, cho phép thử lại bên ngoài và nhật ký lỗi tiếp tục hoạt động.
 
-    注意：
-    daemon 线程只作为兜底保护使用，最多随 Azure TTS V1 的 3 次重试产生
-    少量残留线程；进程退出时会自动回收。相比 WebUI 任务永久卡住，这是
-    更可控的失败模式。
+    Để ý:
+    Chuỗi daemon chỉ được sử dụng để bảo vệ bìa và được tạo với tối đa 3 lần thử lại Azure TTS V1.
+    Một số lượng nhỏ các sợi còn sót lại; chúng sẽ được tự động tái chế khi quá trình kết thúc. So với các tác vụ WebUI bị kẹt vĩnh viễn, đây là
+    Các chế độ lỗi có thể kiểm soát hơn.
     """
     stream_queue = queue.Queue()
     done_marker = object()
@@ -1212,16 +1280,16 @@ def stream_edge_tts_chunks(
     communicate, on_chunk, timeout_seconds: Union[float, None] = None
 ) -> None:
     """
-    统一消费 edge_tts 的同步流和旧版异步流。
+    Sử dụng luồng đồng bộ và luồng không đồng bộ kế thừa của edge_tts theo cách thống nhất.
 
-    edge_tts 7.x 提供 `stream_sync()`，可以在同步函数里直接迭代；
-    更早的版本通常只有异步 `stream()`。为了让 `azure_tts_v1()` 在
-    旧依赖残留场景下仍能继续工作，这里统一做一层流式兼容。
+    edge_tts 7.x cung cấp `stream_sync()`, có thể được lặp lại trực tiếp trong chức năng đồng bộ hóa;
+    Các phiên bản cũ hơn thường chỉ có `stream()` không đồng bộ. Để `azure_tts_v1()` thành
+    Nó vẫn có thể tiếp tục hoạt động trong các tình huống vẫn còn các phần phụ thuộc cũ và một lớp khả năng tương thích phát trực tuyến được hợp nhất ở đây.
 
     Args:
-        communicate: edge_tts.Communicate 实例
-        on_chunk: 每拿到一个事件块时执行的回调
-        timeout_seconds: 单次流式请求总超时；为 None 时不启用超时。
+        giao tiếp: ví dụ edge_tts.Communicate
+        on_chunk: lệnh gọi lại được thực hiện mỗi khi nhận được một đoạn sự kiện
+        timeout_seconds: Tổng thời gian chờ cho một yêu cầu phát trực tuyến; thời gian chờ không được bật khi Không có.
     """
     if hasattr(communicate, "stream_sync"):
         if timeout_seconds:
@@ -1241,8 +1309,8 @@ def stream_edge_tts_chunks(
         async for chunk in communicate.stream():
             on_chunk(chunk)
 
-    # 这里显式创建独立事件循环，而不是复用外部上下文，目的是避免
-    # 在同步调用栈里遇到“当前线程没有事件循环”或跨线程复用循环的问题。
+    # Ở đây chúng tôi tạo một vòng lặp sự kiện độc lập một cách rõ ràng thay vì sử dụng lại bối cảnh bên ngoài. Mục đích là để tránh
+    # Trong ngăn xếp cuộc gọi đồng bộ hóa, tôi gặp phải sự cố "luồng hiện tại không có vòng lặp sự kiện" hoặc sự cố sử dụng lại vòng lặp trên các luồng.
     loop = asyncio.new_event_loop()
     try:
         if timeout_seconds:
@@ -1265,9 +1333,9 @@ def azure_tts_v1(
         try:
             logger.info(f"start, voice name: {voice_name}, try: {i + 1}")
 
-            # 这里同时兼容 edge_tts 7.x 和旧版便携包里可能残留的老依赖：
-            # 1. 新版支持 `boundary` + `stream_sync()`
-            # 2. 旧版不支持 `boundary`，且通常只暴露异步 `stream()`
+            # Điều này tương thích với edge_tts 7.x và các phần phụ thuộc cũ có thể vẫn còn trong phiên bản cũ của gói di động:
+            # 1. Phiên bản mới hỗ trợ `ranh` + `stream_sync()`
+            # 2. Phiên bản cũ không hỗ trợ `ranh` và thường chỉ hiển thị `stream()` không đồng bộ
             ensure_file_path_exists(voice_file)
             communicate = create_edge_tts_communicate(text, voice_name, rate_str)
             sub_maker = edge_tts.SubMaker()
@@ -1279,9 +1347,9 @@ def azure_tts_v1(
                     if chunk_type == "audio":
                         file.write(chunk["data"])
                     elif chunk_type in ["WordBoundary", "SentenceBoundary"]:
-                        # 无论来自 7.x 的同步流，还是旧版异步流，只要事件结构
-                        # 里仍有边界信息，就统一喂给 SubMaker，保证后续字幕链路
-                        # 仍然走项目现有逻辑。
+                        # Cho dù đó là luồng đồng bộ từ 7.x hay luồng không đồng bộ cũ, miễn là cấu trúc sự kiện
+                        # Nếu vẫn còn thông tin ranh giới trong đó, nó sẽ được cung cấp thống nhất cho SubMaker để đảm bảo các liên kết phụ đề tiếp theo.
+                        # Vẫn tuân theo logic hiện có của dự án.
                         sub_maker.feed(chunk)
 
                 stream_edge_tts_chunks(
@@ -1296,9 +1364,9 @@ def azure_tts_v1(
             return sub_maker
         except Exception as e:
             logger.error(f"failed, error: {str(e)}")
-            # TTS 流式写入如果在首包前超时或网络异常，会留下 0 字节音频文件。
-            # 这种文件既不可播放，也可能误导后续排查，因此失败后只清理空文件；
-            # 如果已经写入了部分数据，则保留现场文件，便于分析服务端返回内容。
+            # Nếu quá trình ghi phát trực tuyến TTS hết thời gian hoặc mạng không bình thường trước gói đầu tiên, các tệp âm thanh 0 byte sẽ bị bỏ lại.
+            # Các tệp như vậy không thể phát được và cũng không thể gây nhầm lẫn cho việc khắc phục sự cố tiếp theo, vì vậy chỉ các tệp trống sẽ bị xóa sau khi thất bại;
+            # Nếu một phần dữ liệu đã được ghi, tệp tại chỗ sẽ được giữ lại để tạo điều kiện phân tích nội dung được máy chủ trả về.
             if os.path.exists(voice_file) and os.path.getsize(voice_file) == 0:
                 try:
                     os.remove(voice_file)
@@ -1319,18 +1387,18 @@ def siliconflow_tts(
     voice_volume: float = 1.0,
 ) -> Union[SubMaker, None]:
     """
-    使用硅基流动的API生成语音
+    Tạo giọng nói bằng API Silicon Fluid
 
     Args:
-        text: 要转换为语音的文本
-        model: 模型名称，如 "FunAudioLLM/CosyVoice2-0.5B"
-        voice: 声音名称，如 "FunAudioLLM/CosyVoice2-0.5B:alex"
-        voice_rate: 语音速度，范围[0.25, 4.0]
-        voice_file: 输出的音频文件路径
-        voice_volume: 语音音量，范围[0.6, 5.0]，需要转换为硅基流动的增益范围[-10, 10]
+        văn bản: văn bản được chuyển đổi thành lời nói
+        model: tên model, chẳng hạn như "FunAudioLLM/CosyVoice2-0.5B"
+        voice: tên giọng nói, chẳng hạn như "FunAudioLLM/CosyVoice2-0.5B:alex"
+        voice_rate: tốc độ giọng nói, phạm vi [0,25, 4,0]
+        voice_file: đường dẫn file âm thanh đầu ra
+        voice_volume: Âm lượng giọng nói, phạm vi [0,6, 5,0], cần được chuyển đổi thành phạm vi tăng lưu lượng silicon [-10, 10]
 
     Returns:
-        SubMaker对象或None
+        Đối tượng SubMaker hoặc Không có
     """
     text = text.strip()
     api_key = config.siliconflow.get("api_key", "")
@@ -1339,10 +1407,10 @@ def siliconflow_tts(
         logger.error("SiliconFlow API key is not set")
         return None
 
-    # 将voice_volume转换为硅基流动的增益范围
-    # 默认voice_volume为1.0，对应gain为0
+    # Chuyển đổi voice_volume để tăng phạm vi cho luồng silicon
+    # Voice_volume mặc định là 1.0 và mức tăng tương ứng là 0
     gain = voice_volume - 1.0
-    # 确保gain在[-10, 10]范围内
+    # Đảm bảo mức tăng nằm trong phạm vi [-10, 10]
     gain = max(-10, min(10, gain))
 
     url = "https://api.siliconflow.cn/v1/audio/speech"
@@ -1360,7 +1428,7 @@ def siliconflow_tts(
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-    for i in range(3):  # 尝试3次
+    for i in range(3):  # Hãy thử 3 lần
         try:
             logger.info(
                 f"start siliconflow tts, model: {model}, voice: {voice}, try: {i + 1}"
@@ -1369,7 +1437,7 @@ def siliconflow_tts(
             response = requests.post(url, json=payload, headers=headers)
 
             if response.status_code == 200:
-                # 保存音频文件
+                # Lưu tập tin âm thanh
                 with open(voice_file, "wb") as f:
                     f.write(response.content)
 
@@ -1402,7 +1470,7 @@ def siliconflow_tts(
 
 
 def _build_azure_v2_ssml(text: str, voice_name: str, voice_rate: float) -> str:
-    """构造 Azure Speech V2 使用的 SSML，并安全规范化语速参数。"""
+    """Xây dựng SSML để sử dụng với Azure Speech V2 và chuẩn hóa các tham số tốc độ giọng nói một cách an toàn."""
     try:
         normalized_rate = float(voice_rate)
     except (TypeError, ValueError):
@@ -1510,8 +1578,8 @@ def azure_tts_v2(
                 speech_synthesizer_word_boundary_cb
             )
 
-            # speak_text_async() 不支持语速参数。使用 SSML prosody 后，试听和
-            # 正式生成都会按 WebUI/API 传入的 voice_rate 调整语速。
+            # speak_text_async() không hỗ trợ thông số tốc độ nói. Sau khi sử dụng phương pháp SSML, thử giọng và
+            # Việc tạo chính thức sẽ điều chỉnh tốc độ giọng nói theo voice_rate được truyền từ WebUI/API.
             result = speech_synthesizer.speak_ssml_async(ssml).get()
             if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
                 logger.success(f"azure v2 speech synthesis succeeded: {voice_file}")
@@ -1539,17 +1607,17 @@ def gemini_tts(
     voice_volume: float = 1.0,
 ) -> Union[SubMaker, None]:
     """
-    使用Google Gemini TTS生成语音
+    Tạo giọng nói bằng Google Gemini TTS
     
     Args:
-        text: 要转换的文本
-        voice_name: 语音名称，如 "Zephyr", "Puck" 等
-        voice_rate: 语音速率（当前未使用）
-        voice_file: 输出音频文件路径
-        voice_volume: 音频音量（当前未使用）
+        text: văn bản cần chuyển đổi
+        voice_name: Tên giọng nói, chẳng hạn như "Zephyr", "Puck", v.v.
+        voice_rate: Tốc độ giọng nói (hiện không được sử dụng)
+        voice_file: đường dẫn file âm thanh đầu ra
+        voice_volume: âm lượng âm thanh (hiện không được sử dụng)
         
     Returns:
-        SubMaker对象或None
+        Đối tượng SubMaker hoặc Không có
     """
     import base64
     import io
@@ -1577,8 +1645,8 @@ def gemini_tts(
             ),
         )
 
-        # google-genai 使用统一 Client 调用文本和 TTS 模型。上下文管理器确保
-        # 请求结束后释放 HTTP 连接，同时保留原有 PCM 转码和字幕时间轴逻辑。
+        # google-genai sử dụng ứng dụng khách hợp nhất để gọi các mô hình văn bản và TTS. Trình quản lý bối cảnh đảm bảo
+        # Giải phóng kết nối HTTP sau khi yêu cầu hoàn tất, trong khi vẫn giữ nguyên logic dòng thời gian phụ đề và chuyển mã PCM ban đầu.
         with genai.Client(api_key=api_key) as client:
             response = client.models.generate_content(
                 model="gemini-2.5-flash-preview-tts",
@@ -1586,12 +1654,12 @@ def gemini_tts(
                 config=generation_config,
             )
 
-        # 检查响应
+        # Kiểm tra phản hồi
         if not response.candidates or not response.candidates[0].content:
             logger.error("No audio content received from Gemini TTS")
             return None
             
-        # 获取音频数据
+        # Nhận dữ liệu âm thanh
         audio_data = None
         for part in response.candidates[0].content.parts:
             if hasattr(part, 'inline_data') and part.inline_data:
@@ -1602,47 +1670,47 @@ def gemini_tts(
             logger.error("No audio data found in response")
             return None
             
-        # 音频数据已经是原始字节，不需要base64解码
+        # Dữ liệu âm thanh đã là byte thô và không yêu cầu giải mã base64
         if isinstance(audio_data, str):
-            # 如果是字符串，则需要base64解码
+            # Nếu là chuỗi thì cần phải giải mã base64
             audio_bytes = base64.b64decode(audio_data)
         else:
-            # 如果已经是字节，直接使用
+            # Nếu nó đã là byte, hãy sử dụng nó trực tiếp
             audio_bytes = audio_data
         
-        # 尝试不同的音频格式 - Gemini可能返回不同的格式
+        # Hãy thử các định dạng âm thanh khác nhau - Song Tử có thể trả về các định dạng khác nhau
         audio_segment = None
         
-        # Gemini返回Linear PCM格式，按照文档参数解析
+        # Gemini trả về định dạng PCM tuyến tính, được phân tích cú pháp theo tham số tài liệu
         try:
             audio_segment = AudioSegment.from_file(
                 io.BytesIO(audio_bytes), 
                 format="raw",
-                frame_rate=24000,  # Gemini TTS默认采样率
-                channels=1,        # 单声道
+                frame_rate=24000,  # Tốc độ lấy mẫu mặc định của Gemini TTS
+                channels=1,        # bệnh tăng bạch cầu đơn nhân
                 sample_width=2     # 16-bit
             )
         except Exception as e:
             logger.error(f"Failed to load PCM audio: {e}")
             return None
         
-        # API、CLI 或测试可以直接把尚不存在的嵌套目录作为输出位置。这里在
-        # 真正写文件前统一创建父目录，避免一次成功的 Gemini 请求最后因为
-        # 本地路径不存在而丢失结果，也让该 provider 与其他 TTS 实现行为一致。
+        # API, CLI hoặc thử nghiệm có thể nhắm mục tiêu trực tiếp vào các thư mục lồng nhau chưa tồn tại dưới dạng vị trí đầu ra. ở đây tại
+        # Tạo thư mục mẹ trước khi thực sự ghi tệp để tránh yêu cầu Gemini thành công kết thúc bằng
+        # Việc mất kết quả khi đường dẫn cục bộ không tồn tại cũng khiến nhà cung cấp này hoạt động nhất quán với các triển khai TTS khác.
         ensure_file_path_exists(voice_file)
 
-        # pydub 会返回打开的输出文件对象。批量生成时若不主动关闭，文件描述符
-        # 会持续累积，并在 Windows 上增加后续覆盖或删除音频文件失败的概率。
+        # pydub trả về đối tượng tệp đầu ra đang mở. Nếu nó không được đóng tích cực trong quá trình tạo hàng loạt, bộ mô tả tệp
+        # Nó tiếp tục tích lũy và làm tăng khả năng ghi đè hoặc xóa các tệp âm thanh trên Windows sau đó không thành công.
         exported_audio = audio_segment.export(voice_file, format="mp3")
         exported_audio.close()
         
         logger.info(f"completed, output file: {voice_file}")
         
-        # Gemini 拿不到 edge_tts 那种逐词边界事件，因此这里退回到
-        # 项目原有的 `subs/offset` 兼容结构，至少保证后续字幕与时长
-        # 计算链路可继续工作。
+        # Gemini không thể nhận được các sự kiện ranh giới từng từ như edge_tts, vì vậy chúng tôi quay lại
+        # Cấu trúc tương thích `sub/offset` ban đầu của dự án đảm bảo ít nhất phụ đề và thời lượng tiếp theo.
+        # Liên kết máy tính có thể tiếp tục hoạt động.
         sub_maker = ensure_legacy_submaker_fields(SubMaker())
-        audio_duration = len(audio_segment) / 1000.0  # 转换为秒
+        audio_duration = len(audio_segment) / 1000.0  # Chuyển đổi thành giây
         return populate_legacy_submaker_with_full_text(
             sub_maker=sub_maker,
             text=text,
@@ -1665,14 +1733,14 @@ def mimo_tts(
     voice_volume: float = 1.0,
 ) -> Union[SubMaker, None]:
     """
-    使用 Xiaomi MiMo V2.5 TTS 生成语音。
+    Tạo giọng nói bằng Xiaomi MiMo V2.5 TTS.
 
-    官方接口兼容 OpenAI Chat Completions，但 TTS 有两个关键差异：
-    1. 待合成文本必须放在 `assistant` 消息里；
-    2. 音频以 `message.audio.data` 的 base64 字符串返回。
+    Giao diện chính thức tương thích với OpenAI Chat Completions, nhưng TTS có hai điểm khác biệt chính:
+    1. Văn bản cần tổng hợp phải được đặt trong tin nhắn `trợ lý`;
+    2. Âm thanh được trả về dưới dạng chuỗi base64 trong `message.audio.data`.
 
-    MiMo 当前没有返回逐词时间轴，因此这里复用项目已有的 legacy
-    SubMaker 兜底方案：根据最终音频时长和脚本文本断句生成字幕时间轴。
+    MiMo hiện không trả về dòng thời gian từng chữ nên di sản hiện có của dự án sẽ được sử dụng lại ở đây.
+    Giải pháp của SubMaker: tạo dòng thời gian phụ đề dựa trên thời lượng âm thanh cuối cùng và các phân đoạn văn bản tập lệnh.
     """
     from pydub import AudioSegment
 
@@ -1769,7 +1837,7 @@ def _resolve_minimax_tts_url(configured_url: str) -> str:
 
 
 def get_minimax_tts_api_key() -> str:
-    """返回 MiniMax TTS 的有效密钥，专用配置优先于 LLM 共享配置。"""
+    """Trả về khóa hợp lệ cho MiniMax TTS, cấu hình riêng được ưu tiên hơn cấu hình chia sẻ LLM."""
     return str(
         config.minimax_tts.get("api_key", "")
         or config.app.get("minimax_api_key", "")
@@ -1779,7 +1847,7 @@ def get_minimax_tts_api_key() -> str:
 
 
 def _infer_minimax_tts_url(base_url: str) -> str:
-    """根据 MiniMax LLM 地址推断同区域的 TTS 地址，无法识别时返回空值。"""
+    """Địa chỉ TTS trong cùng khu vực được suy ra dựa trên địa chỉ MiniMax LLM và giá trị null được trả về nếu không thể xác định được."""
     normalized_url = str(base_url or "").strip()
     if not normalized_url:
         return ""
@@ -1795,10 +1863,10 @@ def _infer_minimax_tts_url(base_url: str) -> str:
 
 def get_minimax_tts_endpoint() -> str:
     """
-    返回与当前有效密钥匹配的 MiniMax TTS 地址。
+    Trả về địa chỉ MiniMax TTS khớp với khóa hiện hợp lệ.
 
-    独立配置 TTS Key 时尊重用户选择的 TTS 地址；复用 MiniMax LLM Key 时，
-    优先跟随 LLM Base URL 的区域，避免中国站 Key 被发送到国际站而返回 401。
+    Khi định cấu hình Khóa TTS một cách độc lập, hãy tôn trọng địa chỉ TTS do người dùng chọn; khi sử dụng lại Khóa MiniMax LLM,
+    Ưu tiên khu vực đi theo URL cơ sở LLM để ngăn chặn Site Key của Trung Quốc được gửi đến site quốc tế và trả về 401.
     """
     dedicated_key = str(config.minimax_tts.get("api_key", "") or "").strip()
     if not dedicated_key:
@@ -1814,11 +1882,11 @@ def get_minimax_voice_catalog(
     voice_type: str = "all",
 ) -> list[dict[str, str]]:
     """
-    查询当前 MiniMax 账号可用的系统、克隆和生成音色。
+    Truy vấn hệ thống, sao chép và tạo âm thanh có sẵn cho tài khoản MiniMax hiện tại.
 
-    返回值统一为 voice_id、voice_name、voice_type 三个字段，调用方无需了解
-    MiniMax 按音色来源拆分数组的响应结构。查询失败时抛出异常，让 WebUI、
-    API 或 CLI 可以按各自交互方式展示明确错误，而不是静默返回空列表。
+    Giá trị trả về được thống nhất thành ba trường: voice_id, voice_name và voice_type và người gọi không cần biết
+    MiniMax chia cấu trúc phản hồi của mảng theo nguồn âm sắc. Đưa ra một ngoại lệ khi truy vấn không thành công, cho phép WebUI,
+    Thay vì âm thầm trả về một danh sách trống, API hoặc CLI có thể hiển thị các lỗi rõ ràng tùy theo tương tác tương ứng của chúng.
     """
     if voice_type not in {"system", "voice_cloning", "voice_generation", "all"}:
         raise ValueError(f"Unsupported MiniMax voice type: {voice_type}")
@@ -1889,10 +1957,10 @@ def get_minimax_voice_catalog(
 
 def _write_validated_minimax_audio(audio_bytes: bytes, voice_file: str) -> float:
     """
-    将 MiniMax 音频原子写入目标路径，并返回时长。
+    Ghi nguyên tử âm thanh MiniMax vào đường dẫn đích và trả về thời lượng.
 
-    远端返回成功状态不代表音频一定完整。先在同目录临时文件中验证，再使用
-    os.replace 原子替换，可以避免解码失败或 MoviePy 无法读取时留下半成品。
+    Trạng thái thành công được thiết bị đầu cuối từ xa trả về không có nghĩa là âm thanh phải hoàn chỉnh. Trước tiên hãy xác minh tệp tạm thời trong cùng thư mục trước khi sử dụng
+    Thay thế nguyên tử os.replace có thể tránh để lại sản phẩm bán thành phẩm khi giải mã không thành công hoặc MoviePy không thể đọc được.
     """
     ensure_file_path_exists(voice_file)
     output_dir = os.path.dirname(os.path.abspath(voice_file))
@@ -2109,8 +2177,8 @@ def _openai_compatible_tts(
         # 1.0-centred multiplier, so it maps directly (clamped to the valid range).
         "speed": max(0.25, min(4.0, float(voice_rate or 1.0))),
     }
-    # OpenAI speech 协议没有音量字段；最终混音阶段应用 voice_volume。
-    # speed 仅调节语速，不能作为音量参数使用。
+    # Giao thức giọng nói OpenAI không có trường âm lượng; voice_volume được áp dụng ở giai đoạn trộn cuối cùng.
+    # tốc độ chỉ điều chỉnh tốc độ nói và không thể được sử dụng làm thông số âm lượng.
 
     for i in range(3):
         temporary_audio = None
@@ -2118,7 +2186,8 @@ def _openai_compatible_tts(
             logger.info(f"start {provider} tts, voice: {voice}, try: {i + 1}")
             ensure_file_path_exists(voice_file)
 
-            response = requests.post(url, json=payload, headers=headers, timeout=120)
+            timeout = 300 if provider == "viettts" else 120
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
             if response.status_code != 200:
                 logger.error(
                     f"{provider} tts failed with status {response.status_code}: {response.text[:200]}"
@@ -2128,8 +2197,8 @@ def _openai_compatible_tts(
             if not response.content:
                 raise ValueError(f"{provider} returned empty audio")
 
-            # 先写入同目录临时文件并真实解码，成功后才替换目标。失败不能破坏
-            # 已有试听/配音；先关闭文件再解码和替换，兼容 Windows 文件占用规则。
+            # Đầu tiên hãy ghi tệp tạm thời vào cùng thư mục và thực sự giải mã nó, sau đó thay thế mục tiêu sau khi thành công. Thất bại không thể phá hủy
+            # Đã có buổi thử giọng/lồng tiếng; đóng file trước rồi giải mã và thay thế nó, tương thích với quy tắc chiếm dụng file của Windows.
             with tempfile.NamedTemporaryFile(
                 dir=os.path.dirname(os.path.abspath(voice_file)),
                 suffix=".mp3", delete=False,
@@ -2160,7 +2229,7 @@ def _openai_compatible_tts(
                 try:
                     os.unlink(temporary_audio)
                 except OSError as exc:
-                    # 清理失败仍保持 TTS 的失败返回约定，不用次要异常掩盖原始原因。
+                    # Lỗi dọn dẹp vẫn duy trì quy ước trả về lỗi của TTS, không có ngoại lệ thứ cấp bao gồm nguyên nhân ban đầu.
                     logger.warning(f"could not remove temporary {provider} audio: {exc}")
 
     return None
@@ -2238,8 +2307,8 @@ def kokoro_tts(
     if not text:
         logger.error("Kokoro TTS text is empty")
         return None
-    # 纯标点/表情没有可发音文字；真实服务可能以 HTTP 200 返回空 MP3，
-    # 提前终止可避免无效请求及 MoviePy 在解码空文件时的底层异常。
+    # Dấu câu/biểu tượng cảm xúc thuần túy không có văn bản có thể phát âm được; các dịch vụ thực có thể trả về các tệp MP3 trống với HTTP 200,
+    # Việc chấm dứt sớm sẽ tránh được các yêu cầu không hợp lệ và các ngoại lệ cấp thấp trong quá trình giải mã các tệp trống của MoviePy.
     if not any(character.isalnum() for character in text):
         logger.error("Kokoro TTS text contains no speakable characters")
         return None
@@ -2254,6 +2323,49 @@ def kokoro_tts(
         model_id = config.kokoro.get("model_id", "kokoro") or "kokoro"
     return _openai_compatible_tts(
         "kokoro", base_url, api_key, model_id, voice, text, voice_rate, voice_file
+    )
+
+
+def viettts_tts(
+    text: str,
+    voice: str,
+    voice_file: str,
+    voice_rate: float = 1.0,
+    voice_volume: float = 1.0,
+    model_id: str = "",
+) -> Union[SubMaker, None]:
+    """Generate speech with a self-hosted VietTTS server.
+
+    VietTTS (dangvansam/viet-tts, MIT) is an open-source Vietnamese TTS with
+    built-in voices optimised for Vietnamese tones and prosody.  It exposes an
+    OpenAI-compatible ``/audio/speech`` endpoint on port 8298 by default.
+
+    Configure ``[viettts] base_url`` (ending in ``/v1``) and an optional
+    ``api_key``.  Voice names include ``nsnd-le-chuc`` (deep male narrator),
+    ``speechify_1`` through ``speechify_10``, ``nu-nhe-nhang``, and ``quynh``.
+
+    Like Kokoro, the OpenAI speech contract returns no word-level timestamps,
+    so the subtitle path falls back to the full-text SubMaker.  For tighter
+    subtitle sync set ``subtitle_provider = "whisper"``.
+    """
+    text = (text or "").strip()
+    if not text:
+        logger.error("VietTTS text is empty")
+        return None
+    if not any(character.isalnum() for character in text):
+        logger.error("VietTTS text contains no speakable characters")
+        return None
+    base_url = (config.viettts.get("base_url", "") or "").strip().rstrip("/")
+    if not base_url:
+        logger.error(
+            "VietTTS base_url is not set, please configure [viettts] base_url in config.toml"
+        )
+        return None
+    api_key = config.viettts.get("api_key", "")
+    if not model_id:
+        model_id = config.viettts.get("model_id", "viettts") or "viettts"
+    return _openai_compatible_tts(
+        "viettts", base_url, api_key, model_id, voice, text, voice_rate, voice_file
     )
 
 
@@ -2403,13 +2515,13 @@ def fish_audio_tts(
 
 def _format_text(text: str) -> str:
     """
-    清理字幕对齐前的脚本文本。
+    Làm sạch văn bản script trước khi căn chỉnh phụ đề.
 
-    这里不能只在 LLM 生成阶段处理，因为用户也可能手动粘贴脚本，或通过
-    API 直接传入包含 Markdown 标记的文本。TTS 通常不会朗读 `---`、
-    `___`、`***` 这类分隔符行，也不会朗读 `_` 这种强调标记；如果字幕
-    对齐仍保留这些字符，`create_subtitle()` 会一直等待不存在的 cue，
-    最终导致字幕文件缺失并在 Whisper fallback 校正时补出全 0 时间轴。
+    Điều này không thể chỉ được xử lý trong giai đoạn tạo LLM vì người dùng cũng có thể dán tập lệnh theo cách thủ công hoặc thông qua
+    API trực tiếp chuyển văn bản có chứa đánh dấu Markdown. TTS thường không đọc `---`,
+    Các dòng phân cách như `___` và `***` sẽ không được đọc to. Các dấu nhấn mạnh như `_` sẽ không được đọc to; nếu phụ đề
+    Căn chỉnh vẫn giữ lại các ký tự này, `create_subtitle()` sẽ luôn chờ một tín hiệu không tồn tại,
+    Điều này cuối cùng dẫn đến việc thiếu các tệp phụ đề và dòng thời gian toàn số 0 được điền vào trong quá trình chỉnh sửa dự phòng Whisper.
     """
     text = utils.remove_pause_tags(text or "")
     text = text.replace("[", " ")
@@ -2423,11 +2535,11 @@ def _format_text(text: str) -> str:
 
 def _build_subtitle_formatter():
     """
-    返回统一的 SRT 行格式化函数。
+    Trả về chức năng định dạng dòng SRT thống nhất.
 
-    这里单独拆成一个小工具，是为了让 edge_tts 7.x 的 cues 路径
-    和项目原有的 legacy `subs/offset` 路径共用同一套字幕落盘格式，
-    避免两套逻辑各自产生细微格式差异。
+    Ở đây nó được chia thành một công cụ nhỏ để tạo đường dẫn tín hiệu của edge_tts 7.x
+    Nó chia sẻ cùng định dạng đĩa phụ đề với đường dẫn `subs/offset` kế thừa ban đầu của dự án.
+    Tránh sự khác biệt tinh tế về định dạng giữa hai bộ logic.
     """
 
     def formatter(idx: int, start_time: float, end_time: float, sub_text: str) -> str:
@@ -2438,17 +2550,17 @@ def _build_subtitle_formatter():
     return formatter
 
 
-# 阿拉伯语变音符号和 Tatweel 拉长符在 edge-tts 返回文本中可能出现，
-# 这些字符不影响语义，但会导致脚本文本和字幕 cue 字符串精确匹配失败。
+# Dấu phụ tiếng Ả Rập và bộ kéo dài Tatweel có thể xuất hiện trong văn bản trả về edge-tts,
+# Những ký tự này không ảnh hưởng đến ngữ nghĩa nhưng có thể khiến cho việc so khớp chính xác giữa văn bản tập lệnh và chuỗi tín hiệu phụ đề không thành công.
 _ARABIC_DIACRITICS = re.compile("[\u0610-\u061A\u064B-\u065F\u0670\u0640\u06D6-\u06ED]")
 
 
 def _normalize_arabic(text: str) -> str:
-    """统一阿拉伯语常见字母变体，提升字幕 cue 与脚本行的匹配容错率。
+    """Thống nhất các biến thể chữ cái Ả Rập phổ biến và cải thiện tỷ lệ chấp nhận lỗi của các tín hiệu phụ đề và dòng chữ phù hợp.
 
-    edge-tts 对阿拉伯语可能返回与原脚本不同的字母形态，例如把 أ/إ/آ
-    归一成 ا，或者携带变音符号。这里仅在最后一层匹配兜底中使用，
-    不改变原始字幕文本，避免影响最终展示内容。
+    edge-tts cho tiếng Ả Rập có thể trả về các dạng chữ cái khác với chữ viết gốc, ví dụ: أ/إ/آ
+    Chuẩn hóa thành ا hoặc mang dấu phụ. Điều này chỉ được sử dụng trong lớp túi phù hợp cuối cùng.
+    Không thay đổi văn bản phụ đề gốc để tránh ảnh hưởng đến nội dung hiển thị cuối cùng.
     """
     text = _ARABIC_DIACRITICS.sub("", text)
     for src, dst in (
@@ -2464,16 +2576,16 @@ def _normalize_arabic(text: str) -> str:
 
 def _match_script_line(script_lines: list[str], current_text: str, sub_index: int) -> str:
     """
-    尝试把当前累计的字幕文本，与脚本中的某一条标准断句匹配起来。
+    Cố gắng khớp văn bản phụ đề hiện được tích lũy với một đoạn tiêu chuẩn trong tập lệnh.
 
-    这里复用了项目原有的“按标点拆脚本，再逐段比对”的思路：
-    1. 优先精确匹配；
-    2. 再做一次去标点和 Markdown `_` 格式符后的匹配；
-    3. 最后做一次阿拉伯语字符形态归一化匹配。
+    Ý tưởng ban đầu của dự án là “chia đoạn văn theo dấu câu rồi so sánh từng phần” được sử dụng lại ở đây:
+    1. Ưu tiên đối sánh chính xác;
+    2. Thực hiện khớp lại để xóa dấu câu và ký tự định dạng Markdown `_`;
+    3. Cuối cùng, thực hiện so khớp chuẩn hóa các dạng ký tự Ả Rập.
 
-    这样可以兼容：
-    - TTS 返回里可能缺失或单独拆分的标点；
-    - 中文场景下词边界和脚本文本不完全一一对应的情况。
+    Điều này tương thích với:
+    - Các dấu chấm câu có thể bị thiếu hoặc bị tách riêng trong tờ khai TTS;
+    - Trong kịch bản tiếng Trung, ranh giới từ và văn bản chữ viết không hoàn toàn tương ứng một đối một.
     """
     if len(script_lines) <= sub_index:
         return ""
@@ -2487,8 +2599,8 @@ def _match_script_line(script_lines: list[str], current_text: str, sub_index: in
     if current_text_normalized == target_line_normalized:
         return target_line.strip()
 
-    # 最后一层阿拉伯语容错：edge-tts 返回的字母形态、变音符号或 Tatweel
-    # 可能和脚本不同。只在常规匹配失败后归一化比较，非阿拉伯语文本不会受影响。
+    # Lớp cuối cùng của khả năng chấp nhận tiếng Ả Rập: dạng chữ, dấu phụ hoặc Tatweel được trả về bởi edge-tts
+    # Có thể khác với kịch bản. So sánh chuẩn hóa chỉ được thực hiện sau khi kết hợp thông thường không thành công, văn bản không phải tiếng Ả Rập không bị ảnh hưởng.
     current_ar = re.sub(r"[_\W]+", "", _normalize_arabic(current_text))
     target_ar = re.sub(r"[_\W]+", "", _normalize_arabic(target_line))
     if current_ar and current_ar == target_ar:
@@ -2499,11 +2611,11 @@ def _match_script_line(script_lines: list[str], current_text: str, sub_index: in
 
 def _write_subtitle_items(sub_items: list[str], subtitle_file: str) -> bool:
     """
-    将已经聚合好的字幕段写入到 SRT 文件，并做一次基本可读性验证。
+    Viết các phân đoạn phụ đề tổng hợp vào tệp SRT và thực hiện xác minh khả năng đọc cơ bản.
 
-    返回值：
-    - `True`：字幕文件成功落盘且可被 moviepy 解析；
-    - `False`：字幕文件写入或解析失败。
+    Giá trị trả về:
+    - `True`: File phụ đề được tải xuống thành công và có thể được phân tích bằng moviepy;
+    - `False`: Ghi hoặc phân tích tệp phụ đề không thành công.
     """
     try:
         ensure_file_path_exists(subtitle_file)
@@ -2527,18 +2639,18 @@ def _build_subtitle_items_from_edge_cues(
     sub_maker: SubMaker, script_lines: list[str]
 ) -> list[str]:
     """
-    将 edge_tts 7.x 的细粒度 `cues` 聚合为按脚本断句的 SRT 片段。
+    Tổng hợp các `tín hiệu` chi tiết của edge_tts 7.x thành các đoạn SRT theo kịch bản.
 
-    背景：
-    edge_tts 7.x 的 `SubMaker.get_srt()` 更偏向逐词/逐短语的时间轴。
-    对英文做逐词高亮尚可，但中文短视频字幕如果直接照搬，会出现
-    “金钱 / 是 / 一种 / 社会 / 工具” 这种阅读体验很差的效果。
+    lý lịch:
+    `SubMaker.get_srt()` của edge_tts 7.x ưu tiên dòng thời gian theo từng từ/cụm từ.
+    Đánh dấu từng chữ tiếng Anh thì được nhưng nếu sao chép trực tiếp phụ đề video ngắn tiếng Trung sẽ có
+    “Tiền / là / một / xã hội / công cụ” Đây là một trải nghiệm đọc kém.
 
-    实现策略：
-    1. 逐个消费 cues 中的 `content`；
-    2. 累积成一段候选文本；
-    3. 当候选文本与脚本里当前目标断句匹配时，收敛为一个完整字幕段；
-    4. 使用第一条 cue 的开始时间和最后一条 cue 的结束时间，保证时间轴连续。
+    Chiến lược thực hiện:
+    1. Tiếp thu `nội dung` theo từng tín hiệu một;
+    2. Tích lũy thành một văn bản ứng cử;
+    3. Khi văn bản đề xuất khớp với phân đoạn mục tiêu hiện tại trong tập lệnh, nó sẽ hội tụ thành phân đoạn phụ đề hoàn chỉnh;
+    4. Sử dụng thời gian bắt đầu của tín hiệu đầu tiên và thời gian kết thúc của tín hiệu cuối cùng để đảm bảo dòng thời gian được liên tục.
     """
     formatter = _build_subtitle_formatter()
     sub_items = []
@@ -2582,10 +2694,10 @@ def _build_subtitle_items_from_legacy_submaker(
     sub_maker: SubMaker, script_lines: list[str]
 ) -> list[str]:
     """
-    将项目原有 `subs/offset` 结构聚合为按脚本断句的 SRT 片段。
+    Tổng hợp cấu trúc `subs/offset` ban đầu của dự án thành các đoạn SRT theo kịch bản.
 
-    这部分保留了原来的核心思路，只是拆成独立函数，便于与 edge_tts 7.x
-    的 cues 聚合逻辑共享同一套断句匹配与落盘流程。
+    Phần này vẫn giữ nguyên ý tưởng cốt lõi ban đầu nhưng được chia thành các hàm độc lập để thuận tiện cho việc tích hợp với edge_tts 7.x
+    Logic tổng hợp tín hiệu có chung quy trình sắp xếp và khớp câu.
     """
     formatter = _build_subtitle_formatter()
     start_time = -1.0
@@ -2683,11 +2795,11 @@ def create_subtitle(
     word_level: bool = False,
 ):
     """
-    优化字幕文件
-    1. 将字幕文件按照标点符号分割成多行
-    2. 逐行匹配字幕文件中的文本
-    3. 生成新的字幕文件
-    如果 word_level 为 True，直接输出逐词单条字幕。
+    Tối ưu hóa tập tin phụ đề
+    1. Chia file phụ đề thành nhiều dòng theo dấu chấm câu
+    2. So khớp văn bản trong file phụ đề theo từng dòng
+    3. Tạo file phụ đề mới
+    Nếu word_level là True, các phụ đề đơn sẽ được xuất trực tiếp từng từ một.
     """
     text = _format_text(text)
     try:
@@ -2721,13 +2833,13 @@ def create_subtitle(
 
 def _get_audio_duration_from_submaker(sub_maker: SubMaker):
     """
-    获取音频时长
+    Nhận thời lượng âm thanh
     """
     if hasattr(sub_maker, "duration") and getattr(sub_maker, "duration", 0) > 0:
         return float(getattr(sub_maker, "duration"))
 
-    # 优先兼容 edge_tts 7.x 的 cues 结构；
-    # 如果是项目里其他 TTS 手工填充的旧结构，则继续读取 offset。
+    # Ưu tiên khả năng tương thích với cấu trúc tín hiệu của edge_tts 7.x;
+    # Nếu đó là cấu trúc cũ được TTS khác trong dự án điền thủ công, hãy tiếp tục đọc phần bù.
     if hasattr(sub_maker, "cues") and sub_maker.cues:
         return sub_maker.cues[-1].end.total_seconds()
 
@@ -2738,7 +2850,7 @@ def _get_audio_duration_from_submaker(sub_maker: SubMaker):
 
 def _get_audio_duration_from_file(audio_file: str) -> float:
     """
-    获取音频文件时长（支持 mp3/m4a/wav/aac 等 ffmpeg 可解码的格式）
+    Nhận thời lượng tệp âm thanh (hỗ trợ mp3/m4a/wav/aac và các định dạng có thể giải mã ffmpeg khác)
     """
     if not os.path.exists(audio_file):
         logger.error(f"audio file does not exist: {audio_file}")
@@ -2754,9 +2866,9 @@ def _get_audio_duration_from_file(audio_file: str) -> float:
 
 def get_audio_duration(target: Union[str, SubMaker]) -> float:
     """
-    获取音频时长
-    如果是SubMaker对象，则从SubMaker中获取时长
-    如果是音频文件路径，则从音频文件中获取时长（支持 mp3/m4a/wav 等格式）
+    Nhận thời lượng âm thanh
+    Nếu đó là đối tượng SubMaker, hãy lấy thời lượng từ SubMaker
+    Nếu đó là đường dẫn tệp âm thanh, hãy lấy thời lượng từ tệp âm thanh (hỗ trợ mp3/m4a/wav và các định dạng khác)
     """
     if isinstance(target, SubMaker):
         return _get_audio_duration_from_submaker(target)
@@ -2780,10 +2892,10 @@ if __name__ == "__main__":
 
         voice_names = [
             "zh-CN-XiaoxiaoMultilingualNeural",
-            # 女性
+            # nữ giới
             "zh-CN-XiaoxiaoNeural",
             "zh-CN-XiaoyiNeural",
-            # 男性
+            # nam giới
             "zh-CN-YunyangNeural",
             "zh-CN-YunxiNeural",
         ]

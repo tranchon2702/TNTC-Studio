@@ -1,4 +1,4 @@
-"""检查 MoneyPrinterTurbo 是否存在可用的新正式版本。"""
+"""Kiểm tra xem có phiên bản chính thức mới của MoneyPrinterTurbo không."""
 
 import threading
 import time
@@ -17,8 +17,8 @@ LATEST_RELEASE_API_URL: Final = (
 LATEST_RELEASE_PAGE_URL: Final = (
     "https://github.com/harry0703/MoneyPrinterTurbo/releases/latest"
 )
-# 更新检查只是辅助功能，网络异常不能明显拖慢本地 WebUI。连接与读取分别限制
-# 超时时间，既允许 GitHub 在普通网络下完成响应，也避免离线环境长时间等待。
+# Kiểm tra cập nhật chỉ là chức năng phụ trợ và các bất thường về mạng không thể làm chậm đáng kể WebUI cục bộ. Hạn chế riêng biệt về kết nối và đọc
+# Khoảng thời gian chờ không chỉ cho phép GitHub hoàn thành phản hồi trong mạng bình thường mà còn tránh phải chờ đợi lâu trong môi trường ngoại tuyến.
 RELEASE_CHECK_TIMEOUT: Final = (1.0, 2.0)
 RELEASE_CHECK_HEADERS: Final = {
     "Accept": "application/vnd.github+json",
@@ -29,7 +29,7 @@ UPDATE_CHECK_CACHE_TTL_SECONDS: Final = 12 * 60 * 60
 
 
 def _parse_version(value: str) -> Version:
-    """兼容 GitHub 常用的 ``v1.2.3`` 标签并转换为可比较版本。"""
+    """Tương thích với các thẻ ``v1.2.3`` thường được sử dụng của GitHub và được chuyển đổi thành các phiên bản tương đương."""
     normalized = str(value or "").strip()
     if normalized.lower().startswith("v"):
         normalized = normalized[1:]
@@ -38,12 +38,12 @@ def _parse_version(value: str) -> Version:
 
 def get_available_update(current_version: str) -> str | None:
     """
-    返回高于当前版本的最新正式版本；没有更新或检查失败时返回 ``None``。
+    Trả về phiên bản chính thức mới nhất cao hơn phiên bản hiện tại; trả về Không nếu không có cập nhật hoặc kiểm tra không thành công.
 
-    GitHub 的 ``releases/latest`` 接口会自动排除草稿和预发布版本，因此这里不再
-    重复实现发布状态筛选。WebUI 通过 ``AsyncUpdateChecker`` 在后台调用本函数；
-    网络、响应格式或版本标签异常时只记录日志并降级为“不显示通知”，不影响
-    视频生成等核心功能。
+    Giao diện ``bản phát hành/mới nhất`` của GitHub tự động loại trừ các phiên bản nháp và bản phát hành trước, do đó không còn nữa
+    Thực hiện lọc trạng thái phát hành nhiều lần. WebUI gọi hàm này ở chế độ nền thông qua ``AsyncUpdateChecker``;
+    Khi mạng, định dạng phản hồi hoặc nhãn phiên bản không bình thường, chỉ nhật ký sẽ được ghi lại và hạ cấp xuống "Không hiển thị thông báo", điều này sẽ không ảnh hưởng
+    Các chức năng cốt lõi như tạo video.
     """
     try:
         installed_version = _parse_version(current_version)
@@ -62,8 +62,8 @@ def get_available_update(current_version: str) -> str | None:
         response.raise_for_status()
         payload = response.json()
     except (requests.RequestException, ValueError) as exc:
-        # 更新检查失败属于可恢复的非核心异常。保留异常类型和信息便于定位代理、
-        # DNS、GitHub 限流或响应损坏问题，同时避免在 WebUI 中打扰普通用户。
+        # Lỗi kiểm tra cập nhật là những trường hợp ngoại lệ không cốt lõi có thể phục hồi được. Giữ lại các loại ngoại lệ và thông tin để tạo điều kiện cho các tác nhân định vị,
+        # Điều chỉnh DNS, GitHub hoặc các vấn đề hỏng hóc trong phản hồi đồng thời tránh làm phiền người dùng thông thường trong WebUI.
         logger.debug(
             "GitHub release check failed: "
             f"error_type={type(exc).__name__}, error={exc}"
@@ -99,7 +99,7 @@ def get_available_update(current_version: str) -> str | None:
 
 @dataclass(frozen=True)
 class UpdateCheckSnapshot:
-    """后台版本检查的即时状态，供 WebUI 无阻塞地读取。"""
+    """Trạng thái ngay lập tức của phiên bản nền sẽ kiểm tra xem WebUI có đọc không bị chặn hay không."""
 
     complete: bool
     available_version: str | None = None
@@ -107,15 +107,15 @@ class UpdateCheckSnapshot:
 
 class AsyncUpdateChecker:
     """
-    在后台线程中执行版本检查，并缓存最近一次结果。
+    Thực hiện kiểm tra phiên bản trong luồng nền và lưu vào bộ đệm các kết quả mới nhất.
 
-    Streamlit 会在任意控件交互后从头执行页面脚本。如果直接在标题区域访问
-    GitHub，首次打开或缓存失效时会阻塞整个页面。这里将网络请求放入守护线程，
-    页面只读取当前快照；检查完成后由 WebUI 的短期 fragment 刷新一次结果。
+    Streamlit sẽ thực thi tập lệnh trang ngay từ đầu sau bất kỳ tương tác điều khiển nào. Nếu truy cập trực tiếp vào khu vực tiêu đề
+    GitHub, chặn toàn bộ trang khi mở lần đầu hoặc bộ đệm hết hạn. Ở đây yêu cầu mạng được đưa vào luồng daemon,
+    Trang chỉ đọc ảnh chụp nhanh hiện tại; sau khi quá trình kiểm tra hoàn tất, kết quả sẽ được làm mới một lần bởi đoạn ngắn hạn của WebUI.
 
-    结果无论是“发现更新”还是“没有更新/网络失败”都会缓存，避免 GitHub
-    不可访问时每次 rerun 都重新请求。锁只保护内存状态，不包裹网络请求，因而
-    不会阻塞其它会话读取检查状态。
+    Kết quả, cho dù đó là "Đã tìm thấy bản cập nhật" hay "Không có bản cập nhật/lỗi mạng" sẽ được lưu vào bộ đệm để tránh GitHub
+    Khi không thể truy cập được, nó sẽ được yêu cầu lại mỗi lần chạy lại. Khóa chỉ bảo vệ trạng thái bộ nhớ và không bao bọc yêu cầu mạng, vì vậy
+    Không chặn các phiên khác khỏi trạng thái kiểm tra đọc.
     """
 
     def __init__(
@@ -134,7 +134,7 @@ class AsyncUpdateChecker:
         self._checking = False
 
     def poll(self, current_version: str) -> UpdateCheckSnapshot:
-        """立即返回检查快照；缓存过期时在后台启动一次新检查。"""
+        """Quay lại kiểm tra ảnh chụp ngay lập tức; bắt đầu kiểm tra mới ở chế độ nền khi bộ đệm hết hạn."""
         normalized_current_version = str(current_version or "").strip()
         now = self._clock()
 
@@ -156,8 +156,8 @@ class AsyncUpdateChecker:
             ):
                 return UpdateCheckSnapshot(complete=False)
 
-            # 版本发生变化或缓存过期时，旧结果不应继续展示。先清空状态再启动
-            # 新线程，使调用方在检查期间得到明确的 pending 快照。
+            # Khi phiên bản thay đổi hoặc bộ đệm hết hạn, kết quả cũ sẽ không tiếp tục được hiển thị. Xóa trạng thái trước rồi bắt đầu
+            # Một chuỗi mới để người gọi có được ảnh chụp nhanh rõ ràng về tình trạng chờ xử lý trong quá trình kiểm tra.
             self._current_version = normalized_current_version
             self._available_version = None
             self._completed_at = None
@@ -177,15 +177,15 @@ class AsyncUpdateChecker:
         try:
             available_version = self._check(current_version)
         except Exception:
-            # get_available_update 已处理预期的网络和数据异常。此处是后台线程的
-            # 最后保护边界，必须记录完整堆栈，避免意外异常静默终止后永久 pending。
+            # get_available_update xử lý các ngoại lệ về dữ liệu và mạng dự kiến. Đây là chủ đề nền
+            # Cuối cùng, để bảo vệ ranh giới, toàn bộ ngăn xếp phải được ghi lại để tránh tình trạng chờ xử lý vĩnh viễn sau ngoại lệ không mong muốn và chấm dứt im lặng.
             logger.exception(
                 "unexpected error while checking for a MoneyPrinterTurbo update"
             )
             available_version = None
 
         with self._lock:
-            # 极少数情况下运行期间版本可能变化。旧线程不得覆盖新版本的状态。
+            # Trong một số ít trường hợp, phiên bản có thể thay đổi trong quá trình hoạt động. Các chủ đề cũ không được ghi đè lên các phiên bản trạng thái mới.
             if self._current_version != current_version:
                 return
             self._available_version = available_version
@@ -197,5 +197,5 @@ _ASYNC_UPDATE_CHECKER = AsyncUpdateChecker()
 
 
 def poll_available_update(current_version: str) -> UpdateCheckSnapshot:
-    """读取全局后台检查器状态，避免不同 Streamlit 会话重复请求 GitHub。"""
+    """Đọc trạng thái của trình kiểm tra lý lịch chung để tránh các yêu cầu lặp lại tới GitHub cho các phiên Streamlit khác nhau."""
     return _ASYNC_UPDATE_CHECKER.poll(current_version)

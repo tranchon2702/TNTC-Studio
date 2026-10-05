@@ -67,19 +67,19 @@ class SubClippedVideoClip:
 
 
 audio_codec = "aac"
-# Docker 里的 ffmpeg/AAC 组合在默认配置下更容易出现音频质量波动，
-# 这里显式抬高音频码率，避免成片阶段因为默认值过低而引入明显失真。
+# Sự kết hợp ffmpeg/AAC trong Docker dễ bị biến động về chất lượng âm thanh hơn trong cấu hình mặc định.
+# Ở đây, tốc độ bit âm thanh được tăng lên rõ ràng để tránh hiện tượng méo tiếng rõ ràng do giá trị mặc định quá thấp trong giai đoạn sản xuất.
 audio_bitrate = "192k"
 fps = 30
-# FFmpeg 按帧率拼接/转码时，最终时长可能比 MoviePy 读到的理论时长短几十毫秒。
-# 这里给视频素材多留一个很小的安全余量，避免音频末尾因为帧舍入出现黑屏、
-# 卡顿或最后一小段旁白没有画面的情况。
+# Khi FFmpeg ghép/chuyển mã ở tốc độ khung hình, thời lượng cuối cùng có thể ngắn hơn hàng chục mili giây so với thời lượng lý thuyết mà MoviePy đọc.
+# Ở đây, một giới hạn an toàn nhỏ được dành cho nội dung video để tránh màn hình đen hoặc màn hình đen ở cuối âm thanh do làm tròn khung hình.
+# Nói lắp hoặc không có hình ảnh ở đoạn tường thuật ngắn cuối cùng.
 _VIDEO_DURATION_SAFETY_MARGIN = 0.1
 _MIN_MATERIAL_DIMENSION = 480
-# 消息类应用和部分编码器会把画面尺寸向下取整，例如 WhatsApp 会把 9:16 的
-# 素材压成 478x850，比 480 少两个像素。直接按 480 硬卡会让这类素材全部被
-# 丢弃，最终以 "no valid materials found" 整体失败。这里留一个很小的容差，
-# 既能放行仅仅因为取整而略低于阈值的素材，也仍然能挡住真正的低清素材。
+# Ứng dụng nhắn tin và một số bộ mã hóa sẽ làm tròn kích thước màn hình. Ví dụ: WhatsApp sẽ làm tròn số 9:16
+# Vật liệu được nén thành 478x850, tức là nhỏ hơn 2 pixel so với 480. Nhấn trực tiếp vào thẻ cứng 480 sẽ khiến tất cả các vật liệu đó bị biến dạng.
+# Bị loại bỏ và cuối cùng thất bại vì "không tìm thấy tài liệu hợp lệ". Để lại một chút khoan dung ở đây,
+# Nó không chỉ có thể vượt qua vật liệu thấp hơn ngưỡng một chút do làm tròn mà còn chặn vật liệu thực sự có độ phân giải thấp.
 _MIN_DIMENSION_TOLERANCE = 10
 _DEFAULT_VIDEO_CODEC = "libx264"
 _SUBTITLE_SPRING_DURATION_SECONDS = 0.18
@@ -97,7 +97,7 @@ _runtime_disabled_video_codecs = set()
 
 
 def _get_subtitle_spring_scale(time_seconds: float, duration_seconds: float) -> float:
-    """返回字幕弹跳动画在指定时间点使用的缩放比例。"""
+    """Trả về tỷ lệ thu phóng được sử dụng bởi hoạt ảnh trả lại phụ đề tại thời điểm đã chỉ định."""
     if duration_seconds <= 0 or time_seconds >= duration_seconds:
         return 1.0
 
@@ -111,11 +111,11 @@ def _get_subtitle_spring_scale(time_seconds: float, duration_seconds: float) -> 
 
 def _scale_subtitle_frame_on_canvas(frame: np.ndarray, scale: float) -> np.ndarray:
     """
-    在保持画布尺寸不变的前提下，围绕中心缩放字幕画面或透明蒙版。
+    Chia tỷ lệ khung tiêu đề hoặc mặt nạ trong suốt xung quanh trung tâm trong khi vẫn duy trì cùng kích thước canvas.
 
-    MoviePy 将字幕颜色帧和透明蒙版分开保存。弹跳动画必须对二者使用完全
-    相同的缩放与裁剪，否则动画首帧会把透明区域当成黑色文字轮廓合成到视频
-    上。二维数组表示取值为 0～1 的蒙版，三维数组表示 RGB/RGBA 颜色帧。
+    MoviePy lưu riêng khung màu phụ đề và mặt nạ trong suốt. Hoạt ảnh thoát phải được sử dụng hoàn toàn cho cả hai
+    Tỷ lệ và cắt xén tương tự, nếu không, khung hình đầu tiên của hoạt ảnh sẽ coi vùng trong suốt là đường viền văn bản màu đen và tổng hợp nó thành video
+    thượng đẳng. Mảng hai chiều biểu thị mặt nạ có giá trị từ 0 đến 1 và mảng ba chiều biểu thị khung màu RGB/RGBA.
     """
     if frame.ndim not in (2, 3):
         raise ValueError("subtitle frame must be a 2D mask or 3D color frame")
@@ -126,8 +126,8 @@ def _scale_subtitle_frame_on_canvas(frame: np.ndarray, scale: float) -> np.ndarr
     offset = ((width - scaled_width) // 2, (height - scaled_height) // 2)
 
     if frame.ndim == 2:
-        # MoviePy 蒙版使用 0～1 浮点数，Pillow 的 L 模式使用 0～255；转换后
-        # 再恢复原始类型和范围，确保 CompositeVideoClip 的透明度语义不变。
+        # Mặt nạ MoviePy sử dụng số dấu phẩy động từ 0 đến 1 và chế độ L của Pillow sử dụng 0 đến 255; sau khi chuyển đổi
+        # Sau đó khôi phục loại và phạm vi ban đầu để đảm bảo rằng ngữ nghĩa minh bạch của CompositeVideoClip không thay đổi.
         mask_image = Image.fromarray(
             np.clip(frame * 255.0, 0, 255).astype(np.uint8)
         )
@@ -153,7 +153,7 @@ def _scale_subtitle_frame_on_canvas(frame: np.ndarray, scale: float) -> np.ndarr
 
 
 def _apply_subtitle_spring_animation(clip, subtitle_duration: float):
-    """同时缩放字幕颜色帧与蒙版，避免弹跳动画出现黑色首帧。"""
+    """Chia tỷ lệ khung màu phụ đề và mặt nạ cùng lúc để tránh khung hình đầu tiên màu đen của hiệu ứng nảy."""
     animation_duration = min(
         _SUBTITLE_SPRING_DURATION_SECONDS,
         max(0.0, subtitle_duration),
@@ -168,28 +168,28 @@ def _apply_subtitle_spring_animation(clip, subtitle_duration: float):
             return frame
         return _scale_subtitle_frame_on_canvas(frame, scale)
 
-    # apply_to=["mask"] 是修复的关键：MoviePy 默认只处理颜色帧，旧实现因此
-    # 在每条字幕出现时短暂保留原尺寸蒙版，并显示黑色文字轮廓。
+    # apply_to=["mask"] là chìa khóa để khắc phục: MoviePy chỉ xử lý các khung màu theo mặc định, do đó cách triển khai cũ
+    # Giữ lại kích thước ban đầu của mặt nạ trong thời gian ngắn khi mỗi phụ đề xuất hiện và hiển thị đường viền văn bản màu đen.
     return clip.transform(transform_frame, apply_to=["mask"])
 
 
 def _get_required_video_duration(audio_duration: float) -> float:
     """
-    返回视频素材拼接的目标时长。
+    Trả về thời lượng mục tiêu của việc ghép tài liệu video.
 
-    使用场景：合成视频时需要素材时长覆盖旁白音频。只做到“刚好等于”
-    音频时长时，FFmpeg 可能因为帧率舍入让最终视频略短，因此统一加一个
-    轻量余量。函数独立出来，便于测试和后续按实际反馈调整余量大小。
+    Tình huống sử dụng: Khi tổng hợp video, thời lượng của tài liệu cần bao phủ âm thanh tường thuật. Cứ làm "vừa bằng"
+    Khi nói đến thời lượng âm thanh, FFmpeg có thể làm cho video cuối cùng ngắn hơn một chút do làm tròn tốc độ khung hình, do đó, nó bổ sung thêm một thời lượng đồng đều.
+    Biên độ nhẹ. Chức năng này độc lập, tạo điều kiện thuận lợi cho việc thử nghiệm và điều chỉnh kích thước lề sau đó dựa trên phản hồi thực tế.
     """
     return max(0.0, float(audio_duration) + _VIDEO_DURATION_SAFETY_MARGIN)
 
 
 def is_material_resolution_acceptable(width: int, height: int) -> bool:
     """
-    判断素材分辨率是否足够用于合成。
+    Xác định xem độ phân giải vật liệu có đủ để tổng hợp hay không.
 
-    标称最小值是 480x480，但允许比它低 `_MIN_DIMENSION_TOLERANCE` 个像素，
-    以兼容编码器/消息应用向下取整导致的尺寸（例如 WhatsApp 的 478x850）。
+    Kích thước tối thiểu danh nghĩa là 480x480, nhưng cho phép `_MIN_DIMENSION_TOLERANCE` pixel bên dưới,
+    Kích thước được làm tròn xuống theo bộ mã hóa/ứng dụng nhắn tin tương thích (ví dụ: 478x850 cho WhatsApp).
     """
     min_dimension = _MIN_MATERIAL_DIMENSION - _MIN_DIMENSION_TOLERANCE
     return width >= min_dimension and height >= min_dimension
@@ -202,14 +202,14 @@ def _prioritize_unique_source_clips(
     source_groups: dict[str, str] | None = None,
 ) -> List[SubClippedVideoClip]:
     """
-    优先让每个源素材只出现一次，降低成片里同一素材反复出现的概率。
+    Ưu tiên mỗi nguồn nguyên liệu chỉ xuất hiện một lần để giảm khả năng nguyên liệu giống nhau xuất hiện lặp đi lặp lại trong phim thành phẩm.
 
-    线上素材经常会遇到“一个长视频被切成多个短片段”的情况。旧逻辑在
-    random 模式下直接打乱所有短片段，导致同一个源视频的多个切片可能
-    分布在开头和中间，用户会感知为素材重复。本函数只调整片段顺序：
-    先放每个源文件里最长的一个片段，剩余片段作为兜底；当素材总时长不足时，
-    仍然允许后续片段补齐音频长度，避免破坏视频生成成功率。优先选择最长
-    片段是为了避免随机选中视频尾部的零碎短片段，导致明明有足够素材却过早复用。
+    Các tài liệu trên mạng thường gặp phải tình trạng “một video dài bị cắt thành nhiều đoạn ngắn”. Logic cũ là
+    Ở chế độ ngẫu nhiên, tất cả các clip ngắn được xáo trộn trực tiếp, tạo ra nhiều lát của cùng một video nguồn.
+    Được phân phối ở phần đầu và phần giữa, người dùng sẽ cảm nhận được nội dung được lặp lại. Chức năng này chỉ điều chỉnh thứ tự đoạn:
+    Trước tiên hãy phát clip dài nhất trong mỗi tệp nguồn và sử dụng các clip còn lại làm bản sao lưu; khi tổng thời lượng của tài liệu không đủ,
+    Các phân đoạn tiếp theo vẫn được phép hoàn thành độ dài âm thanh để tránh làm ảnh hưởng đến tỷ lệ tạo video thành công. Ưu tiên lâu nhất
+    Mục đích của việc cắt là tránh việc chọn ngẫu nhiên các đoạn clip ngắn rời rạc ở cuối video dẫn đến việc sử dụng lại sớm dù đã có đủ tư liệu.
     """
     if not subclipped_items:
         return []
@@ -265,22 +265,22 @@ def _prioritize_unique_source_clips(
 
 def get_ffmpeg_binary():
     """
-    兼容历史上直接从 video 服务读取 FFmpeg 路径的调用方。
+    Tương thích với những người gọi trước đây đọc đường dẫn FFmpeg trực tiếp từ dịch vụ video.
 
-    真正的解析逻辑已经抽到 `app.utils.utils.get_ffmpeg_binary()`，视频、语音
-    和后续新增链路都应复用同一套优先级；这里保留薄包装，避免外部脚本或
-    旧测试直接导入 `app.services.video.get_ffmpeg_binary` 时出现 AttributeError。
+    Logic phân tích cú pháp thực sự đã được trích xuất thành `app.utils.utils.get_ffmpeg_binary()`, video, voice
+    Tập hợp ưu tiên tương tự nên được sử dụng lại với các liên kết mới tiếp theo; bao bì mỏng được giữ lại ở đây để tránh các chữ viết bên ngoài hoặc
+    Các thử nghiệm cũ đã đưa ra AttributionError khi nhập trực tiếp `app.services.video.get_ffmpeg_binary`.
     """
     return utils.get_ffmpeg_binary()
 
 
 def _get_configured_video_codec() -> str:
     """
-    读取用户配置的视频编码器。
+    Đọc bộ mã hóa video do người dùng định cấu hình.
 
-    该配置面向高级用户，用于尝试启用 NVENC/AMF/QSV/VideoToolbox 等硬件
-    编码。这里刻意只允许固定白名单，避免开放任意 FFmpeg 参数后，用户填错
-    参数导致输出格式不可控，甚至让生成任务在后续阶段才失败。
+    Cấu hình này dành cho người dùng nâng cao đang cố gắng kích hoạt phần cứng như NVENC/AMF/QSV/VideoToolbox
+    mã hóa. Ở đây chỉ có một danh sách trắng cố định được cố tình cho phép để tránh người dùng điền lỗi sau khi mở bất kỳ tham số FFmpeg nào.
+    Các tham số khiến định dạng đầu ra không thể kiểm soát được và thậm chí khiến tác vụ tạo không thành công ở các giai đoạn tiếp theo.
     """
     configured_codec = str(
         config.app.get("video_codec", _DEFAULT_VIDEO_CODEC) or _DEFAULT_VIDEO_CODEC
@@ -297,10 +297,10 @@ def _get_configured_video_codec() -> str:
 @lru_cache(maxsize=16)
 def _ffmpeg_encoder_exists(ffmpeg_binary: str, codec: str) -> bool:
     """
-    检查当前 FFmpeg 是否声明支持指定编码器。
+    Kiểm tra xem FFmpeg hiện tại có khai báo hỗ trợ cho bộ mã hóa được chỉ định hay không.
 
-    这只能证明 FFmpeg 编译时包含该 encoder，不能证明当前机器硬件和驱动
-    一定可用。因此实际编码失败时仍会再回退到 libx264。
+    Điều này chỉ có thể chứng minh rằng FFmpeg bao gồm bộ mã hóa này khi biên dịch chứ không thể chứng minh phần cứng và trình điều khiển máy hiện tại.
+    Phải có sẵn. Do đó, nó vẫn sẽ quay trở lại libx264 khi mã hóa thực tế không thành công.
     """
     try:
         result = subprocess.run(
@@ -328,10 +328,10 @@ def _ffmpeg_encoder_exists(ffmpeg_binary: str, codec: str) -> bool:
 
 def _get_effective_video_codec(preferred_codec: str | None = None) -> str:
     """
-    返回本次实际使用的视频编码器。
+    Trả về bộ mã hóa video thực tế được sử dụng lần này.
 
-    用户选择硬件编码器时，先做 FFmpeg encoder 列表检测；如果本进程里已经
-    实际编码失败过，也直接回退，避免一个任务里每个片段都重复失败。
+    Khi người dùng chọn bộ mã hóa phần cứng, trước tiên hãy thực hiện phát hiện danh sách bộ mã hóa FFmpeg; nếu quá trình này đã
+    Nếu mã hóa thực tế không thành công, nó sẽ được khôi phục trực tiếp để tránh lỗi lặp lại cho mọi phân đoạn trong một tác vụ.
     """
     selected_codec = preferred_codec or _get_configured_video_codec()
     if selected_codec == _DEFAULT_VIDEO_CODEC:
@@ -385,11 +385,11 @@ def _get_temp_audio_dir(output_dir: str) -> str:
 
 def _fallback_write_videofile(clip, output_file: str, failed_codec: str, reason: str, **kwargs):
     """
-    硬件编码失败后用 libx264 重试，只有重试成功才禁用该硬件编码器。
+    Sau khi mã hóa phần cứng không thành công, hãy thử lại với libx264. Bộ mã hóa phần cứng sẽ chỉ bị vô hiệu hóa nếu thử lại thành công.
 
-    Windows 上 FFmpeg 失败原因比较复杂：可能是显卡/驱动不支持，也可能是输出
-    文件被占用、目录权限、杀软拦截等通用 IO 问题。只有 libx264 能成功写出时，
-    才能判断原始失败大概率来自硬件编码器本身，避免误伤后续任务。
+    Nguyên nhân khiến FFmpeg bị lỗi trên Windows phức tạp hơn: có thể do card đồ họa/driver không hỗ trợ hoặc có thể do đầu ra
+    Các vấn đề chung về IO như chiếm giữ tệp, quyền truy cập thư mục và chặn phần mềm chống vi-rút. Khi chỉ libx264 có thể viết thành công,
+    Chỉ khi đó, chúng tôi mới có thể xác định rằng lỗi ban đầu rất có thể đến từ chính bộ mã hóa phần cứng, để tránh vô tình làm hỏng các tác vụ tiếp theo.
     """
     clip.write_videofile(output_file, codec=_DEFAULT_VIDEO_CODEC, **kwargs)
     _disable_runtime_video_codec(failed_codec, reason)
@@ -398,10 +398,10 @@ def _fallback_write_videofile(clip, output_file: str, failed_codec: str, reason:
 
 def _write_videofile_with_codec_fallback(clip, output_file: str, codec: str, **kwargs):
     """
-    使用指定编码器写出视频，失败时自动用 libx264 重试一次。
+    Viết video bằng bộ mã hóa được chỉ định và tự động thử lại bằng libx264 nếu không thành công.
 
-    硬件编码器是否可用不仅取决于 FFmpeg，还取决于显卡、驱动和当前运行环境。
-    生成任务不能因为高级编码器不可用而整体失败，所以这里把回退集中处理。
+    Việc có sẵn bộ mã hóa phần cứng không chỉ phụ thuộc vào FFmpeg mà còn phụ thuộc vào card đồ họa, trình điều khiển và môi trường chạy hiện tại.
+    Toàn bộ tác vụ tạo không thể thất bại vì bộ mã hóa nâng cao không khả dụng, do đó, dự phòng được xử lý tập trung ở đây.
     """
     effective_codec = _get_effective_video_codec(codec)
     try:
@@ -420,17 +420,17 @@ def _write_videofile_with_codec_fallback(clip, output_file: str, codec: str, **k
 
 
 def _escape_ffmpeg_concat_path(file_path: str) -> str:
-    # concat demuxer 使用单引号包裹路径，路径中的单引号需要先转义。
+    # concat demuxer sử dụng dấu ngoặc đơn để bao bọc đường dẫn và trước tiên, các dấu ngoặc đơn trong đường dẫn cần phải được thoát.
     return file_path.replace("'", "'\\''")
 
 
 def _format_ffmpeg_concat_path(file_path: str) -> str:
     """
-    生成 concat demuxer 文件列表中的路径。
+    Tạo đường dẫn trong danh sách tệp giải mã concat.
 
-    FFmpeg 官方文档要求 concat list 中的特殊字符和空格需要转义；Windows
-    绝对路径里的反斜杠也容易被解析成转义字符。这里统一转成正斜杠形式，
-    让 `C:\\Users\\...` 变成 `C:/Users/...`，再处理单引号，兼容 macOS/Linux。
+    Tài liệu chính thức của FFmpeg yêu cầu các ký tự đặc biệt và khoảng trắng trong danh sách concat cần phải được thoát; cửa sổ
+    Dấu gạch chéo ngược trong đường dẫn tuyệt đối cũng dễ dàng được phân tích cú pháp dưới dạng ký tự thoát. Ở đây nó được chuyển đổi thống nhất thành dạng dấu gạch chéo về phía trước.
+    Đặt `C:\\Users\\...` trở thành `C:/Users/...`, rồi xử lý các dấu ngoặc đơn, tương thích với macOS/Linux.
     """
     absolute_path = os.path.abspath(file_path)
     return _escape_ffmpeg_concat_path(absolute_path.replace("\\", "/"))
@@ -472,8 +472,8 @@ def concat_video_clips_with_ffmpeg(
 
     def run_concat(codec: str):
         command = build_command(codec)
-        # 使用 ffmpeg 只做一次串联与编码，避免 MoviePy 逐段合并时反复重编码，
-        # 从而降低画质劣化与颜色偏移风险。
+        # Sử dụng ffmpeg để nối và mã hóa chỉ một lần để tránh mã hóa lại nhiều lần khi hợp nhất phân đoạn MoviePy theo phân đoạn.
+        # Điều này làm giảm nguy cơ suy giảm chất lượng hình ảnh và chuyển màu.
         result = subprocess.run(
             command,
             capture_output=True,
@@ -500,14 +500,14 @@ def concat_video_clips_with_ffmpeg(
 
 
 def _sanitize_image_file(image_path: str) -> str:
-    # 某些本地图片虽然能被 Pillow 打开，但会因为损坏的 EXIF/eXIf 元数据导致
-    # ImageClip 在解析阶段直接抛异常。这里重新导出一份“干净图片”，把坏元数据剥离掉。
+    # Mặc dù Pillow có thể mở một số hình ảnh cục bộ nhưng chúng sẽ bị hỏng do siêu dữ liệu EXIF/eXIf bị hỏng.
+    # ImageClip ném ra một ngoại lệ trực tiếp trong giai đoạn phân tích cú pháp. Tại đây, hãy xuất lại "hình ảnh sạch" và loại bỏ siêu dữ liệu xấu.
     image_root, _ = os.path.splitext(image_path)
     sanitized_path = f"{image_root}.sanitized.png"
 
     with Image.open(image_path) as image:
         image.load()
-        # 统一导出为 PNG，避免 JPEG/PNG 不同元数据路径继续把坏块带过去。
+        # Xuất sang PNG một cách thống nhất để tránh các đường dẫn siêu dữ liệu khác nhau của JPEG/PNG tiếp tục tạo ra các khối xấu.
         cleaned_image = Image.new(image.mode, image.size)
         cleaned_image.putdata(list(image.getdata()))
         cleaned_image.save(sanitized_path)
@@ -516,7 +516,7 @@ def _sanitize_image_file(image_path: str) -> str:
 
 
 def _open_image_clip_with_fallback(image_path: str):
-    # 优先直接打开原始图片；如果因为损坏元数据失败，再尝试生成无元数据副本。
+    # Ưu tiên mở trực tiếp ảnh gốc; nếu thất bại do siêu dữ liệu bị hỏng, hãy thử tạo một bản sao không có siêu dữ liệu.
     try:
         return ImageClip(image_path), image_path
     except Exception as exc:
@@ -529,19 +529,19 @@ def _open_image_clip_with_fallback(image_path: str):
 
 def _open_video_clip_quietly(video_path: str, audio: bool = False) -> VideoFileClip:
     """
-    安静地打开视频文件，避免 MoviePy 2.1.x 把 ffmpeg 探测信息直接打印到 stdout。
+    Mở tệp video một cách im lặng để ngăn MoviePy 2.1.x in trực tiếp thông tin thăm dò ffmpeg ra thiết bị xuất chuẩn.
 
-    背景：
-    当前依赖版本的 `FFMPEG_VideoReader` 内部存在 `print(self.infos)` 和
-    `print(ffmpeg command)`，读取无音轨的中间视频时会输出
-    `audio_found: False`。这只是输入素材 metadata，不代表最终成片没有音频，
-    但会误导 WebUI/终端用户以为生成失败。
+    lý lịch:
+    Phiên bản phụ thuộc hiện tại của `FFMPEG_VideoReader` chứa nội bộ `print(self.infos)` và
+    `print(ffmpeg command)`, sẽ xuất ra khi đọc đoạn video ở giữa mà không có đoạn âm thanh
+    `audio_found: Sai`. Đây chỉ là siêu dữ liệu của tài liệu đầu vào, không có nghĩa là phim cuối cùng sẽ không có âm thanh.
+    Nhưng nó sẽ đánh lừa người dùng WebUI/cuối khi nghĩ rằng quá trình xây dựng không thành công.
 
-    实现：
-    1. 只在打开 VideoFileClip 的短窗口内重定向 stdout；
-    2. 默认 `audio=False`，因为项目视频素材阶段不需要保留素材原声，
-       最终音频会在 `generate_video()` 阶段统一挂载；
-    3. 如果依赖库确实输出了内容，降级为 debug 日志，便于必要时排查。
+    hoàn thành:
+    1. Chỉ chuyển hướng thiết bị xuất chuẩn trong cửa sổ ngắn mở VideoFileClip;
+    2. Mặc định `audio=False`, vì âm thanh gốc của tài liệu không cần phải được giữ nguyên trong giai đoạn tài liệu video của dự án.
+       Âm thanh cuối cùng sẽ được gắn thống nhất trong giai đoạn `generate_video()`;
+    3. Nếu thư viện phụ thuộc thực hiện xuất nội dung, hãy hạ cấp nội dung đó xuống nhật ký gỡ lỗi để hỗ trợ khắc phục sự cố nếu cần.
     """
     captured_stdout = io.StringIO()
     with redirect_stdout(captured_stdout):
@@ -598,20 +598,20 @@ def delete_files(files: List[str] | str):
     if isinstance(files, str):
         files = [files]
 
-    # 循环补足视频时，同一个临时片段路径会在 FFmpeg 拼接列表中出现多次。
-    # 拼接必须保留重复项，但清理只能删除一次；这里按原顺序统一去重，让所有
-    # 调用方都获得幂等行为，也避免首次删除成功后连续输出 FileNotFoundError。
+    # Khi lặp qua video, cùng một đường dẫn clip tạm thời xuất hiện nhiều lần trong danh sách mối nối FFmpeg.
+    # Các bản sao phải được giữ lại trong quá trình nối, nhưng việc làm sạch chỉ có thể được xóa một lần; ở đây, các bản sao được loại bỏ theo thứ tự ban đầu, sao cho tất cả
+    # Người gọi có hành vi bình thường và tránh liên tục xuất FileNotFoundError sau khi lần xóa đầu tiên thành công.
     unique_files = dict.fromkeys(file for file in files if file)
     for file in unique_files:
         try:
             os.remove(file)
         except FileNotFoundError:
-            # 清理动作允许文件已经不存在，例如 FFmpeg 失败路径或并发清理已经
-            # 回收文件；这不是需要用户处理的问题，不应污染生成日志。
+            # Hành động dọn dẹp cho phép các tệp không còn tồn tại, chẳng hạn như đường dẫn bị lỗi FFmpeg hoặc việc dọn dẹp đồng thời có
+            # Tái chế tập tin; đây không phải là vấn đề liên quan đến người dùng và sẽ không gây ô nhiễm nhật ký bản dựng.
             continue
         except OSError as e:
-            # 权限、只读文件系统或磁盘异常会留下真实临时文件，保留 warning
-            # 便于根据具体路径和系统错误定位环境问题。
+            # Các quyền, hệ thống tệp chỉ đọc hoặc ngoại lệ đĩa sẽ để lại các tệp tạm thời thực sự và tiếp tục cảnh báo
+            # Thật thuận tiện để xác định các vấn đề môi trường dựa trên các đường dẫn cụ thể và lỗi hệ thống.
             logger.warning(f"failed to delete temporary file {file}: {str(e)}")
 
 
@@ -623,8 +623,8 @@ def get_bgm_file(bgm_type: str = "random", bgm_file: str = ""):
         try:
             resolved_bgm_file = bgm_service.resolve_bgm_file(bgm_file)
         except ValueError as exc:
-            # API 请求里的 bgm_file 来自用户输入，只允许解析到用户 BGM 或内置
-            # 歌曲目录，阻止 MoviePy 读取配置、密钥等任意服务器文件。
+            # Bgm_file trong yêu cầu API xuất phát từ đầu vào của người dùng và chỉ được phép phân tích cú pháp thành BGM của người dùng hoặc tích hợp sẵn
+            # Thư mục bài hát, ngăn MoviePy đọc bất kỳ tệp máy chủ nào như cấu hình và khóa.
             logger.warning(
                 f"reject unsafe bgm file: {bgm_file}, error: {str(exc)}"
             )
@@ -633,7 +633,7 @@ def get_bgm_file(bgm_type: str = "random", bgm_file: str = ""):
 
     if bgm_type == "random":
         files = bgm_service.list_bgm_files()
-        # 当背景音乐目录为空时，直接回退为“不使用 BGM”，避免 random.choice([]) 抛异常。
+        # Khi thư mục nhạc nền trống, nó sẽ trực tiếp chuyển về "không có BGM" để tránh Random.choice([]) đưa ra ngoại lệ.
         if not files:
             logger.warning("no background music files found")
             return ""
@@ -720,8 +720,8 @@ def combine_videos(
 ) -> str:
     audio_clip = AudioFileClip(audio_file)
     try:
-        # 这里只需要读取旁白音频时长来决定素材视频拼接长度；后续不会再使用
-        # audio_clip。读取完成后立即关闭，避免早退或异常路径泄漏文件句柄。
+        # Ở đây bạn chỉ cần đọc thời lượng của âm thanh tường thuật để xác định độ dài của đoạn ghép video tài liệu; nó sẽ không được sử dụng lại sau này.
+        # âm thanh_clip. Đóng ngay sau khi đọc xong để tránh thoát sớm hoặc rò rỉ đường dẫn bất thường của các thẻ xử lý tệp.
         audio_duration = audio_clip.duration
     finally:
         close_clip(audio_clip)
@@ -733,18 +733,18 @@ def combine_videos(
         f"(audio duration + {_VIDEO_DURATION_SAFETY_MARGIN:.2f}s safety margin)"
     )
 
-    # 兼容 API 直接调用时未传转场模式的情况，避免后续访问 .value 时崩溃。
+    # Tương thích với trường hợp chế độ chuyển đổi không được chuyển khi gọi trực tiếp API, để tránh sự cố khi truy cập .value sau đó.
     transition_value = getattr(video_transition_mode, "value", video_transition_mode)
     normalized_clip_speed = utils.normalize_clip_speed(clip_speed)
     if normalized_clip_speed != 1.0:
-        # 只记录一次最终生效值，既方便定位 API 越界参数被归一化的问题，
-        # 也避免在逐片段热路径中重复输出相同日志。
+        # Chỉ ghi lại giá trị hiệu quả cuối cùng một lần sẽ thuận tiện cho việc xác định vấn đề chuẩn hóa các tham số ngoài giới hạn API.
+        # Đồng thời tránh xuất ra nhiều lần các bản ghi giống nhau trong các đường dẫn nóng trên mỗi đoạn.
         logger.info(f"clip playback speed: {normalized_clip_speed:.2f}x")
-    # max_clip_duration 约束的是成片里的最终播放时长，而不是源视频读取时长。
-    # MoviePy 以 0.5 倍速播放 1.5 秒源画面会得到 3 秒片段，以 2 倍速播放
-    # 6 秒源画面同样会得到 3 秒片段。因此切片前必须按速度反推源时长；如果
-    # 仍固定读取 3 秒再慢放、裁剪，下一段却从源视频第 3 秒开始，会跳过中间
-    # 1.5 秒画面。该计算同时保证不同速度下的源时间线连续且无重叠。
+    # max_clip_duration giới hạn thời gian phát lại cuối cùng trong phim hoàn chỉnh chứ không phải thời gian đọc video nguồn.
+    # MoviePy phát 1,5 giây cảnh quay nguồn ở tốc độ 0,5 lần và sẽ nhận được clip 3 giây, phát ở tốc độ gấp đôi
+    # Đoạn phim nguồn dài 6 giây cũng sẽ tạo ra clip dài 3 giây. Vì vậy, thời lượng nguồn phải được suy ra theo tốc độ trước khi cắt; nếu như
+    # Nó vẫn đọc trong 3 giây trước khi chạy chậm lại và cắt xén, nhưng đoạn tiếp theo bắt đầu từ giây thứ 3 của video nguồn và bỏ qua phần giữa.
+    # Đoạn phim dài 1,5 giây. Tính toán này cũng đảm bảo rằng các mốc thời gian nguồn ở các tốc độ khác nhau là liên tục và không chồng chéo.
     source_clip_duration = max_clip_duration * normalized_clip_speed
     output_dir = os.path.dirname(combined_video_path)
 
@@ -766,9 +766,9 @@ def combine_videos(
         while start_time < clip_duration:
             end_time = min(start_time + source_clip_duration, clip_duration)
 
-            # 保留所有有效分段。
-            # 这样既不会丢掉“整段视频本身就短于 max_clip_duration”的素材，
-            # 也不会吞掉长视频最后剩下的一小段尾部内容。
+            # Giữ tất cả các phân đoạn hợp lệ.
+            # Điều này sẽ không làm mất nội dung "toàn bộ video ngắn hơn max_clip_duration".
+            # Nó sẽ không nuốt chửng đoạn nội dung nhỏ còn sót lại ở cuối một video dài.
             if end_time > start_time:
                 subclipped_items.append(
                     SubClippedVideoClip(
@@ -810,9 +810,9 @@ def combine_videos(
             clip = _open_video_clip_quietly(subclipped_item.file_path).subclipped(
                 subclipped_item.start_time, subclipped_item.end_time
             )
-            # 播放速度属于素材本身属性，应在转场前应用。这样 Fade/Slide 等一秒转场
-            # 不会跟随素材速度变成 0.5 秒或 2 秒；后续最大时长裁剪继续作为
-            # 浮点误差或异常素材时长的安全兜底，保证最终片段不突破配置上限。
+            # Tốc độ phát lại là một thuộc tính của chính vật liệu và phải được áp dụng trước khi chuyển đổi. Bằng cách này, Fade/Slide đợi một giây để chuyển đổi.
+            # Nó sẽ không tuân theo tốc độ vật liệu đến 0,5 giây hoặc 2 giây; việc cắt xén thời lượng tối đa tiếp theo sẽ tiếp tục như
+            # Giới hạn an toàn cho các lỗi dấu phẩy động hoặc thời lượng vật liệu bất thường, đảm bảo rằng clip cuối cùng không vượt quá giới hạn cấu hình.
             if normalized_clip_speed != 1.0:
                 clip = clip.with_speed_scaled(normalized_clip_speed)
             # Normalize every source clip before transitions are applied. In cover mode
@@ -943,21 +943,21 @@ def combine_videos(
 
 
 def wrap_text(text, max_width, font="Arial", fontsize=60):
-    # 字幕换行必须在真正创建 TextClip 前完成，否则 MoviePy 只会按原始文本
-    # 计算渲染区域。这里用 PIL 按当前字体和字号测量宽度，确保每一行都尽量
-    # 控制在视频可用宽度内，避免大字号或中文长句直接溢出画面。
+    # Việc gói phụ đề phải được hoàn thành trước khi thực sự tạo TextClip, nếu không MoviePy sẽ chỉ nhấn vào văn bản gốc
+    # Tính diện tích hiển thị. Ở đây PIL dùng để đo chiều rộng theo font chữ và cỡ chữ hiện tại, đảm bảo mỗi dòng càng rộng càng tốt
+    # Kiểm soát nó trong phạm vi chiều rộng có sẵn của video để tránh kích thước phông chữ lớn hoặc các câu tiếng Trung dài trực tiếp tràn màn hình.
     font = ImageFont.truetype(font, fontsize)
     max_width = int(max_width)
 
-    # getbbox() 返回的是“当前字形的可见墨迹高度”，并不是字体行高。例如只含
-    # A、m、n 等无下伸部字符的英文会缺少 descent，多行时这个误差会逐行累积，
-    # 最终让 TextClip 的最后一行被画布裁掉。ascent + descent 来自字体自身，
-    # 不受具体语种和字符组合影响，也与 MoviePy 的 baseline 绘制模型一致。
+    # Những gì getbbox() trả về là "chiều cao mực hiển thị của glyph hiện tại", chứ không phải chiều cao dòng phông chữ. Ví dụ, chỉ
+    # Các ký tự tiếng Anh không có hậu duệ như A, m, n, v.v. sẽ thiếu gốc. Khi có nhiều dòng, lỗi này sẽ tích lũy từng dòng.
+    # Cuối cùng, dòng cuối cùng của TextClip bị canvas cắt đi. đi lên + đi xuống xuất phát từ chính phông chữ,
+    # Nó không bị ảnh hưởng bởi sự kết hợp ngôn ngữ và ký tự cụ thể và phù hợp với mô hình vẽ cơ bản của MoviePy.
     ascent, descent = font.getmetrics()
     line_height = int(ascent + descent)
     if line_height <= 0:
-        # 正常 TrueType/OpenType 字体不会进入这里；保留可诊断日志和字号兜底，
-        # 避免损坏或非常规字体返回异常 metrics 后生成零高度字幕。
+        # Phông chữ TrueType/OpenType bình thường sẽ không được nhập vào đây; giữ nhật ký chẩn đoán và chi tiết kích thước phông chữ,
+        # Tránh tạo phụ đề có chiều cao bằng 0 sau khi phông chữ bị hỏng hoặc phông chữ khác thường trả về số liệu bất thường.
         logger.warning(
             "invalid subtitle font metrics, fallback to font size: "
             f"ascent={ascent}, descent={descent}, fontsize={fontsize}"
@@ -969,19 +969,19 @@ def wrap_text(text, max_width, font="Arial", fontsize=60):
         if not inner_text:
             return 0, line_height
         left, top, right, bottom = font.getbbox(inner_text)
-        # bbox 仍适合测量换行所需的实际宽度；高度必须始终使用稳定字体行高。
+        # Hộp bbox vẫn phù hợp để đo chiều rộng thực tế cần thiết cho việc gói dòng; chiều cao phải luôn sử dụng chiều cao dòng phông chữ ổn định.
         return right - left, line_height
 
     width, height = get_text_size(text)
     if width <= max_width:
-        # SRT 条目允许作者手工换行。即使整段文本在宽度上不需要再次折行，
-        # 画布高度仍必须按现有行数计算，否则第二行及后续行会被裁掉。
+        # Các mục SRT cho phép tác giả ngắt dòng theo cách thủ công. Ngay cả khi toàn bộ văn bản không cần phải được bọc lại theo chiều rộng,
+        # Chiều cao của canvas vẫn phải được tính toán dựa trên số hàng hiện có, nếu không hàng thứ hai và các hàng tiếp theo sẽ bị cắt.
         return text, (text.count("\n") + 1) * line_height
 
     def split_long_token(token):
-        # 当一个 token 本身就超宽时（常见于中文无空格长句，或英文超长单词），
-        # 退化为字符级拆分。关键点是：检测到 candidate 超宽时，先提交上一个
-        # 仍然合法的 current，再把当前字符放入下一行，不能把超宽字符塞回上一行。
+        # Khi bản thân mã thông báo quá rộng (thường gặp trong các câu dài không có dấu cách trong tiếng Trung hoặc các từ dài trong tiếng Anh),
+        # Suy thoái thành sự phân chia cấp độ nhân vật. Điểm mấu chốt là: khi phát hiện một ứng viên quá rộng, hãy gửi ứng viên trước đó trước
+        # Hiện tại vẫn hợp lệ và sau đó ký tự hiện tại được đưa vào dòng tiếp theo. Không thể nhét các ký tự cực rộng vào dòng trước đó.
         lines = []
         current = ""
         for char in token:
@@ -1021,10 +1021,10 @@ def wrap_text(text, max_width, font="Arial", fontsize=60):
 
     line_start_punctuation = "，。！？；：、,.!?;:)]}）】》」』”’"
     for index in range(1, len(lines)):
-        # 中文长句按字符拆分时，最后一个句号、逗号等闭合标点可能被单独
-        # 放到下一行，导致字幕背景被异常撑高，视觉上像一个小点掉在正文
-        # 下方。这里在不重新设计换行算法的前提下，把上一行最后一个字
-        # 移到标点行前面，让标点跟随文字显示，兼容中英文常见闭合标点。
+        # Khi một câu tiếng Trung dài được chia thành các ký tự, dấu chấm cuối cùng, dấu phẩy và dấu câu kết thúc khác có thể được tách ra
+        # Đặt xuống dòng tiếp theo khiến nền phụ đề nổi lên bất thường, nhìn giống như một chấm nhỏ rơi trên văn bản chính.
+        # dưới. Ở đây, không cần thiết kế lại thuật toán dòng mới, từ cuối cùng của dòng trước là
+        # Di chuyển nó lên phía trước dòng chấm câu và để dấu chấm câu theo sau màn hình văn bản. Nó tương thích với dấu câu đóng phổ biến trong tiếng Trung và tiếng Anh.
         if not lines[index] or lines[index][0] not in line_start_punctuation:
             continue
         if len(lines[index - 1]) <= 1:
@@ -1037,15 +1037,15 @@ def wrap_text(text, max_width, font="Arial", fontsize=60):
             lines[index - 1] = lines[index - 1][:-1]
 
     result = "\n".join(line.strip() for line in lines if line.strip()).strip()
-    # 高度以最终结果为准。原文本中的显式换行可能保留在某个 token 内，
-    # 此时临时 lines 列表的长度不等于 MoviePy 实际渲染的行数。
+    # Chiều cao phụ thuộc vào kết quả cuối cùng. Ngắt dòng rõ ràng trong văn bản gốc có thể được giữ lại trong mã thông báo,
+    # Tại thời điểm này, độ dài của danh sách dòng tạm thời không bằng số dòng thực sự được MoviePy hiển thị.
     height = (result.count("\n") + 1) * line_height
     return result, height
 
 
 def _hex_to_rgb(color: str) -> tuple[int, int, int]:
-    # 字幕背景色来自 API/WebUI 参数，可能为空或格式不规范。这里统一只接受
-    # #RRGGBB 形式，非法值回退为黑色，避免 PIL 渲染阶段抛出异常中断任务。
+    # Màu nền phụ đề đến từ các tham số API/WebUI và có thể trống hoặc ở định dạng không đều. Ở đây chúng tôi chỉ chấp nhận
+    # Ở dạng #RRGGBB, các giá trị không hợp lệ sẽ chuyển về màu đen để ngăn giai đoạn kết xuất PIL ném ra các ngoại lệ và làm gián đoạn tác vụ.
     if isinstance(color, str) and color.startswith("#") and len(color) == 7:
         try:
             return (int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16))
@@ -1061,9 +1061,9 @@ def _rounded_subtitle_background_clip(
     alpha: int = 140,
     radius: int = 16,
 ) -> ImageClip:
-    # 新字幕背景仅在用户显式开启时使用：通过 RGBA 图片绘制圆角半透明底板，
-    # 再交给 MoviePy 作为透明 ImageClip 参与合成。这样默认路径完全不变，
-    # 同时可以低成本试验更柔和的字幕视觉效果。
+    # Nền phụ đề mới chỉ được sử dụng khi người dùng bật nó một cách rõ ràng: vẽ một tấm đế tròn bán trong suốt từ hình ảnh RGBA,
+    # Sau đó chuyển nó cho MoviePy dưới dạng ImageClip trong suốt để tham gia tổng hợp. Bằng cách này, đường dẫn mặc định vẫn hoàn toàn không thay đổi.
+    # Đồng thời, bạn có thể thử nghiệm hình ảnh phụ đề nhẹ nhàng hơn với chi phí thấp.
     rgb = _hex_to_rgb(color)
     safe_alpha = max(0, min(255, int(alpha)))
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -1082,13 +1082,13 @@ def _get_visible_center_position(
     container_height: int,
 ) -> tuple[int, int]:
     """
-    按文字真实可见像素把 TextClip 放到背景容器中心。
+    Đặt TextClip vào giữa vùng chứa nền theo các pixel hiển thị thực tế của văn bản.
 
-    MoviePy 的 TextClip 会按字体行高和 baseline 创建透明画布。很多字体的
-    可见字形并不在这个画布的几何中心，直接 `with_position("center")`
-    会把整块透明画布居中，导致字幕看起来偏上或偏下。这里读取 TextClip
-    的透明 mask，只根据实际有像素的 bbox 计算偏移，让用户看到的文字
-    在字幕背景里视觉居中。
+    TextClip của MoviePy tạo một khung vẽ trong suốt dựa trên chiều cao và đường cơ sở của dòng phông chữ. nhiều phông chữ
+    Có thể thấy rằng glyph không nằm ở trung tâm hình học của khung vẽ này, trực tiếp `with_position("center")`
+    Toàn bộ khung vẽ trong suốt sẽ được căn giữa, khiến phụ đề trông cao hơn hoặc thấp hơn. Đọc ở đây TextClip
+    Mặt nạ trong suốt chỉ tính toán offset dựa trên bbox thực sự có pixel để người dùng có thể nhìn thấy văn bản
+    Trực quan tập trung vào nền phụ đề.
     """
     x = int(round((container_width - text_clip.w) / 2))
     y = int(round((container_height - text_clip.h) / 2))
@@ -1113,7 +1113,7 @@ def _get_visible_center_position(
 
 
 def subtitle_colors_are_indistinguishable(params: VideoParams) -> bool:
-    """判断字幕文字和背景是否同色，提醒用户可能无法看清字幕。"""
+    """Xác định xem văn bản phụ đề và nền có cùng màu hay không và nhắc nhở người dùng rằng họ có thể không nhìn rõ phụ đề."""
     if not params.subtitle_enabled or not params.text_background_color:
         return False
 
@@ -1129,7 +1129,7 @@ def subtitle_colors_are_indistinguishable(params: VideoParams) -> bool:
 
 @lru_cache(maxsize=64)
 def _subtitle_font_supports_sample(font_path: str, sample: str) -> bool:
-    """检查字体是否包含样本文字需要的字形，并缓存重复检查结果。"""
+    """Kiểm tra xem phông chữ có chứa các ký tự cần thiết cho văn bản mẫu hay không và lưu trữ các kết quả kiểm tra trùng lặp."""
     try:
         font = ImageFont.truetype(font_path, 30)
         missing_mask = font.getmask("\U0010ffff")
@@ -1149,13 +1149,13 @@ def _subtitle_font_supports_sample(font_path: str, sample: str) -> bool:
                 return False
         return True
     except Exception as e:
-        # 字体探测失败不应阻止用户生成；保留日志供环境兼容问题排查。
+        # Lỗi phát hiện phông chữ không ngăn cản người dùng xây dựng; giữ nhật ký để khắc phục sự cố tương thích môi trường.
         logger.warning(f"failed to inspect subtitle font glyphs: {font_path}, {e}")
         return True
 
 
 def subtitle_font_supports_text(font_path: str, text: str) -> bool:
-    """检查字体能否绘制文本中的字母和数字，忽略空白及标点符号。"""
+    """Kiểm tra xem phông chữ có thể vẽ được chữ cái và số trong văn bản hay không, bỏ qua khoảng trắng và dấu câu."""
     sample = "".join(
         dict.fromkeys(
             char
@@ -1177,11 +1177,11 @@ def generate_video(
     bgm_file_override: str | None = None,
 ) -> bool:
     """
-    合成最终视频，并返回本次背景音乐处理是否成功。
+    Tổng hợp video cuối cùng và trả lời xem quá trình xử lý nhạc nền có thành công hay không.
 
-    返回值只描述 BGM 处理状态：没有请求 BGM 或成功混合时返回 True；请求了
-    BGM 但加载、特效或混合失败时返回 False。即使 BGM 失败仍会继续输出只有
-    旁白的视频，让任务编排层决定是否向用户展示降级警告。
+    Giá trị trả về chỉ mô tả trạng thái xử lý BGM: Trả về true khi BGM không được yêu cầu hoặc trộn thành công; được yêu cầu
+    BGM nhưng trả về Sai nếu tải, hiệu ứng hoặc trộn không thành công. Ngay cả khi BGM bị lỗi, nó sẽ chỉ tiếp tục xuất ra
+    Video tường thuật cho phép lớp điều phối tác vụ quyết định xem có hiển thị cảnh báo xuống cấp cho người dùng hay không.
     """
     aspect = VideoAspect(params.video_aspect)
     video_width, video_height = aspect.to_resolution()
@@ -1208,9 +1208,9 @@ def generate_video(
         logger.info(f"  ⑤ font: {font_path}")
 
     def resolve_subtitle_background_color():
-        # 兼容历史参数：API 里 `text_background_color` 既可能是布尔值，
-        # 也可能是实际颜色字符串。统一在这里归一化，避免把 True/False
-        # 直接传给 TextClip 后出现不可预期的渲染结果。
+        # Tương thích với các tham số lịch sử: `text_background_color` trong API có thể là giá trị Boolean,
+        # Cũng có thể là một chuỗi màu thực tế. Chuẩn hóa thống nhất ở đây để tránh chuyển đổi Đúng/Sai
+        # Kết quả hiển thị không mong muốn xảy ra sau khi chuyển trực tiếp tới TextClip.
         if isinstance(params.text_background_color, bool):
             return "#000000" if params.text_background_color else None
         return params.text_background_color
@@ -1225,14 +1225,14 @@ def generate_video(
             getattr(params, "rounded_subtitle_background", False) and bg_color
         )
         has_subtitle_background = bool(bg_color)
-        # 圆角背景按文字真实宽度生成，左右留白应更克制；旧矩形背景仍保留
-        # 较大的安全边距，避免历史配置中的长字幕贴边或被裁切。
+        # Nền tròn được tạo theo chiều rộng thực tế của văn bản và khoảng trắng bên trái và bên phải phải được hạn chế hơn; nền hình chữ nhật cũ vẫn được giữ lại
+        # Giới hạn an toàn lớn hơn để tránh phụ đề dài bị cắt cạnh hoặc cắt xén trong cấu hình cũ.
         padding_ratio = 0.4 if rounded_bg_enabled else 0.6
         pad_x = int(params.font_size * padding_ratio) if has_subtitle_background else 0
-        # 字幕背景需要给文字左右留出明确内边距。先从可用宽度中扣除
-        # padding 再换行，避免长英文或大字号刚好撑满 90% 视频宽度后，
-        # 文字贴到背景框边缘，看起来像被裁切。普通矩形背景和圆角背景
-        # 都走这条逻辑；无背景字幕则保持原有最大宽度。
+        # Nền phụ đề cần để lại phần đệm rõ ràng ở bên trái và bên phải của văn bản. Đầu tiên trừ đi chiều rộng có sẵn
+        # đệm rồi ngắt dòng để tránh tiếng Anh dài hoặc cỡ chữ lớn chỉ lấp đầy 90% chiều rộng video.
+        # Văn bản được dán vào cạnh của hộp nền và trông như bị cắt bớt. Nền hình chữ nhật thông thường và nền góc tròn
+        # Logic này được tuân theo; phụ đề không có nền duy trì độ rộng tối đa ban đầu.
         text_max_width = max(1, int(max_width) - 2 * pad_x)
         wrapped_txt, txt_height = wrap_text(
             phrase,
@@ -1243,18 +1243,18 @@ def generate_video(
         interline = int(params.font_size * 0.25)
         line_count = wrapped_txt.count("\n") + 1
         vertical_padding = int(params.font_size * 0.35)
-        # Pillow/MoviePy 会把描边向字形上下两侧扩张，并把这部分计入每一行
-        # 的行进高度。若只在整个字幕块外增加一次描边留白，粗描边多行文本
-        # 仍会逐行累积误差。这里按实际行数计入双侧描边空间，默认细描边只
-        # 增加少量高度，而“小字号 + 粗描边 + 多行”也能完整显示。
+        # Pillow/MoviePy sẽ mở rộng nét vẽ lên cạnh trên và dưới của glyph và bao gồm phần này trong mỗi dòng
+        # chiều cao hành trình. Nếu chỉ thêm một nét khoảng trắng bên ngoài toàn bộ khối phụ đề thì một nét đậm gồm nhiều dòng văn bản
+        # Lỗi vẫn sẽ tích lũy từng hàng. Ở đây, số dòng thực tế được bao gồm trong không gian nét hai mặt. Theo mặc định, chỉ có những nét mảnh
+        # Thêm một chút chiều cao và "cỡ chữ nhỏ + nét dày + nhiều dòng" có thể được hiển thị đầy đủ.
         stroke_padding = int(params.stroke_width * 2 * line_count)
         text_clip_margin_y = max(
             int(params.font_size * 0.3), int(params.stroke_width * 2)
         )
-        # MoviePy 在 `method=label` 下会自动收缩文本框高度，遇到多行字幕、
-        # 描边或背景色时，容易把最后一行的下半部分裁掉。这里显式传入
-        # 一个更保守的高度，把行间距和额外上下留白一并算进去，保证字幕
-        # 背景框与文字本身都能完整渲染出来。
+        # MoviePy sẽ tự động thu nhỏ chiều cao của hộp văn bản dưới `method=label`. Khi gặp phụ đề nhiều dòng,
+        # Khi sử dụng nét vẽ hoặc màu nền rất dễ bị cắt mất nửa dưới của dòng cuối cùng. Được chuyển rõ ràng vào đây
+        # Chiều cao vừa phải hơn, có tính đến khoảng cách dòng và khoảng trắng bổ sung trên và dưới để đảm bảo phụ đề
+        # Cả khung nền và văn bản đều có thể được hiển thị đầy đủ.
         clip_h = int(
             txt_height
             + vertical_padding
@@ -1263,8 +1263,8 @@ def generate_video(
         )
 
         if rounded_bg_enabled:
-            # 圆角背景需要贴合文字宽度，而不是沿用 90% 视频宽度。这里先用
-            # PIL 测量最长一行文字，再加水平内边距，避免短字幕出现过宽底板。
+            # Nền tròn cần vừa với chiều rộng của văn bản, thay vì chiếm 90% chiều rộng của video. Sử dụng nó ở đây đầu tiên
+            # PIL đo dòng văn bản dài nhất và thêm khoảng đệm ngang để tránh khoảng đệm quá rộng cho phụ đề ngắn.
             try:
                 font = ImageFont.truetype(font_path, params.font_size)
                 text_w = max(
@@ -1358,7 +1358,7 @@ def generate_video(
         _clip = _clip.with_end(subtitle_item[0][1])
         _clip = _clip.with_duration(duration)
 
-        # 弹跳动画只在用户显式选择时启用；默认 none 完全沿用原字幕渲染路径。
+        # Hoạt ảnh thoát chỉ được bật khi người dùng chọn nó một cách rõ ràng; mặc định là không có và đường dẫn hiển thị phụ đề gốc hoàn toàn được sử dụng.
         anim_type = getattr(params, "subtitle_animation", "none")
         if anim_type in ("pop_spring", "spring", "pop"):
             _clip = _apply_subtitle_spring_animation(_clip, duration)
@@ -1385,9 +1385,9 @@ def generate_video(
             _clip = _clip.with_position(("center", "center"))
         return _clip
 
-    # MoviePy 的 CompositeAudioClip.close() 不会关闭子 AudioFileClip。这里用
-    # ExitStack 显式持有所有原始文件 reader，确保成功、字幕异常、混音失败和
-    # 视频写入失败等路径都能释放 FFmpeg 子进程，尤其避免 Windows 文件被占用。
+    # CompositeAudioClip.close() của MoviePy không đóng AudioFileClip con. Được sử dụng ở đây
+    # ExitStack nắm giữ rõ ràng tất cả các trình đọc tệp thô, đảm bảo thành công, ngoại lệ phụ đề, lỗi phối lại và
+    # Các đường dẫn như lỗi ghi video có thể giải phóng quy trình con FFmpeg, đặc biệt là để ngăn các tệp Windows bị chiếm dụng.
     with ExitStack() as clip_stack:
         source_video_clip = clip_stack.enter_context(
             _open_video_clip_quietly(video_path)
@@ -1424,15 +1424,15 @@ def generate_video(
             params.bgm_type, params.bgm_volume
         )
         if not bgm_enabled and params.bgm_type:
-            # 所有 BGM 来源共用这一条短路规则。音量不大于 0 时不能解析随机或
-            # 自定义文件，也不能加载提供商返回的文件，避免无意义的 IO 和混音。
+            # Tất cả các nguồn BGM đều có chung quy tắc đoản mạch này. Không thể phân tích ngẫu nhiên hoặc khi âm lượng không lớn hơn 0
+            # Các tệp tùy chỉnh cũng không thể tải các tệp được nhà cung cấp trả về để tránh việc IO và phối lại vô nghĩa.
             logger.info(
                 f"skipping background music because volume is not positive: "
                 f"type={params.bgm_type}, volume={params.bgm_volume}"
             )
 
-        # 提供商配乐可由任务编排层直接传入对应文件。None 表示沿用随机/自定义
-        # BGM 解析，空字符串明确禁用本条 BGM；但任何来源都必须先通过通用音量规则。
+        # Nhạc nền của nhà cung cấp có thể được chuyển trực tiếp vào tệp tương ứng từ lớp điều phối tác vụ. Không có nghĩa là sử dụng ngẫu nhiên/tùy chỉnh
+        # Phân tích cú pháp BGM, một chuỗi trống sẽ vô hiệu hóa BGM này một cách rõ ràng; nhưng nguồn nào cũng phải vượt qua quy định chung về âm lượng trước.
         bgm_file = ""
         if bgm_enabled:
             bgm_file = (
@@ -1450,9 +1450,9 @@ def generate_video(
                     afx.MultiplyVolume(params.bgm_volume),
                     afx.AudioFadeOut(3),
                 ]
-                # 服务内解析的随机/自定义音乐可能比成片短，需要循环铺满；任务层
-                # 通过 override 传入的文件表示提供商已经完成时长适配。这里依据
-                # 文件来源决定是否循环，避免今后每增加一个提供商都修改名称白名单。
+                # Nhạc ngẫu nhiên/tùy chỉnh được phân tích cú pháp trong dịch vụ có thể ngắn hơn phim cuối cùng và cần được lặp lại; lớp nhiệm vụ
+                # Tệp được chuyển qua ghi đè cho biết rằng nhà cung cấp đã hoàn thành việc điều chỉnh thời lượng. Đây là cơ sở
+                # Nguồn tệp xác định xem có quay vòng hay không, để tránh sửa đổi danh sách trắng tên mỗi khi nhà cung cấp được thêm vào trong tương lai.
                 if bgm_file_override is None:
                     bgm_effects.append(afx.AudioLoop(duration=video_clip.duration))
                 bgm_source_clip = clip_stack.enter_context(AudioFileClip(bgm_file))
@@ -1460,8 +1460,8 @@ def generate_video(
                 audio_clip = CompositeAudioClip([audio_clip, bgm_clip])
             except Exception:
                 bgm_mix_succeeded = False
-                # 记录完整堆栈和稳定上下文，便于区分文件解码、MoviePy 特效和
-                # CompositeAudioClip 失败；文件内容与 API Key 不会进入日志。
+                # Ghi lại ngăn xếp hoàn chỉnh và bối cảnh ổn định để dễ dàng phân biệt giữa giải mã tệp, hiệu ứng MoviePy và
+                # CompositeAudioClip không thành công; nội dung tệp và Khóa API sẽ không được nhập vào nhật ký.
                 logger.exception(
                     f"failed to mix background music: type={params.bgm_type}, "
                     f"file={bgm_file}"
@@ -1469,8 +1469,8 @@ def generate_video(
 
         final_video_clip = video_clip.with_audio(audio_clip)
         clip_stack.callback(final_video_clip.close)
-        # 显式沿用输入音频的采样率；如果取不到，再回退 MoviePy 默认的 44100Hz。
-        # 这样可以减少不同环境，尤其 Docker 中再次重采样带来的音质波动。
+        # Sử dụng rõ ràng tốc độ lấy mẫu của âm thanh đầu vào; nếu không thể lấy được, hãy quay lại 44100Hz mặc định của MoviePy.
+        # Điều này có thể làm giảm sự biến động về chất lượng âm thanh do lấy mẫu lại trong các môi trường khác nhau, đặc biệt là Docker.
         output_audio_fps = int(getattr(audio_clip, "fps", 0) or 44100)
         _write_videofile_with_codec_fallback(
             final_video_clip,
@@ -1489,12 +1489,12 @@ def generate_video(
 
 def render_image_zoom_video(image_path: str, clip_duration: int = 5) -> str:
     """
-    将单张本地图片渲染为带缓慢放大效果的 mp4 片段，返回输出文件路径。
+    Hiển thị một hình ảnh cục bộ thành một clip mp4 với khả năng khuếch đại chậm, trả về đường dẫn tệp đầu ra.
 
-    local 素材预处理和 OpenAI 兼容文生图素材共用这段"图片 → 片段"渲染
-    逻辑：ImageClip 按 clip_duration 固定时长播放，并叠加每秒约 3% 的
-    动态放大，避免静态画面在成片中显得呆板。渲染异常由调用方按各自
-    素材源的失败约定处理。
+    Quá trình tiền xử lý vật liệu cục bộ và vật liệu hình ảnh Vincent tương thích với OpenAI chia sẻ kết xuất "hình ảnh → đoạn" này
+    Logic: ImageClip được phát trong một khoảng thời gian cố định theo clip_duration và được xếp chồng lên nhau với tốc độ khoảng 3% mỗi giây.
+    Khuếch đại động giúp hình ảnh tĩnh không bị mờ trong phim hoàn thiện. Ngoại lệ hiển thị được đưa ra bởi người gọi riêng lẻ
+    Xử lý hợp đồng nguồn nguyên liệu không thành công.
     """
     clip = ImageClip(image_path).with_duration(clip_duration).with_position("center")
     try:
@@ -1522,11 +1522,11 @@ def render_image_zoom_video(image_path: str, clip_duration: int = 5) -> str:
 
 
 def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
-    # WebUI 在某些二次生成场景下可能传入空素材列表，这里直接返回空结果，避免抛出 NoneType 异常。
+    # WebUI có thể chuyển vào danh sách vật liệu trống trong một số trường hợp thế hệ thứ cấp. Ở đây, nó trả về trực tiếp một kết quả trống để tránh đưa ra các ngoại lệ NoneType.
     if not materials:
         return []
 
-    # 仅返回通过预处理校验的素材，避免低分辨率图片继续进入后续的视频合成流程。
+    # Chỉ những tài liệu vượt qua quá trình xác minh tiền xử lý mới được trả lại để ngăn hình ảnh có độ phân giải thấp xâm nhập vào quá trình tổng hợp video tiếp theo.
     valid_materials = []
     local_videos_dir = utils.storage_dir("local_videos", create=True)
 
@@ -1539,9 +1539,9 @@ def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
                 local_videos_dir, material.url
             )
         except ValueError as exc:
-            # local video_source 的素材路径来自 API 参数，必须限制在专用素材目录。
-            # 允许用户传文件名，也兼容历史返回的绝对路径，但不允许逃逸到系统
-            # 其他目录，避免任意文件读取或通过 MoviePy 探测本地敏感文件。
+            # Đường dẫn vật liệu của video_source cục bộ xuất phát từ các tham số API và phải được giới hạn trong thư mục vật liệu chuyên dụng.
+            # Người dùng được phép truyền tên file và cũng tương thích với các đường dẫn tuyệt đối được lịch sử trả về nhưng không được phép thoát ra hệ thống.
+            # Các thư mục khác để tránh việc đọc tệp tùy ý hoặc phát hiện các tệp nhạy cảm cục bộ thông qua MoviePy.
             logger.warning(
                 f"skip unsafe local material: {material.url}, "
                 f"local_videos_dir: {local_videos_dir}, error: {str(exc)}"
@@ -1550,7 +1550,7 @@ def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
 
         ext = utils.parse_extension(material_source_path)
         try:
-            # 图片素材直接按图片方式读取，避免先走 VideoFileClip 误判后触发不稳定的回退分支。
+            # Tài liệu hình ảnh được đọc trực tiếp dưới dạng hình ảnh để tránh đánh giá sai VideoFileClip và gây ra các nhánh dự phòng không ổn định.
             if ext in const.FILE_TYPE_IMAGES:
                 clip, material_source_path = _open_image_clip_with_fallback(
                     material_source_path
@@ -1558,7 +1558,7 @@ def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
             else:
                 clip = _open_video_clip_quietly(material_source_path)
         except Exception:
-            # 非标准扩展名或探测失败时再回退到图片模式，兼容历史上直接传本地图片路径的情况。
+            # Nó sẽ quay trở lại chế độ hình ảnh khi có tiện ích mở rộng không chuẩn hoặc phát hiện không thành công, tương thích với tình huống lịch sử tải trực tiếp đường dẫn hình ảnh cục bộ lên.
             try:
                 clip, material_source_path = _open_image_clip_with_fallback(
                     material_source_path
@@ -1577,14 +1577,14 @@ def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
                     f"{_MIN_MATERIAL_DIMENSION}x{_MIN_MATERIAL_DIMENSION} required "
                     f"(tolerance {_MIN_DIMENSION_TOLERANCE}px)"
                 )
-                # 探测到低分辨率素材后立即关闭资源，并且不要把该素材返回给后续流程。
+                # Đóng tài nguyên ngay sau khi phát hiện tài liệu có độ phân giải thấp và không trả lại tài liệu cho các quy trình tiếp theo.
                 close_clip(clip)
                 continue
 
             if ext in const.FILE_TYPE_IMAGES:
                 logger.info(f"processing image: {material_source_path}")
-                # 探测尺寸时已经打开过一次素材，这里先释放探测句柄，再渲染
-                # 用于导出的图片片段。
+                # Vật liệu đã được mở một lần khi phát hiện kích thước. Ở đây, tay cầm phát hiện được nhả ra trước rồi mới được hiển thị.
+                # Đoạn hình ảnh để xuất.
                 close_clip(clip)
                 video_file = render_image_zoom_video(
                     material_source_path, clip_duration
@@ -1592,7 +1592,7 @@ def preprocess_video(materials: List[MaterialInfo], clip_duration=4):
                 material.url = video_file
                 logger.success(f"image processed: {video_file}")
             else:
-                # 普通视频素材只需要读取尺寸做校验，校验完成后立即释放句柄即可。
+                # Các tài liệu video thông thường chỉ cần đọc kích thước để xác minh và nhả tay cầm ngay sau khi xác minh hoàn tất.
                 close_clip(clip)
                 # Update url to the resolved absolute path so that downstream
                 # stages (combine_videos) can open the file without re-resolving.

@@ -25,9 +25,9 @@ class TaskManager:
                 logger.info(
                     f"add task: {func.__name__}, current_tasks: {self.current_tasks}"
                 )
-                # 在线程启动前先预占并发名额。原实现在线程内部递增，连续请求
-                # 可能都在子线程获得锁之前看到 current_tasks=0，从而突破并发
-                # 上限。启动失败时回滚名额，让后续请求仍可正常调度。
+                # Dự trữ hạn ngạch đồng thời trước khi chuỗi bắt đầu. Việc triển khai ban đầu tăng dần trong luồng cho các yêu cầu liên tục
+                # Có thể thấy current_tasks=0 trước khi luồng con lấy được khóa, do đó phá vỡ sự tương tranh
+                # giới hạn trên. Khi khởi động không thành công, hạn ngạch sẽ được khôi phục để các yêu cầu tiếp theo vẫn có thể được lên lịch bình thường.
                 self.current_tasks += 1
                 try:
                     self.execute_task(func, *args, **kwargs)
@@ -36,8 +36,8 @@ class TaskManager:
                     raise
             else:
                 queue_size = self.queue_size()
-                # 并发数已满时才进入排队。队列必须有上限，否则匿名接口可以持续
-                # 堆积任务对象和请求参数，最终造成内存耗尽或第三方 API 成本失控。
+                # Hàng đợi sẽ chỉ được xếp hàng khi số lượng yêu cầu đồng thời đã đầy. Hàng đợi phải được giới hạn, nếu không giao diện ẩn danh có thể tồn tại
+                # Xếp chồng các đối tượng nhiệm vụ và tham số yêu cầu, cuối cùng là hết bộ nhớ hoặc chi phí API của bên thứ ba nằm ngoài tầm kiểm soát.
                 if queue_size >= self.max_queued_tasks:
                     logger.warning(
                         f"reject task: {func.__name__}, queue_size: {queue_size}, "
@@ -79,8 +79,8 @@ class TaskManager:
                 func = task_info["func"]
                 args = task_info.get("args", ())
                 kwargs = task_info.get("kwargs", {})
-                # 与直接创建任务保持同一计数时机，避免刚出队的任务尚未在线程
-                # 内计数时，又有新请求绕过队列占用同一个并发名额。
+                # Duy trì thời gian đếm tương tự như các tác vụ được tạo trực tiếp để tránh các tác vụ vừa được xếp hàng đợi và chưa có trong chuỗi.
+                # Trong quá trình đếm nội bộ, các yêu cầu mới sẽ bỏ qua hàng đợi và chiếm cùng một hạn mức đồng thời.
                 self.current_tasks += 1
                 try:
                     self.execute_task(func, *args, **kwargs)

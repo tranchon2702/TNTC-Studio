@@ -15,8 +15,8 @@ PUNCTUATIONS = [
     "：",
     "！",
     "...",
-    # 阿拉伯语常用标点也应作为自然断句点，避免脚本文本和 edge-tts
-    # 返回的字幕停顿边界不一致，导致后续逐行匹配失败。
+    # Dấu câu tiếng Ả Rập thông dụng cũng nên được sử dụng làm dấu ngắt tự nhiên, tránh văn bản script và edge-tts
+    # Ranh giới tạm dừng phụ đề được trả về không nhất quán, khiến cho việc khớp từng dòng tiếp theo không thành công.
     "،",
     "؛",
     "؟",

@@ -14,12 +14,12 @@ from app.models.schema import MaterialInfo, VideoAspect
 DEFAULT_BASE_URL = "https://api.ofox.ai/v1"
 DEFAULT_MODEL_ID = "bytedance/seedance-2.0-fast"
 DEFAULT_RESOLUTION = "720p"
-# 默认钉定国际厂商通道：面向全球受众时内容政策更一致；显式配置为空则交回
-# 网关按权重在可用厂商间分发。
+# Kênh nhà sản xuất quốc tế được cố định theo mặc định: chính sách nội dung nhất quán hơn khi hướng tới khán giả toàn cầu; nếu cấu hình rõ ràng trống, nó sẽ được trả về.
+# Cổng được phân phối giữa các nhà cung cấp có sẵn theo trọng lượng.
 DEFAULT_PROVIDER_TYPE = "byteplus"
-# 默认模型 bytedance/seedance-2.0-fast 只接受 4-15 秒（服务端实测校验值）。
-# 其它可选模型区间不同（如 alibaba/wan-2.7 为 2-15 秒），切换模型时应同步
-# 调整配置里的区间；超出区间的请求会被 API 以明确的 400 拒绝，不会计费。
+# Mô hình mặc định byteance/seedance-2.0-fast chỉ chấp nhận 4-15 giây (giá trị xác minh được đo phía máy chủ).
+# Các mô hình tùy chọn khác có các khoảng thời gian khác nhau (ví dụ: alibaba/wan-2.7 là 2-15 giây) và chúng phải được đồng bộ hóa khi chuyển đổi mô hình.
+# Điều chỉnh phạm vi trong cấu hình; các yêu cầu nằm ngoài phạm vi sẽ bị API từ chối với số điểm rõ ràng là 400 và sẽ không bị tính phí.
 DEFAULT_MIN_DURATION_SECONDS = 4
 DEFAULT_MAX_DURATION_SECONDS = 15
 DEFAULT_POLL_INTERVAL_SECONDS = 5.0
@@ -32,29 +32,29 @@ TERMINAL_SUCCESS_STATUSES = frozenset({"completed", "succeeded"})
 TERMINAL_FAILURE_STATUSES = frozenset(
     {"failed", "error", "cancelled", "canceled", "expired"}
 )
-# 官方成功路径: pending(收单待上游提交) → queued → in_progress → completed
+# Đường dẫn thành công chính thức: đang chờ xử lý (việc mua lại sẽ được gửi bởi thượng nguồn) → được xếp hàng → in_progress → đã hoàn thành
 ACTIVE_STATUSES = frozenset({"pending", "queued", "in_progress"})
 
 
 class OFoxError(RuntimeError):
-    """确定性的配置、请求或响应错误。"""
+    """Lỗi cấu hình, yêu cầu hoặc phản hồi xác định."""
 
     def __init__(self, message: str, task_id: str = ""):
         super().__init__(message)
-        # 只要远端任务已经创建，所有错误类型都统一携带任务 ID。上层无需
-        # 根据异常子类分别维护恢复逻辑，WebUI/API 也能稳定展示排障依据。
+        # Miễn là tác vụ từ xa đã được tạo, tất cả các loại lỗi đều mang ID tác vụ. Không cần trình độ cao hơn
+        # Logic khôi phục được duy trì riêng biệt theo các danh mục con ngoại lệ và WebUI/API cũng có thể hiển thị ổn định cơ sở để khắc phục sự cố.
         self.task_id = task_id
 
 
 class OFoxUnconfirmedTaskError(OFoxError):
-    """远端可能已创建付费任务，但本机无法确认其最终状态。"""
+    """Đầu từ xa có thể đã tạo một tác vụ phải trả phí nhưng máy cục bộ không thể xác nhận trạng thái cuối cùng của tác vụ đó."""
 
     def __init__(self, message: str, task_id: str = ""):
         super().__init__(message, task_id=task_id)
 
 
 class OFoxDownloadError(OFoxError):
-    """远端付费任务已成功，但生成的视频未能下载到本机。"""
+    """Tác vụ thanh toán từ xa đã thành công nhưng video được tạo không tải được xuống máy cục bộ."""
 
     def __init__(self, message: str, task_id: str):
         super().__init__(message, task_id=task_id)
@@ -62,9 +62,9 @@ class OFoxDownloadError(OFoxError):
 
 def get_api_key(settings: Mapping[str, Any] | None = None) -> str:
     """
-    按明确且唯一的优先级读取 OFox 凭据。
+    Đọc thông tin đăng nhập OFox với mức độ ưu tiên rõ ràng và duy nhất.
 
-    配置文件里的专用键优先级最高；唯一支持的运行时环境变量是语义明确的
+    Khóa riêng trong tệp cấu hình có mức độ ưu tiên cao nhất; các biến môi trường thời gian chạy được hỗ trợ duy nhất rõ ràng về mặt ngữ nghĩa
     ``OFOX_API_KEY``。
     """
     settings = config.app if settings is None else settings
@@ -91,12 +91,12 @@ def _model_id() -> str:
 
 def _resolution() -> str:
     """
-    读取生成分辨率。
+    Đọc độ phân giải thế hệ.
 
-    OFox 按模型在服务端校验分辨率（例如默认 Seedance fast 模型只接受
-    480p/720p），无效值会得到一个明确的 400 拒绝且不会创建付费任务，
-    因此这里只做去空白，不维护本地白名单——白名单会随远端模型目录
-    变化而过期。空值退回默认，避免把空字符串提交到远端。
+    OFox xác minh độ phân giải ở phía máy chủ theo mô hình (ví dụ: mô hình nhanh Seedance mặc định chỉ chấp nhận
+    480p/720p), các giá trị không hợp lệ sẽ bị từ chối 400 rõ ràng và sẽ không có tác vụ trả phí nào được tạo,
+    Do đó, chỉ có các khoảng trống được xóa ở đây và danh sách trắng cục bộ không được duy trì - danh sách trắng sẽ được cập nhật với thư mục mô hình từ xa.
+    Hết hạn do thay đổi. Giá trị NULL trở về mặc định để tránh gửi chuỗi trống đến đầu từ xa.
     """
     value = str(config.app.get("ofox_resolution", DEFAULT_RESOLUTION) or "").strip()
     return value or DEFAULT_RESOLUTION
@@ -104,14 +104,14 @@ def _resolution() -> str:
 
 def _provider_type() -> str:
     """
-    读取上游厂商钉定（provider routing）。
+    Đọc định tuyến của nhà cung cấp ngược dòng (định tuyến của nhà cung cấp).
 
-    OFox 的部分模型由多个上游厂商供货（如 Seedance 系列的 volcengine 与
-    byteplus），各厂商有各自的内容政策与区域可用性。默认钉定 byteplus
-    （国际厂商，对全球受众内容政策更一致、路由可预期）；配置为其它厂商名
-    则钉定那一家；显式配置为空字符串则不钉定，由网关按权重分发。非法厂商
-    名会被 API 以专属的 400 ``invalid_provider_type`` 拒绝且不创建付费
-    任务，因此本地不维护厂商白名单。
+    Một số mẫu OOX được cung cấp bởi nhiều nhà sản xuất thượng nguồn (chẳng hạn như dòng volcengine và Seedance
+    byteplus), mỗi nhà sản xuất đều có chính sách nội dung và tính khả dụng theo khu vực riêng. Mặc định được ghim vào byteplus
+    (Các nhà sản xuất quốc tế có chính sách nội dung nhất quán hơn dành cho khán giả toàn cầu và lộ trình có thể dự đoán được); cấu hình tên của các nhà sản xuất khác
+    Nếu nó được cấu hình rõ ràng dưới dạng một chuỗi trống, nó sẽ không được ghim và sẽ được cổng phân phối theo trọng lượng. Nhà sản xuất trái phép
+    Tên sẽ bị API từ chối với 400 ``invalid_provider_type`` độc quyền và sẽ không có khoản thanh toán nào được thực hiện.
+    nhiệm vụ, do đó danh sách trắng của nhà cung cấp không được duy trì cục bộ.
     """
     value = config.app.get("ofox_provider", DEFAULT_PROVIDER_TYPE)
     if value is None:
@@ -211,15 +211,15 @@ def generate_videos(
     minimum_duration: int,
     video_aspect: VideoAspect = VideoAspect.portrait,
 ) -> list[MaterialInfo]:
-    """提交一个 OFox 文生视频任务，并等待可下载的结果地址。"""
+    """Gửi bài tập video OOX và đợi địa chỉ kết quả có thể tải xuống."""
     api_key = get_api_key()
     if not api_key:
         raise OFoxError("OFox video generation requires an OFox API key")
 
     term = str(search_term or "").strip()
     if not term:
-        # 空提示词可能来自上游脚本拆分异常。付费生成源不能把它提交到远端，
-        # 否则即使接口接受请求，也只会得到无法使用且已经计费的视频。
+        # Các từ nhắc trống có thể đến từ các ngoại lệ phân tách tập lệnh ngược dòng. Các nguồn tạo trả phí không thể gửi nó đến đầu xa,
+        # Ngược lại, ngay cả khi giao diện chấp nhận yêu cầu, bạn sẽ chỉ nhận được những video không thể sử dụng được và bị tính phí.
         raise OFoxError("OFox search term must not be empty")
 
     aspect = VideoAspect(video_aspect)
@@ -228,8 +228,8 @@ def generate_videos(
     minimum, maximum = _duration_bounds()
     duration = min(max(requested_duration, minimum), maximum)
     if duration != requested_duration:
-        # 生成比请求更长不会影响成片：剪辑流程仍按片段时长裁剪；生成比请求
-        # 更短只发生在请求超过模型上限时，此时也只能收敛到上限。
+        # Việc tạo dài hơn yêu cầu sẽ không ảnh hưởng tới phim cuối cùng: quá trình biên tập vẫn được cắt bớt theo thời lượng của clip; tạo ra lâu hơn yêu cầu
+        # Ngắn hơn chỉ xảy ra khi yêu cầu vượt quá giới hạn trên của mô hình và nó chỉ có thể hội tụ đến giới hạn trên tại thời điểm này.
         logger.info(
             f"ofox clip duration clamped to the configured model range: "
             f"requested={requested_duration}s, using={duration}s "
@@ -255,8 +255,8 @@ def generate_videos(
         f"model={payload['model']}, term={term!r}, duration={duration}s"
     )
 
-    # 提交接口不做自动重试：超时或 5xx 可能发生在付费任务已经创建之后，
-    # 盲目重试会造成重复扣费。只有拿到明确拒绝响应时才判定为确定性失败。
+    # Giao diện gửi không tự động thử lại: thời gian chờ hoặc 5xx có thể xảy ra sau khi tác vụ trả phí được tạo.
+    # Việc thử lại một cách mù quáng sẽ dẫn đến việc bị khấu trừ nhiều lần. Một lỗi xác định chỉ được xác định khi nhận được phản hồi từ chối rõ ràng.
     try:
         response = requests.post(
             videos_url,
@@ -280,9 +280,9 @@ def generate_videos(
             "already exist remotely"
         )
     if not 200 <= status_code < 300:
-        # 4xx 是明确拒绝（如 duration/resolution 超出模型支持范围），远端
-        # 没有创建任务，不存在重复计费风险；错误信息里带着服务端给出的
-        # 合法取值范围，直接抛给用户修配置。
+        # 4xx bị từ chối rõ ràng (chẳng hạn như thời lượng/độ phân giải vượt quá phạm vi hỗ trợ của kiểu máy), điều khiển từ xa
+        # Không có nhiệm vụ nào được tạo và không có rủi ro thanh toán hai lần; thông báo lỗi chứa thông báo lỗi do máy chủ đưa ra.
+        # Phạm vi giá trị pháp lý được gửi trực tiếp tới người dùng để sửa đổi cấu hình.
         raise OFoxError(
             "OFox video generation request rejected: "
             f"HTTP {status_code}, {_response_error(response, api_key)}"
@@ -310,9 +310,9 @@ def generate_videos(
     if task is None:
         return []
 
-    # 官方推荐优先使用 mirror_urls（OFox CDN 持久签名地址，仅在上游开启镜像
-    # 时返回），缺失时回退到 unsigned_urls（上游临时直链，可能 24 小时内过
-    # 期）。两者都必须整体保留并立即用于下载，不写入长期的 source_info。
+    # Khuyến nghị chính thức là trước tiên hãy sử dụng mirror_urls (địa chỉ chữ ký liên tục OFox CDN) và chỉ bật phản chiếu ở thượng nguồn.
+    # Quay lại khi bị thiếu), quay lại unsigned_urls khi bị thiếu (liên kết trực tiếp tạm thời ngược dòng, có thể hết hạn trong vòng 24 giờ
+    # Trông chờ). Cả hai đều phải được giữ lại toàn bộ và có sẵn để tải xuống ngay lập tức mà không có thông tin nguồn dài hạn nào được ghi cho chúng.
     video_url = ""
     for field in ("mirror_urls", "unsigned_urls"):
         urls = task.get(field)
@@ -378,9 +378,9 @@ def _wait_for_task(
                 task_id=task_id,
             )
 
-        # requests 的 connect/read timeout 分别计时，因此各使用剩余总时间的
-        # 一半。即使连接和读取都走到上限，单轮请求也不会有意超过总截止时间；
-        # 网络库仍可能有极小调度误差，下一处 deadline 检查会阻止再次重试。
+        # Thời gian chờ kết nối/đọc của các yêu cầu được tính giờ riêng biệt, vì vậy mỗi yêu cầu sẽ sử dụng tổng thời gian còn lại.
+        # một nửa. Ngay cả khi kết nối và số lần đọc đạt đến giới hạn trên, một lượt yêu cầu sẽ không cố ý vượt quá tổng thời hạn;
+        # Thư viện mạng có thể vẫn có một lỗi lập lịch nhỏ và việc kiểm tra thời hạn tiếp theo sẽ ngăn cản việc thử lại lần nữa.
         phase_timeout = max(min(remaining / 2.0, 30.0), 0.001)
         try:
             response = requests.get(
@@ -452,8 +452,8 @@ def _wait_for_task(
                 f"id={task_id}, status={status}, "
                 f"detail={_redact_secret(error_detail, api_key)}"
             )
-            # 远端明确失败意味着任务已经结束，可以安全地继续后续片段；由
-            # 调用方决定是否换一个关键词重试。
+            # Một lỗi rõ ràng ở đầu từ xa có nghĩa là tác vụ đã kết thúc và có thể tiếp tục với các đoạn tiếp theo một cách an toàn; qua
+            # Người gọi quyết định có thử lại với từ khóa khác hay không.
             return None
         if status not in ACTIVE_STATUSES:
             raise OFoxUnconfirmedTaskError(

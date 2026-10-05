@@ -12,7 +12,7 @@ from app.services import task as task_service
 
 class TestInMemoryTaskManager(unittest.TestCase):
     def test_queue_operations_preserve_task_payload(self):
-        """内存队列应保持函数、位置参数和关键字参数，不得改变任务内容。"""
+        """Hàng đợi bộ nhớ phải chứa các hàm, đối số vị trí và đối số từ khóa và không được thay đổi nội dung tác vụ."""
         manager = InMemoryTaskManager(max_concurrent_tasks=1, max_queued_tasks=2)
         task = {"func": len, "args": ([1, 2],), "kwargs": {}}
 
@@ -24,7 +24,7 @@ class TestInMemoryTaskManager(unittest.TestCase):
         self.assertTrue(manager.is_queue_empty())
 
     def test_add_task_rejects_only_after_queue_limit(self):
-        """并发名额用尽后允许排队到上限，超过上限才返回明确错误。"""
+        """Sau khi hết hạn ngạch đồng thời, việc xếp hàng được phép đạt đến giới hạn trên. Một lỗi rõ ràng sẽ chỉ được trả về khi vượt quá giới hạn trên."""
         manager = InMemoryTaskManager(max_concurrent_tasks=0, max_queued_tasks=1)
 
         manager.add_task(len, [1])
@@ -34,8 +34,8 @@ class TestInMemoryTaskManager(unittest.TestCase):
 
     def test_add_task_reserves_slot_before_background_thread_runs(self):
         """
-        并发名额必须在线程启动前预占；即使 mock 的线程尚未进入 run_task，
-        第二个请求也应进入队列，不能突破 max_concurrent_tasks。
+        Hạn ngạch đồng thời phải được đặt trước trước khi luồng được bắt đầu; ngay cả khi chuỗi mô phỏng chưa được nhập run_task,
+        Yêu cầu thứ hai cũng phải được xếp hàng đợi và không thể vượt quá max_concurrent_tasks.
         """
         manager = InMemoryTaskManager(max_concurrent_tasks=1, max_queued_tasks=1)
 
@@ -48,7 +48,7 @@ class TestInMemoryTaskManager(unittest.TestCase):
         self.assertEqual(manager.queue_size(), 1)
 
     def test_add_task_rolls_back_slot_when_thread_cannot_start(self):
-        """线程启动失败不能永久占用并发名额，异常仍应交给调用方处理。"""
+        """Lỗi khởi động luồng không thể chiếm vĩnh viễn hạn ngạch đồng thời và người gọi vẫn phải xử lý các ngoại lệ."""
         manager = InMemoryTaskManager(max_concurrent_tasks=1)
 
         with patch.object(
@@ -62,7 +62,7 @@ class TestInMemoryTaskManager(unittest.TestCase):
         self.assertEqual(manager.current_tasks, 0)
 
     def test_task_done_starts_next_queued_task(self):
-        """当前任务结束后应释放并发名额，并立即调度队列中的下一个任务。"""
+        """Sau khi nhiệm vụ hiện tại kết thúc, hạn ngạch đồng thời sẽ được giải phóng và nhiệm vụ tiếp theo trong hàng đợi sẽ được lên lịch ngay lập tức."""
         manager = InMemoryTaskManager(max_concurrent_tasks=1, max_queued_tasks=2)
         manager.current_tasks = 1
         manager.enqueue({"func": len, "args": ([1, 2],), "kwargs": {}})
@@ -75,7 +75,7 @@ class TestInMemoryTaskManager(unittest.TestCase):
         self.assertTrue(manager.is_queue_empty())
 
     def test_task_done_requeues_task_when_thread_cannot_start(self):
-        """出队后若线程启动失败，应回滚名额并把任务放回队列，避免任务丢失。"""
+        """Nếu luồng không khởi động được sau khi loại bỏ hàng đợi, thì hạn ngạch sẽ được khôi phục và tác vụ sẽ được đưa trở lại hàng đợi để tránh mất tác vụ."""
         manager = InMemoryTaskManager(max_concurrent_tasks=1, max_queued_tasks=1)
         manager.current_tasks = 1
         queued_task = {"func": len, "args": ([1, 2],), "kwargs": {}}
@@ -93,7 +93,7 @@ class TestInMemoryTaskManager(unittest.TestCase):
         self.assertEqual(manager.dequeue(), queued_task)
 
     def test_run_task_releases_slot_after_failure(self):
-        """任务函数抛出异常时 finally 仍必须释放名额，避免队列永久阻塞。"""
+        """Khi chức năng nhiệm vụ đưa ra một ngoại lệ, cuối cùng vẫn phải giải phóng hạn ngạch để tránh việc hàng đợi bị chặn vĩnh viễn."""
         manager = InMemoryTaskManager(max_concurrent_tasks=1)
         manager.current_tasks = 1
 
@@ -106,9 +106,9 @@ class TestInMemoryTaskManager(unittest.TestCase):
 
     def test_check_queue_handles_dequeue_returning_none(self):
         """
-        dequeue() 可能在内部跳过所有已不满足当前校验的排队任务后返回 None，
-        即使调用 check_queue 之前 is_queue_empty() 曾经是 False。check_queue
-        不能假设 dequeue 一定能拿到可用任务，否则会在 task_info["func"] 上崩溃。
+        dequeue() có thể trả về Không có sau khi bỏ qua nội bộ tất cả các tác vụ được xếp hàng đợi không còn đáp ứng xác thực hiện tại.
+        Ngay cả trước khi gọi check_queue is_queue_empty() đã từng là Sai. kiểm tra hàng đợi
+        Không thể giả định rằng dequeue chắc chắn sẽ nhận được các tác vụ có sẵn, nếu không nó sẽ gặp sự cố trên task_info["func"].
         """
         manager = InMemoryTaskManager(max_concurrent_tasks=1, max_queued_tasks=1)
 
@@ -121,7 +121,7 @@ class TestInMemoryTaskManager(unittest.TestCase):
         self.assertEqual(manager.current_tasks, 0)
 
     def test_execute_task_starts_background_thread(self):
-        """任务执行入口必须启动线程，并把函数参数完整传给 run_task。"""
+        """Mục thực thi tác vụ phải khởi động luồng và chuyển các tham số chức năng hoàn chỉnh cho run_task."""
         manager = InMemoryTaskManager(max_concurrent_tasks=1)
         fake_thread = MagicMock()
 
@@ -157,8 +157,8 @@ class TestRedisTaskManager(unittest.TestCase):
 
     def test_enqueue_serializes_video_params_without_mutating_task(self):
         """
-        Redis 只能存 JSON；VideoParams 应转换成字典，但原任务仍需保留模型，
-        避免序列化副作用影响日志、重试或调用方后续读取。
+        Redis chỉ có thể lưu trữ JSON; VideoParams phải được chuyển đổi thành từ điển, nhưng tác vụ ban đầu vẫn cần giữ lại mô hình.
+        Tránh các tác dụng phụ của việc tuần tự hóa ảnh hưởng đến việc ghi nhật ký, thử lại hoặc các lần đọc tiếp theo của người gọi.
         """
         params = VideoParams(video_subject="Coffee")
         task = {
@@ -178,7 +178,7 @@ class TestRedisTaskManager(unittest.TestCase):
         self.assertEqual(decoded["kwargs"]["params"]["video_subject"], "Coffee")
 
     def test_dequeue_restores_function_and_video_params(self):
-        """从 Redis 取出的任务应恢复可调用函数和 VideoParams 模型。"""
+        """Các tác vụ được tìm nạp từ Redis sẽ khôi phục các chức năng có thể gọi được và mô hình VideoParams."""
         payload = {
             "func": "start",
             "args": [],
@@ -199,7 +199,7 @@ class TestRedisTaskManager(unittest.TestCase):
         self.assertEqual(task["kwargs"]["params"].video_subject, "Coffee")
 
     def test_empty_queue_and_size_use_redis_length(self):
-        """队列判空和长度必须直接反映 Redis 当前列表长度。"""
+        """Việc kiểm tra và độ dài hàng đợi trống phải phản ánh trực tiếp độ dài danh sách hiện tại của Redis."""
         self.redis_client.lpop.return_value = None
         self.redis_client.llen.side_effect = [0, 2]
 
@@ -209,11 +209,11 @@ class TestRedisTaskManager(unittest.TestCase):
 
     def test_dequeue_skips_task_that_fails_current_validation(self):
         """
-        一条任务可能是在校验规则收紧前入队的（例如 video_count 曾允许为 0）。
-        lpop 是破坏性操作，重建 VideoParams 失败时这条任务已经从 Redis 里
-        永久移除了，不能再假装它还在；dequeue 不应该把校验异常抛给调用方
-        （那样会让持锁的调用方崩溃且丢失这条任务却不打日志），而应该跳过它，
-        继续尝试队列里的下一条，直到取到一条可用任务或者队列确实空了。
+        Một tác vụ có thể đã được xếp vào hàng đợi trước khi các quy tắc xác thực được thắt chặt (ví dụ: video_count được phép bằng 0).
+        lpop là một hoạt động phá hoại. Khi việc xây dựng lại VideoParams không thành công, tác vụ này đã bị xóa khỏi Redis.
+        Nó đã bị xóa vĩnh viễn, bạn không thể giả vờ như nó vẫn còn đó; dequeue không được ném ngoại lệ xác thực cho người gọi
+        (Điều đó sẽ khiến người gọi giữ khóa gặp sự cố và mất tác vụ mà không ghi nhật ký), thay vào đó nên bỏ qua,
+        Tiếp tục thử mục tiếp theo trong hàng đợi cho đến khi nhận được tác vụ khả dụng hoặc hàng đợi thực sự trống.
         """
         stale_payload = {
             "func": "start",
@@ -248,7 +248,7 @@ class TestRedisTaskManager(unittest.TestCase):
         self.assertEqual(task["kwargs"]["params"].video_subject, "Tea")
 
     def test_dequeue_returns_none_when_every_queued_task_is_stale(self):
-        """全部剩余任务都因当前校验规则被丢弃时，应返回 None 而不是抛出异常。"""
+        """Khi tất cả các tác vụ còn lại bị loại bỏ do các quy tắc xác thực hiện tại, Không nên trả về thay vì ném một ngoại lệ."""
         stale_payload = {
             "func": "start",
             "args": [],
@@ -266,10 +266,10 @@ class TestRedisTaskManager(unittest.TestCase):
 
     def test_dequeue_marks_stale_task_failed_instead_of_leaving_it_processing(self):
         """
-        任务状态记录在入队前就已创建，默认是 processing。仅仅在 dequeue 里跳过
-        并丢弃这条队列项而不更新状态记录，会让这个任务在 API/WebUI 里永远显示
-        为运行中。应该用 patch_task（而不是 update_task）把它标记为失败，
-        这样如果任务已经被用户删除，我们不会又把它的状态记录建回来。
+        Bản ghi trạng thái tác vụ được tạo trước khi xếp hàng đợi và mặc định là xử lý. Chỉ cần bỏ qua trong dequeue
+        Và việc loại bỏ mục hàng đợi này mà không cập nhật bản ghi trạng thái sẽ khiến tác vụ này hiển thị vĩnh viễn trong API/WebUI
+        đang chạy. Nó sẽ được đánh dấu là thất bại khi sử dụng patch_task (không phải update_task),
+        Bằng cách này, nếu tác vụ đã bị người dùng xóa, chúng tôi sẽ không tạo lại bản ghi trạng thái của tác vụ đó nữa.
         """
         stale_payload = {
             "func": "start",
@@ -296,7 +296,7 @@ class TestRedisTaskManager(unittest.TestCase):
         self.assertIn("video_count", call_args.kwargs["error"])
 
     def test_dequeue_does_not_recreate_state_for_already_deleted_task(self):
-        """patch_task 在任务已被删除时返回 False；dequeue 不应把它当成错误处理。"""
+        """patch_task trả về Sai khi tác vụ đã bị xóa; dequeue không nên coi đây là một lỗi."""
         stale_payload = {
             "func": "start",
             "args": [],

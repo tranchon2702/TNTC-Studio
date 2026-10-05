@@ -27,11 +27,11 @@ VIDEO_TO_MUSIC_SERVICE_ID = "video_to_music"
 
 
 class SoniloError(RuntimeError):
-    """表示 Sonilo 请求、响应协议或生成音频校验失败。"""
+    """Cho biết yêu cầu Sonilo, giao thức phản hồi hoặc lỗi kiểm tra âm thanh được tạo."""
 
 
 def get_api_key() -> str:
-    """优先读取 WebUI 保存的配置，未配置时允许使用环境变量。"""
+    """Ưu tiên đọc các cấu hình được lưu bởi WebUI và các biến môi trường được phép sử dụng khi không được định cấu hình."""
     configured_key = str(config.app.get("sonilo_api_key", "") or "").strip()
     return configured_key or os.getenv("SONILO_API_KEY", "").strip()
 
@@ -49,7 +49,7 @@ def _base_url() -> str:
 
 
 def _request_timeout() -> tuple[int, int]:
-    """限制配置值范围，避免无穷大或负数让请求永久挂起或立即失败。"""
+    """Giới hạn phạm vi giá trị cấu hình để tránh số vô cực hoặc số âm khiến yêu cầu bị treo vĩnh viễn hoặc bị lỗi ngay lập tức."""
     raw_timeout = config.app.get("sonilo_timeout", 600)
     try:
         read_timeout = float(raw_timeout)
@@ -57,33 +57,33 @@ def _request_timeout() -> tuple[int, int]:
         read_timeout = 600
     if not math.isfinite(read_timeout) or read_timeout <= 0:
         read_timeout = 600
-    # Requests 不接受 0 秒读取超时。向上取整既保留小数配置的有效含义，也能
-    # 避免 0.1~0.9 被 int() 截断为 0 后抛出未进入 Sonilo 降级链路的 ValueError。
+    # Yêu cầu không chấp nhận thời gian chờ đọc 0 giây. Làm tròn giữ nguyên ý nghĩa hợp lệ của cấu hình thập phân và cả
+    # Tránh ném ValueError không vào liên kết hạ cấp Sonilo sau khi 0,1~0,9 bị cắt ngắn xuống 0 bởi int().
     return 15, max(1, math.ceil(min(read_timeout, 1800)))
 
 
 def _normalize_service_id(service_id: str) -> str:
     """
-    将 Sonilo 服务标识统一为项目内部使用的下划线格式。
+    Hợp nhất ID dịch vụ Sonilo thành định dạng gạch chân được sử dụng nội bộ trong dự án.
 
-    2026-07-14 实际接口返回 ``video_to_music``，但同日公开文档示例使用
-    ``video-to-music``。差异仅在单词分隔符，因此在第三方协议边界统一格式，
-    避免 UI 连接测试因提供方文档与生产响应暂时不一致而误报失败。
+    2026-07-14 Giao diện thực tế trả về ``video_to_music``, nhưng ví dụ về tài liệu công khai sử dụng nó trong cùng ngày
+    ``chuyển video thành nhạc``. Sự khác biệt chỉ nằm ở dấu phân cách từ, do đó định dạng được thống nhất trên các ranh giới giao thức của bên thứ ba,
+    Tránh lỗi dương tính giả trong các thử nghiệm kết nối giao diện người dùng do sự mâu thuẫn tạm thời giữa tài liệu của nhà cung cấp và phản hồi sản xuất.
     """
     return service_id.strip().lower().replace("-", "_")
 
 
 def _safe_response_error(response: requests.Response) -> str:
-    """仅保留简短响应信息，既方便定位又避免异常页面污染日志。"""
+    """Chỉ thông tin phản hồi ngắn được giữ lại để tạo điều kiện thuận lợi cho việc định vị và tránh các trang bất thường làm ảnh hưởng đến nhật ký."""
     body = (response.text or "").strip().replace("\n", " ")[:500]
     return body or response.reason or "request failed"
 
 
 def test_connection() -> dict[str, Any]:
     """
-    使用不消耗配乐额度的服务列表接口验证 API Key。
+    Sử dụng giao diện danh sách dịch vụ không tiêu tốn tín dụng nhạc phim để xác minh Khóa API.
 
-    返回原始 JSON 便于 UI 展示可用服务，但日志中绝不记录 Key 或请求头。
+    JSON gốc được trả về để hỗ trợ giao diện người dùng hiển thị các dịch vụ có sẵn nhưng tiêu đề Khóa hoặc yêu cầu không bao giờ được ghi lại trong nhật ký.
     """
     api_key = get_api_key()
     if not api_key:
@@ -122,7 +122,7 @@ def test_connection() -> dict[str, Any]:
 
 
 def _remove_file(file_path: str) -> None:
-    """尽力清理 Sonilo 中间文件，不覆盖调用方正在处理的原始异常。"""
+    """Cố gắng hết sức để dọn sạch các tệp trung gian Sonilo và không ghi đè lên ngoại lệ ban đầu đang được người gọi xử lý."""
     if not file_path or not os.path.exists(file_path):
         return
     try:
@@ -135,10 +135,10 @@ def _remove_file(file_path: str) -> None:
 
 def _create_video_proxy(video_path: str) -> str:
     """
-    生成无音轨、最长边 1280 像素的 H.264 代理视频。
+    Tạo video proxy H.264 không có rãnh âm thanh và 1280 pixel ở cạnh dài nhất.
 
-    Sonilo 只需分析画面节奏和内容，上传原始高清成片会增加等待时间和流量，
-    对生成质量没有实际收益。代理文件放在输入文件同目录，任务结束后统一清理。
+    Sonilo chỉ cần phân tích nhịp điệu và nội dung của hình ảnh, việc tải phim gốc có độ phân giải cao lên sẽ làm tăng thời gian chờ đợi và lưu lượng truy cập.
+    Không có lợi ích thực sự về chất lượng xây dựng. Tệp tác nhân được đặt trong cùng thư mục với tệp đầu vào và sẽ được dọn sạch sau khi hoàn thành tác vụ.
     """
     descriptor, proxy_path = tempfile.mkstemp(
         prefix=".sonilo-proxy-",
@@ -201,7 +201,7 @@ def _create_video_proxy(video_path: str) -> str:
 
 
 def _parse_event(raw_line: bytes) -> dict[str, Any]:
-    """严格解析单条 NDJSON，禁止静默忽略截断或非对象响应。"""
+    """Phân tích cú pháp nghiêm ngặt một NDJSON duy nhất và vô hiệu hóa âm thầm bỏ qua các phản hồi bị cắt ngắn hoặc không có đối tượng."""
     try:
         event = json.loads(raw_line.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -213,10 +213,10 @@ def _parse_event(raw_line: bytes) -> dict[str, Any]:
 
 def _stream_audio(response: requests.Response, temp_audio_path: str) -> tuple[int, str]:
     """
-    把第一条配乐流按事件顺序写入临时文件，并限制最大体积。
+    Ghi luồng nhạc phim đầu tiên vào tệp tạm thời theo thứ tự sự kiện và giới hạn kích thước tối đa.
 
-    API 可能同时返回多条候选流；当前产品只需要一条 BGM，所以固定选择
-    stream_index=0。只有收到 complete 事件并通过 FFmpeg 完整解码后才会发布。
+    API có thể trả về nhiều luồng ứng viên cùng một lúc; sản phẩm hiện tại chỉ yêu cầu một BGM nên việc lựa chọn là cố định
+    luồng_index=0. Nó sẽ chỉ được xuất bản sau khi sự kiện hoàn chỉnh đã được FFmpeg nhận và giải mã hoàn toàn.
     """
     total_bytes = 0
     title = ""
@@ -269,7 +269,7 @@ def _stream_audio(response: requests.Response, temp_audio_path: str) -> tuple[in
 
 
 def _request_bgm(video_path: str, output_path: str, prompt: str) -> str:
-    """请求配乐并在完整协议及音频校验通过后原子保存。"""
+    """Yêu cầu một bản nhạc và lưu nó nguyên bản sau khi vượt qua quá trình xác minh âm thanh và giao thức hoàn chỉnh."""
     output_dir = os.path.dirname(os.path.abspath(output_path))
     os.makedirs(output_dir, exist_ok=True)
     descriptor, temp_audio_path = tempfile.mkstemp(
@@ -301,8 +301,8 @@ def _request_bgm(video_path: str, output_path: str, prompt: str) -> str:
                         )
                     total_bytes, title = _stream_audio(response, temp_audio_path)
         except requests.RequestException as exc:
-            # iter_lines() 期间的网络中断同样属于 requests 异常，不能只捕获
-            # 建立连接阶段，否则半条音频可能让任务直接异常退出而无法降级。
+            # Sự gián đoạn mạng trong iter_lines() cũng là những yêu cầu ngoại lệ và không thể chỉ ghi lại được
+            # Trong giai đoạn thiết lập kết nối, nếu không, một nửa âm thanh có thể khiến tác vụ thoát ra bất thường mà không thể hạ cấp.
             raise SoniloError(f"failed to request Sonilo music: {exc}") from exc
 
         try:
@@ -326,7 +326,7 @@ def generate_bgm(
     video_duration: float,
     prompt: str = "",
 ) -> str:
-    """为一条已拼接视频生成时长匹配的 Sonilo 背景音乐。"""
+    """Tạo nhạc nền Sonilo phù hợp với thời lượng của video được ghép."""
     if not get_api_key():
         raise SoniloError("Sonilo API key is required")
     if not os.path.isfile(video_path):
@@ -350,8 +350,8 @@ def generate_bgm(
     except SoniloError:
         raise
     except OSError as exc:
-        # 临时目录、代理文件和最终原子替换都可能发生文件系统错误。统一转换为
-        # SoniloError，任务编排层才能按设计降级为“无背景音乐”并保留成片。
+        # Lỗi hệ thống tệp có thể xảy ra với các thư mục tạm thời, tệp proxy và cuối cùng là thay thế nguyên tử. chuyển đổi đồng đều thành
+        # SoniloError, lớp điều phối tác vụ có thể bị hạ cấp xuống "không có nhạc nền" như được thiết kế và giữ lại trong phim hoàn thiện.
         raise SoniloError(f"Sonilo local file operation failed: {exc}") from exc
     finally:
         _remove_file(proxy_path)

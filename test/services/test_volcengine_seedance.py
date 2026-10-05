@@ -334,8 +334,8 @@ class TestVolcEngineSeedanceService(unittest.TestCase):
         self.assertEqual(raised.exception.task_id, "cgt-running")
 
     def test_network_retry_stops_when_total_run_deadline_is_reached(self):
-        # 第一次请求前仍有 59 秒；请求异常返回时总截止时间已经过去，不能继续
-        # 执行其余五次网络重试，也不能再进入退避 sleep。
+        # Vẫn còn 59 giây trước yêu cầu đầu tiên; khi yêu cầu trả về bất thường thì tổng thời hạn đã qua và không thể tiếp tục.
+        # Sau khi thực hiện năm lần thử lại mạng còn lại, bạn không thể chuyển sang chế độ ngủ dự phòng được nữa.
         config.app["volcengine_seedance_run_timeout"] = 60
         clock = iter([0.0, 1.0, 61.0])
         with (
@@ -390,8 +390,8 @@ class TestVolcEngineSeedanceService(unittest.TestCase):
             }
         )
         running = self._response({"id": "cgt-running", "status": "running"})
-        # 第一次响应完成时只剩 0.25 秒，应只休眠剩余时间；下一轮在发起
-        # 网络请求前发现截止时间已过，避免额外一次远端请求。
+        # Chỉ còn 0,25 giây khi phản hồi đầu tiên hoàn thành và nó chỉ nên ngủ trong thời gian còn lại; vòng tiếp theo được bắt đầu
+        # Người ta nhận thấy rằng thời hạn đã trôi qua trước khi yêu cầu mạng được thực hiện để tránh yêu cầu từ xa bổ sung.
         clock = iter([0.0, 59.0, 59.75, 60.1])
         with (
             patch.object(seedance.requests, "get", return_value=running) as get,
@@ -775,8 +775,8 @@ class TestVolcEngineSeedanceMaterialIntegration(unittest.TestCase):
             video_source="volcengine_seedance",
         )
         memory_state = sm.MemoryState()
-        # 终态失败和协议异常使用基础错误类型。这里验证它们与“状态未知”
-        # 异常保持同一恢复信息契约，不会在任务状态中丢失远端任务 ID。
+        # Lỗi cuối cùng và ngoại lệ giao thức sử dụng loại lỗi cơ bản. Tại đây hãy xác minh chúng bằng "Trạng thái không xác định"
+        # Các ngoại lệ duy trì cùng một hợp đồng thông tin khôi phục mà không làm mất ID tác vụ từ xa ở trạng thái tác vụ.
         error = seedance.VolcEngineSeedanceError(
             "remote task failed", task_id="cgt-terminal"
         )

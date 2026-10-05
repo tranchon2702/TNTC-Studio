@@ -8,7 +8,7 @@ project_name = "VietCreator Studio"
 project_description = "Trợ lý cá nhân tạo video ngắn tiếng Việt cho YouTube và TikTok."
 
 # =============================================================================
-# API Service / API 服务
+# Dịch vụ API/Dịch vụ API
 # =============================================================================
 # Log level: DEBUG, INFO, WARNING, or ERROR.
 log_level = "DEBUG"
@@ -22,20 +22,20 @@ listen_port = 8080
 # Leave empty for local backward-compatible access. When configured, clients
 # must send the same value in the x-api-key request header. Keep real keys only
 # in config.toml and never commit them.
-# API 路由和 /tasks 生成文件的可选保护。留空时保持本地免认证行为；
-# 配置后客户端必须通过 x-api-key 请求头传入同一个值。
+# Tùy chọn bảo vệ các tuyến API và các tệp xây dựng /tác vụ. Để trống để duy trì hành vi không cần xác thực cục bộ;
+# Sau khi định cấu hình, máy khách phải chuyển cùng một giá trị thông qua tiêu đề yêu cầu x-api-key.
 # Task artifact requests also require this header; a browser address bar cannot
 # attach custom headers, so authenticated clients should download them via HTTP.
-# 任务产物下载同样需要该请求头；浏览器地址栏无法附加自定义请求头，启用鉴权后
-# 应由 API 客户端携带请求头下载。
+# Tiêu đề yêu cầu này cũng được yêu cầu để tải xuống các sản phẩm nhiệm vụ; không thể đính kèm tiêu đề yêu cầu tùy chỉnh vào thanh địa chỉ trình duyệt sau khi bật xác thực.
+# Tiêu đề yêu cầu phải được ứng dụng khách API tải xuống.
 api_key = ""
 
 # -----------------------------------------------------------------------------
-# General / 通用设置
+# Cài đặt chung/Cài đặt chung
 # -----------------------------------------------------------------------------
 
 # Hide the basic configuration panel in the WebUI.
-# 是否隐藏 WebUI 基础配置面板。
+# Có ẩn bảng cấu hình cơ bản WebUI hay không.
 hide_config = false
 
 # Script generation backend. "local" keeps the existing LLM workflow.
@@ -56,15 +56,15 @@ loomloom_run_timeout_seconds = 600
 loomloom_video_run_timeout_seconds = 1800
 
 # Timeout in seconds for a single Edge TTS streaming request.
-# 单次 Edge TTS 流式请求超时时间。慢网络可适当调大，设置为 0 表示禁用超时。
+# Hết thời gian chờ yêu cầu phát trực tuyến TTS Single Edge. Mạng chậm có thể được tăng lên một cách thích hợp. Đặt nó thành 0 có nghĩa là tắt thời gian chờ.
 edge_tts_timeout = 30
 
 # Verify TLS certificates for external APIs and material downloads.
-# 默认应保持开启；仅在可信代理或自签名证书环境中临时关闭。
+# Nên giữ nguyên theo mặc định; chỉ tắt tạm thời trong môi trường proxy đáng tin cậy hoặc chứng chỉ tự ký.
 tls_verify = true
 
 # -----------------------------------------------------------------------------
-# Video Materials / 视频素材
+# Tài liệu video / tài liệu video
 # -----------------------------------------------------------------------------
 
 # Available values: "pexels", "pixabay", "coverr", "wavespeed",
@@ -84,7 +84,7 @@ video_source = "local"
 
 # API key lists support key rotation. Use straight ASCII double quotes and
 # separate multiple keys with commas, for example: ["key-1", "key-2"].
-# Key 必须使用英文半角双引号，多个 Key 使用英文逗号分隔。
+# Khóa phải sử dụng dấu ngoặc kép nửa độ rộng bằng tiếng Anh và nhiều Khóa phải được phân tách bằng dấu phẩy tiếng Anh.
 
 # Register at https://www.pexels.com/api/
 pexels_api_keys = []
@@ -209,7 +209,7 @@ twelvelabs_rerank_terms = false
 # twelvelabs_pegasus_model = "pegasus1.5"
 
 # Match search terms and downloaded materials to the script narrative order.
-# 默认关闭，开启后会减少随机性，使素材顺序更贴近文案结构。
+# Nó được tắt theo mặc định. Khi bật nó sẽ giảm tính ngẫu nhiên và khiến thứ tự các tài liệu gần với cấu trúc sao chép hơn.
 match_materials_to_script = true
 
 # Optional Sonilo video-matched original background music.
@@ -217,11 +217,11 @@ match_materials_to_script = true
 # this value, or you can set the SONILO_API_KEY environment variable instead.
 sonilo_api_key = ""
 sonilo_base_url = "https://api.sonilo.com"
-# 单次生成流连续无数据时的最长等待秒数；它不是整个请求的总耗时上限。
+# Số giây chờ tối đa khi không có dữ liệu trong một luồng thế hệ; nó không phải là giới hạn trên của tổng thời gian tiêu thụ của toàn bộ yêu cầu.
 sonilo_timeout = 600
 
 # -----------------------------------------------------------------------------
-# LLM Providers / 大模型提供商
+# Nhà cung cấp LLM/Nhà cung cấp mô hình ngôn ngữ lớn (LLM)
 # -----------------------------------------------------------------------------
 
 # Provider definitions, default models, and default Base URLs are maintained in
@@ -392,7 +392,7 @@ pollinations_base_url = ""
 pollinations_model_name = ""
 
 # -----------------------------------------------------------------------------
-# Speech, Subtitles, and Video / 语音、字幕与视频
+# Lời nói, phụ đề và video / Lời nói, phụ đề và video
 # -----------------------------------------------------------------------------
 
 # Xiaomi MiMo TTS shares mimo_api_key and mimo_base_url with the MiMo LLM.
@@ -416,7 +416,7 @@ subtitle_provider = "edge"
 video_codec = "h264_nvenc"
 
 # -----------------------------------------------------------------------------
-# Storage and Task Runtime / 存储与任务运行
+# Thời gian chạy lưu trữ và tác vụ / Thời gian chạy lưu trữ và tác vụ
 # -----------------------------------------------------------------------------
 
 # Public base URL used to build generated video download links. Leave empty to
@@ -441,7 +441,7 @@ max_concurrent_tasks = 1
 max_queued_tasks = 100
 
 # -----------------------------------------------------------------------------
-# Cross-platform Publishing / 跨平台发布
+# Xuất bản đa nền tảng / xuất bản đa nền tảng
 # -----------------------------------------------------------------------------
 
 # Upload-Post can publish generated videos to TikTok, Instagram, and YouTube.
@@ -459,9 +459,9 @@ upload_post_youtube_privacy_status = "private"
 # Declare whether the video is made for children. Choose based on its audience.
 # If unset, future YouTube uploads explicitly declare "not made for kids".
 # Set true for children's content. Previously uploaded videos are not changed.
-# 是否面向儿童：请根据视频实际受众设置，必须使用 TOML 布尔值 true / false。
-# 未配置时，后续 YouTube 上传默认声明为非面向儿童；儿童内容请显式设置为 true。
-# 与旧版省略声明字段不同，此设置不会修改已上传的视频。
+# Có dành cho trẻ em hay không: Vui lòng đặt tùy theo đối tượng khán giả thực tế của video. Phải sử dụng giá trị Boolean TOML đúng / sai.
+# Khi không được định cấu hình, các video tải lên YouTube tiếp theo sẽ được tuyên bố là không dành cho trẻ em theo mặc định; nội dung dành cho trẻ em phải được đặt rõ ràng thành đúng.
+# Không giống như phiên bản cũ bỏ qua trường xác nhận quyền sở hữu, cài đặt này không sửa đổi video đã tải lên.
 upload_post_youtube_made_for_kids = false
 # Maximum number of running and queued cross-post jobs per process. When the
 # limit is reached, video generation still succeeds and only cross-posting is
@@ -470,7 +470,7 @@ upload_post_youtube_made_for_kids = false
 upload_post_max_pending_tasks = 10
 
 # =============================================================================
-# Whisper Subtitles / Whisper 字幕
+# Phụ đề thì thầm / Phụ đề thì thầm
 # =============================================================================
 
 [whisper]
@@ -487,7 +487,7 @@ compute_type = "int8"
 # initial_prompt = ""
 
 # =============================================================================
-# Material Request Proxy / 素材请求代理
+# Proxy yêu cầu vật liệu / Proxy yêu cầu vật liệu
 # =============================================================================
 
 [proxy]
@@ -498,7 +498,7 @@ compute_type = "int8"
 # https = "http://127.0.0.1:1080"
 
 # =============================================================================
-# TTS Providers / 语音合成服务
+# Nhà cung cấp TTS / Dịch vụ tổng hợp giọng nói
 # =============================================================================
 
 [azure]
@@ -556,6 +556,17 @@ model_id = "kokoro"
 # from the server (GET {base_url}/audio/voices).
 voices = []
 
+[viettts]
+# OpenAI-compatible VietTTS server (dangvansam/viet-tts, MIT, Vietnamese-native).
+# Install: git clone https://github.com/dangvansam/viet-tts && cd viet-tts && docker compose up -d
+# The server runs on port 8298 by default.
+base_url = "http://127.0.0.1:8298/v1"
+api_key = ""
+model_id = "viettts"
+# Built-in Vietnamese voices. Leave empty to read from the server (GET {base_url}/voices).
+# Known voices: nsnd-le-chuc, speechify_1..10, nu-nhe-nhang, quynh
+voices = []
+
 [fish_audio]
 # Fish Audio TTS service: https://fish.audio
 # API key: https://fish.audio/app/developers
@@ -582,7 +593,7 @@ voices = []
 # https://fish.audio/pricing for current availability and commercial terms.
 
 # =============================================================================
-# WebUI Preferences / WebUI 偏好
+# Tùy chọn WebUI / Tùy chọn WebUI
 # =============================================================================
 
 [ui]
@@ -590,7 +601,7 @@ voices = []
 hide_log = false
 
 # Open the task folder automatically after video generation completes.
-# 视频生成完成后是否自动打开任务目录；关闭后仍可在任务管理中手动打开。
+# Có tự động mở thư mục tác vụ sau khi quá trình tạo video hoàn tất hay không; sau khi đóng vẫn có thể mở thủ công trong phần quản lý tác vụ.
 open_task_folder_on_completion = true
 
 # VietCreator defaults: vertical short video, Vietnamese narration and a font

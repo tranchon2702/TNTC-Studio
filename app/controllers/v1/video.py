@@ -36,8 +36,8 @@ from app.services import state as sm
 from app.services import task as tm
 from app.utils import file_security, utils
 
-# 统一在 V1 视频路由入口执行鉴权。verify_token 会在 api_key 为空时
-# 保留现有免认证行为，只有管理员显式配置后才会影响客户端。
+# Việc xác thực được thực hiện thống nhất ở lối vào định tuyến video V1. verify_token sẽ được sử dụng khi api_key trống
+# Hành vi không cần xác thực hiện tại được giữ lại và sẽ chỉ ảnh hưởng đến máy khách nếu được quản trị viên định cấu hình rõ ràng.
 router = new_router(dependencies=[Depends(base.verify_token)])
 
 _enable_redis = config.app.get("enable_redis", False)
@@ -55,7 +55,7 @@ def _build_redis_url(host: str, port: int, db: int, password: str | None) -> str
 
 
 redis_url = _build_redis_url(_redis_host, _redis_port, _redis_db, _redis_password)
-# 根据配置选择合适的任务管理器
+# Chọn trình quản lý tác vụ phù hợp dựa trên cấu hình của bạn
 if _enable_redis:
     task_manager = RedisTaskManager(
         max_concurrent_tasks=_max_concurrent_tasks,
@@ -70,8 +70,8 @@ else:
 
 
 def _sanitize_upload_filename(filename: str, request_id: str) -> str:
-    # 浏览器或客户端有时会附带目录信息，甚至可能夹带 ../ 这类穿越片段。
-    # 这里只保留纯文件名，避免上传接口把文件写到目标目录之外。
+    # Các trình duyệt hoặc ứng dụng khách đôi khi đi kèm với thông tin thư mục và thậm chí có thể bao gồm các đoạn truyền tải như ../.
+    # Ở đây chỉ giữ lại tên tệp thuần túy để ngăn giao diện tải lên ghi tệp bên ngoài thư mục đích.
     normalized_name = (filename or "").replace("\\", "/").split("/")[-1].strip()
     if not normalized_name or normalized_name in {".", ".."}:
         raise HttpException(
@@ -98,7 +98,7 @@ def _resolve_path_within_directory(base_dir: str, unsafe_path: str, request_id: 
 
 
 def _public_task_data(task: dict) -> dict:
-    """复制任务状态并移除仅用于服务端进程协调的内部字段。"""
+    """Sao chép trạng thái tác vụ và xóa các trường nội bộ chỉ được sử dụng để phối hợp quy trình phía máy chủ."""
     public_task = dict(task)
     public_task.pop("cross_post_owner", None)
     return public_task
@@ -114,8 +114,8 @@ def _task_file_to_uri(file: str, endpoint: str, task_dir: str, request_id: str) 
     try:
         resolved_path = file_security.resolve_path_within_directory(task_dir, file)
     except ValueError as exc:
-        # 任务状态理论上只应保存任务目录内的产物路径。这里不再继续拼接 URL，
-        # 避免把异常路径包装成可访问链接；同时保留原值，便于排查历史脏数据。
+        # Về lý thuyết, trạng thái tác vụ chỉ nên lưu đường dẫn sản phẩm trong thư mục tác vụ. Chúng tôi sẽ không tiếp tục ghép các URL ở đây.
+        # Tránh đóng gói các đường dẫn bất thường vào các liên kết có thể truy cập được; đồng thời giữ nguyên giá trị ban đầu để thuận tiện cho việc khắc phục sự cố dữ liệu bẩn lịch sử.
         logger.warning(
             f"skip unsafe task output path, request_id: {request_id}, path: {file}, "
             f"error: {str(exc)}"
@@ -132,7 +132,7 @@ def _task_file_to_uri(file: str, endpoint: str, task_dir: str, request_id: str) 
 def _parse_byte_range(
     range_header: str | None, file_size: int, request_id: str
 ) -> tuple[int, int]:
-    """解析单段 HTTP Range，并把无效或越界请求稳定转换成 416。"""
+    """Phân tích một Phạm vi HTTP duy nhất và chuyển đổi các yêu cầu không hợp lệ hoặc vượt quá giới hạn thành 416 một cách đáng tin cậy."""
     if file_size <= 0:
         raise HttpException(
             task_id=request_id,
@@ -144,8 +144,8 @@ def _parse_byte_range(
         return 0, file_size - 1
 
     try:
-        # 视频播放器这里只需要单段 bytes range。拒绝多段请求可以避免返回体
-        # 与 Content-Range 不一致，也避免异常字符串落入 int() 产生 500。
+        # Trình phát video chỉ cần một phạm vi byte đơn. Từ chối các yêu cầu nhiều phần sẽ tránh trả lại nội dung
+        # Không nhất quán với Phạm vi nội dung, nó cũng tránh các chuỗi ngoại lệ rơi vào int() để tạo ra 500.
         if not range_header.startswith("bytes=") or "," in range_header:
             raise ValueError("unsupported range format")
         start_text, end_text = range_header[6:].split("-", 1)
@@ -218,9 +218,9 @@ def create_task(
                 tm.start, task_id=task_id, params=body, stop_at=stop_at
             )
         except Exception:
-            # 状态记录在调度前创建，默认标记为 processing。如果调度器没能
-            # 接管任务（例如线程启动失败或 Redis 队列不可用），必须回滚该
-            # 记录，否则 API 和 WebUI 会永久展示一个实际从未运行的任务。
+            # Bản ghi trạng thái được tạo trước khi lập kế hoạch và được gắn nhãn xử lý theo mặc định. Nếu bộ lập lịch bị lỗi
+            # Để đảm nhận một tác vụ (chẳng hạn như lỗi khởi động luồng hoặc không có hàng đợi Redis), tác vụ đó phải được khôi phục
+            # Ghi nhật ký, nếu không API và WebUI sẽ mãi mãi hiển thị một tác vụ không bao giờ thực sự chạy.
             sm.state.delete_task(task_id)
             raise
         logger.success(f"Task created: {utils.to_json(task)}")
@@ -333,8 +333,8 @@ def get_bgm_list(request: Request):
             {
                 "name": filename,
                 "size": os.path.getsize(file),
-                # 只返回文件名，避免把服务器绝对路径暴露给调用方。服务端会
-                # 在 storage/bgm 和 resource/songs 两个白名单目录中重新解析。
+                # Chỉ tên tệp được trả về để tránh lộ đường dẫn tuyệt đối của máy chủ cho người gọi. Máy chủ sẽ
+                # Phân tích lại trong hai thư mục danh sách trắng storage/bgm và Resource/songs.
                 "file": filename,
             }
         )
@@ -360,8 +360,8 @@ def upload_bgm_file(request: Request, file: UploadFile = File(...)):
     try:
         safe_filename = bgm_service.save_bgm_upload(file.filename, file.file)
     except bgm_service.BgmUploadError as exc:
-        # 上传失败通常可以由用户更换文件后恢复，因此记录 request_id 和明确原因，
-        # 但不输出文件内容或绝对路径，避免日志泄露用户数据。
+        # Lỗi tải lên thường có thể được khắc phục bằng cách người dùng thay thế tệp, vì vậy hãy ghi lại request_id và làm rõ lý do,
+        # Tuy nhiên, nội dung tệp hoặc đường dẫn tuyệt đối không được xuất ra để ngăn nhật ký rò rỉ dữ liệu người dùng.
         logger.warning(
             f"background music upload rejected: request_id={request_id}, error={str(exc)}"
         )
@@ -371,8 +371,8 @@ def upload_bgm_file(request: Request, file: UploadFile = File(...)):
             message=f"{request_id}: {str(exc)}",
         )
     except bgm_service.BgmServiceError as exc:
-        # 工具链或存储故障属于服务端问题，不能伪装成用户文件错误。日志保留
-        # request_id 和内部原因，HTTP 响应只返回稳定文案，避免暴露服务器路径。
+        # Lỗi chuỗi công cụ hoặc lỗi lưu trữ là sự cố phía máy chủ và không thể ngụy trang thành lỗi tệp người dùng. Lưu giữ nhật ký
+        # request_id và lý do nội bộ, phản hồi HTTP chỉ trả về bản sao ổn định để tránh lộ đường dẫn máy chủ.
         logger.error(
             f"background music upload failed: request_id={request_id}, error={str(exc)}"
         )
@@ -397,8 +397,8 @@ def get_video_materials_list(request: Request):
     files = []
     for suffix in allowed_suffixes:
         files.extend(glob.glob(os.path.join(local_videos_dir, f"*.{suffix}")))
-    # 文件系统枚举顺序不稳定，直接返回会导致“顺序拼接”在不同机器或不同
-    # 时刻表现不一致。这里统一按文件名排序，至少保证服务端返回顺序可预测。
+    # Thứ tự liệt kê của hệ thống tệp không ổn định và việc quay lại trực tiếp sẽ gây ra hiện tượng "nối tuần tự" trên các máy khác nhau hoặc khác nhau.
+    # Hiệu suất không nhất quán mọi lúc. Ở đây, các tệp được sắp xếp thống nhất theo tên tệp, ít nhất là để đảm bảo rằng thứ tự được máy chủ trả về là có thể dự đoán được.
     files.sort(key=lambda file_path: os.path.basename(file_path).lower())
     video_materials_list = []
     for file in files:
@@ -407,8 +407,8 @@ def get_video_materials_list(request: Request):
             {
                 "name": filename,
                 "size": os.path.getsize(file),
-                # 与 BGM 一样，只返回文件名；创建任务时再在 local_videos
-                # 白名单目录内解析，避免 API 泄露宿主机绝对路径。
+                # Giống như BGM, chỉ có tên tệp được trả về; khi tạo tác vụ, hãy thêm nó vào local_videos
+                # Phân tích cú pháp trong thư mục danh sách trắng để ngăn API rò rỉ đường dẫn tuyệt đối của máy chủ.
                 "file": filename,
             }
         )

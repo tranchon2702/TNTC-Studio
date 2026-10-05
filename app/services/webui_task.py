@@ -13,9 +13,9 @@ from app.services.loomloom import LoomLoomConfirmedVideoRequest
 from app.utils.logging_utils import format_log_record
 
 
-# WebUI 的配置保存在进程级全局字典中。原来的同步实现会在完整生成期间持有
-# runtime_config_lock，因此不同浏览器会话实际上也是串行执行。这里把并发数固定
-# 为 1，既延续原有配置一致性，也避免多个线程只是在配置锁外无意义地等待。
+# Cấu hình của WebUI được lưu trữ trong từ điển toàn cầu ở cấp quy trình. Việc triển khai đồng bộ hóa ban đầu sẽ được duy trì trong quá trình xây dựng đầy đủ
+# run_config_lock, vì vậy các phiên trình duyệt khác nhau thực sự được thực thi tuần tự. Ở đây số lượng đồng thời được cố định
+# Nó là 1, không chỉ duy trì tính nhất quán của cấu hình ban đầu mà còn ngăn nhiều luồng chờ đợi một cách vô nghĩa bên ngoài khóa cấu hình.
 _task_manager = InMemoryTaskManager(
     max_concurrent_tasks=1,
     max_queued_tasks=max(1, int(config.app.get("max_queued_tasks", 100))),
@@ -24,18 +24,18 @@ _task_logs: dict[str, deque[str]] = {}
 _task_logs_lock = threading.RLock()
 _MAX_LOG_TASKS = 20
 _MAX_LOG_RECORDS_PER_TASK = 1000
-# Streamlit 无法由后台线程直接推送组件更新，只能通过 Fragment 轮询。0.5 秒
-# 足以让 WebUI 日志接近终端实时输出，又不会像高频刷新那样持续占用浏览器资源。
+# Streamlit không thể trực tiếp đẩy các bản cập nhật thành phần theo các luồng nền mà chỉ có thể được thăm dò thông qua Fragment. 0,5 giây
+# Chỉ cần làm cho nhật ký WebUI gần với đầu ra thời gian thực của thiết bị đầu cuối là đủ, nhưng sẽ không tiếp tục chiếm tài nguyên trình duyệt như làm mới tần số cao.
 TASK_LOG_REFRESH_INTERVAL_SECONDS = 0.5
 
 
 def _append_task_log(task_id: str, message: str) -> None:
-    """按任务保存有限数量的日志，供 Streamlit Fragment 安全轮询。"""
+    """Lưu một số lượng nhật ký giới hạn cho mỗi tác vụ để bỏ phiếu an toàn bằng Streamlit Fragments."""
     with _task_logs_lock:
         records = _task_logs.get(task_id)
         if records is None:
-            # 只保留最近任务的日志，避免 WebUI 服务长时间运行后持续占用内存。
-            # dict 保持插入顺序；任务日志仅用于界面诊断，淘汰最早记录不影响任务。
+            # Chỉ giữ nhật ký của các tác vụ gần đây nhất để ngăn dịch vụ WebUI tiếp tục chiếm bộ nhớ sau khi chạy trong một thời gian dài.
+            # dict duy trì thứ tự chèn; nhật ký tác vụ chỉ được sử dụng để chẩn đoán giao diện và việc loại bỏ bản ghi sớm nhất không ảnh hưởng đến tác vụ.
             if len(_task_logs) >= _MAX_LOG_TASKS:
                 oldest_task_id = next(iter(_task_logs))
                 _task_logs.pop(oldest_task_id, None)
@@ -45,7 +45,7 @@ def _append_task_log(task_id: str, message: str) -> None:
 
 
 def get_task_logs(task_id: str) -> list[str]:
-    """返回日志快照，避免页面渲染期间持有后台线程使用的锁。"""
+    """Trả lại ảnh chụp nhanh nhật ký để tránh giữ các khóa được sử dụng bởi các luồng nền trong quá trình hiển thị trang."""
     with _task_logs_lock:
         return list(_task_logs.get(task_id, ()))
 
@@ -58,11 +58,11 @@ def _run_generation(
     loomloom_video_request: LoomLoomConfirmedVideoRequest | None = None,
 ) -> dict:
     """
-    在后台线程中执行现有视频流水线。
+    Thực thi đường dẫn video hiện có trong chuỗi nền.
 
-    Loguru 的 sink 是进程级资源，因此必须按当前工作线程过滤。否则同时运行的
-    API 任务或其它页面日志会混入当前任务。页面只读取普通列表快照，不会从后台
-    线程访问 Streamlit session_state，从根源上避免刷新时的 delta 路径错乱。
+    Phần chìm của Loguru là tài nguyên cấp quy trình, vì vậy nó phải được lọc theo luồng công việc hiện tại. Nếu không thì chạy đồng thời
+    Nhiệm vụ API hoặc nhật ký trang khác được trộn lẫn với nhiệm vụ hiện tại. Trang chỉ đọc ảnh chụp nhanh danh sách thông thường và không đọc từ nền
+    Chuỗi truy cập Streamlit session_state để tránh nguyên nhân cốt lõi gây nhầm lẫn đường dẫn delta trong quá trình làm mới.
     """
     log_handler_id = None
     worker_thread_id = threading.get_ident()
@@ -76,8 +76,8 @@ def _run_generation(
                 filter=lambda record: record["thread"].id == worker_thread_id,
             )
 
-        # 完整任务仍使用原来的配置锁，防止另一个 WebUI 会话在生成中途修改
-        # Provider、密钥等进程级配置，造成同一条视频前后使用不同设置。
+        # Tác vụ đầy đủ vẫn sử dụng khóa cấu hình ban đầu, ngăn phiên WebUI khác sửa đổi nó trong quá trình xây dựng
+        # Các cấu hình cấp quy trình như nhà cung cấp và khóa khiến các cài đặt khác nhau được sử dụng trước và sau cùng một video.
         with config.runtime_config_lock():
             return tm.start(
                 task_id=task_id,
@@ -86,9 +86,9 @@ def _run_generation(
                 loomloom_video_request=loomloom_video_request,
             )
     except Exception as exc:
-        # tm.start 已负责把流水线异常转换成失败状态；这里额外保护日志 sink、
-        # 配置锁等 WebUI 包装层。任何后台线程异常都必须留下终态，不能让任务
-        # 管理器在工作线程退出后仍永久显示“生成中”。
+        # tm.start đã chịu trách nhiệm chuyển đổi các ngoại lệ của quy trình thành trạng thái lỗi; ở đây bồn rửa nhật ký bảo vệ bổ sung,
+        # Các lớp bao bọc WebUI như khóa cấu hình. Bất kỳ ngoại lệ luồng nền nào đều phải rời khỏi trạng thái cuối cùng và không thể để tác vụ
+        # Người quản lý tiếp tục hiển thị "Tòa nhà" vĩnh viễn sau khi thoát khỏi chuỗi công việc.
         error = f"{type(exc).__name__}: {exc}"
         failure = {
             "task_id": task_id,
@@ -127,17 +127,17 @@ def submit_generation(
     loomloom_video_request: LoomLoomConfirmedVideoRequest | None = None,
 ) -> None:
     """
-    登记并提交 WebUI 视频生成任务，调用后立即返回。
+    Đăng ký và gửi tác vụ tạo video WebUI và quay lại ngay sau cuộc gọi.
 
-    任务状态必须在线程启动前写入。这样页面本次脚本执行结束时即可查询到任务，
-    浏览器刷新或 WebSocket 重连也不依赖旧页面内存中的占位符。
+    Trạng thái tác vụ phải được viết trước khi chuỗi được bắt đầu. Bằng cách này, tác vụ có thể được truy vấn khi quá trình thực thi tập lệnh hiện tại của trang kết thúc.
+    Việc làm mới trình duyệt hoặc kết nối lại WebSocket cũng không dựa vào phần giữ chỗ cho các trang cũ trong bộ nhớ.
     """
     task_params = params.model_copy(deep=True)
-    # 预览载荷只包含不可变音频路径、参数快照和只读字幕时间轴。复制外层字典，
-    # 避免页面后续 rerun 替换缓存字段时影响已经提交到后台队列的任务。
+    # Tải trọng xem trước chỉ chứa các đường dẫn âm thanh không thể thay đổi, ảnh chụp nhanh thông số và dòng thời gian phụ đề chỉ đọc. Sao chép từ điển bên ngoài,
+    # Điều này ngăn các lần chạy lại trang tiếp theo ảnh hưởng đến các tác vụ đã được gửi tới hàng đợi nền khi thay thế các trường được lưu trong bộ nhớ đệm.
     voice_preview_snapshot = dict(voice_preview) if voice_preview else None
-    # 已确认请求是冻结的数据对象，只在当前进程内传递。API Key 不会进入
-    # VideoParams、任务状态、日志或落盘历史，也不会受后续页面 rerun 影响。
+    # Các yêu cầu đã được xác nhận là các đối tượng dữ liệu đã được cố định và chỉ được gửi trong quy trình hiện tại. Khóa API sẽ không nhập
+    # VideoParams, trạng thái tác vụ, nhật ký hoặc lịch sử vị trí ổ đĩa sẽ không bị ảnh hưởng khi chạy lại trang tiếp theo.
     loomloom_request_snapshot = loomloom_video_request
     sm.state.update_task(
         task_id,
@@ -155,8 +155,8 @@ def submit_generation(
             loomloom_video_request=loomloom_request_snapshot,
         )
     except Exception as exc:
-        # 调度失败与流水线失败一样必须成为可查询状态，避免任务管理器永久显示
-        # “生成中”。保留异常类型便于从 Docker 或本机日志快速定位队列问题。
+        # Các lỗi lập lịch, như lỗi đường ống, phải có thể truy vấn được để tránh hiển thị vĩnh viễn trong trình quản lý tác vụ.
+        # "Tạo ra". Việc duy trì các loại ngoại lệ giúp dễ dàng xác định nhanh chóng các vấn đề về hàng đợi từ Docker hoặc nhật ký gốc.
         error = f"{type(exc).__name__}: {exc}"
         sm.state.update_task(
             task_id,

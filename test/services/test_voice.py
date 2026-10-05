@@ -54,9 +54,9 @@ class TestVoiceService(unittest.TestCase):
 
     def test_get_all_azure_voices(self):
         voices = vs.get_all_azure_voices()
-        # 数据已从内联字符串迁移到 azure_voices.json，确保仍能完整加载
+        # Dữ liệu đã được di chuyển từ chuỗi nội tuyến sang azure_voices.json để đảm bảo dữ liệu vẫn tải hoàn toàn
         self.assertEqual(len(voices), 331)
-        # 结果应为 "Name-Gender" 格式且已排序
+        # Kết quả phải ở định dạng "Tên-Giới tính" và được sắp xếp
         self.assertEqual(voices, sorted(voices))
         for v in voices:
             self.assertTrue(v.endswith("-Male") or v.endswith("-Female"))
@@ -97,9 +97,9 @@ class TestVoiceService(unittest.TestCase):
 
     def test_no_voice_tts_generates_silent_audio_and_subtitle_timeline(self):
         """
-        无配音模式不调用任何外部 TTS provider，只生成静音音频作为时间轴占位。
-        这里 mock FFmpeg，验证请求参数、输出文件和 legacy 字幕结构都符合后续
-        视频合成链路的预期。
+        Chế độ không lồng tiếng không gọi bất kỳ nhà cung cấp TTS bên ngoài nào và chỉ tạo ra âm thanh im lặng dưới dạng trình giữ chỗ dòng thời gian.
+        Ở đây mô phỏng FFmpeg để xác minh rằng các tham số yêu cầu, tệp đầu ra và cấu trúc phụ đề kế thừa đều tuân thủ các yêu cầu tiếp theo
+        Kỳ vọng về các liên kết sáng tác video.
         """
 
         def fake_run(command, capture_output, text, check):
@@ -130,9 +130,9 @@ class TestVoiceService(unittest.TestCase):
 
     def test_get_audio_duration_accepts_non_mp3_files(self):
         """
-        自定义音频（custom_audio_file）常见为 m4a/wav/aac 等非 mp3 格式。
-        get_audio_duration 不应因扩展名不是 .mp3 就报 "Invalid target type" 并返回 0，
-        而应交给 moviepy(ffmpeg) 读取真实时长。
+        Âm thanh tùy chỉnh (custom_audio_file) thường ở các định dạng không phải mp3 như m4a/wav/aac.
+        get_audio_duration không nên báo cáo "Loại mục tiêu không hợp lệ" và trả về 0 chỉ vì tiện ích mở rộng không phải là .mp3.
+        Thay vào đó, hãy để moviepy(ffmpeg) đọc thời lượng thực.
         """
         for path in ("custom-audio.m4a", "voice.wav", "clip.aac"):
             with patch.object(vs.os.path, "exists", return_value=True), \
@@ -142,14 +142,14 @@ class TestVoiceService(unittest.TestCase):
                 mock_afc.assert_called_once_with(path)
 
     def test_get_audio_duration_missing_file_returns_zero(self):
-        """音频文件不存在时安全返回 0，而不是抛异常或读取失败。"""
+        """Trả về 0 một cách an toàn nếu tệp âm thanh không tồn tại, thay vì đưa ra ngoại lệ hoặc không đọc được."""
         with patch.object(vs.os.path, "exists", return_value=False):
             self.assertEqual(vs.get_audio_duration("does-not-exist.m4a"), 0.0)
 
     def test_no_voice_alias_none_is_supported_temporarily(self):
         """
-        兼容 PR #981 曾使用过的 none sentinel，避免少量直接调用 API 的用户
-        升级后立即失效。新 UI 和新代码仍统一使用 no-voice。
+        Tương thích với không có trọng điểm nào được sử dụng trong PR #981 để tránh một số ít người dùng gọi trực tiếp API
+        Không hợp lệ ngay sau khi nâng cấp. Giao diện người dùng mới và mã mới vẫn sử dụng thống nhất không có giọng nói.
         """
         self.assertTrue(vs.is_no_voice("none"))
         self.assertTrue(vs.is_no_voice(vs.NO_VOICE_NAME))
@@ -157,8 +157,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_no_voice_duration_estimates_non_ascii_languages(self):
         """
-        无配音没有真实 TTS 音频，只能根据脚本文字估算阅读时间。俄语、阿拉伯语、
-        日文假名、韩文等非 ASCII 文本也必须参与估算，不能都落到最短 3 秒。
+        Không lồng tiếng, không có âm thanh TTS thực, thời gian đọc chỉ có thể ước tính dựa trên văn bản kịch bản. tiếng Nga, tiếng Ả Rập,
+        Văn bản không phải ASCII như tiếng Nhật Kana và tiếng Hàn cũng phải được đưa vào ước tính và tất cả không thể dài tối thiểu 3 giây.
         """
         russian_text = (
             "Это длинный тестовый сценарий без озвучки. "
@@ -171,8 +171,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_generate_silent_audio_rejects_missing_output_file(self):
         """
-        即使 FFmpeg 进程返回成功，也要确认输出文件真实存在且非空。这样可以把
-        异常收敛在 TTS 阶段，而不是拖到后续视频合成阶段才暴露。
+        Ngay cả khi quá trình FFmpeg trả về thành công, hãy đảm bảo tệp đầu ra thực sự tồn tại và không trống. Bằng cách này bạn có thể
+        Sự hội tụ bất thường được bộc lộ trong giai đoạn TTS thay vì bị trì hoãn cho đến giai đoạn tổng hợp video tiếp theo.
         """
         with tempfile.TemporaryDirectory() as tmp_dir, patch.object(
             vs.utils,
@@ -189,8 +189,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_empty_voice_name_does_not_enable_no_voice_mode(self):
         """
-        空 voice 通常意味着配置缺失或接口参数错误，不能自动切到无配音模式。
-        否则用户填错 TTS 配置时也会得到一个“成功”的静音视频，定位成本更高。
+        Giọng trống thường có nghĩa là thiếu cấu hình hoặc thông số giao diện sai và không thể tự động chuyển sang chế độ không lồng tiếng.
+        Ngược lại, nếu người dùng điền sai cấu hình TTS, họ cũng sẽ nhận được video tắt tiếng "thành công" và chi phí định vị sẽ cao hơn.
         """
         sentinel = object()
 
@@ -210,9 +210,9 @@ class TestVoiceService(unittest.TestCase):
         "MPT_RUN_INTEGRATION_TESTS not set",
     )
     def test_siliconflow(self):
-        # SiliconFlow 的 API Key 存在 [siliconflow].api_key 中，运行时代码也是从
-        # config.siliconflow 读取；这里必须使用同一配置源，避免正确配置凭据时
-        # 测试仍然被误跳过。
+        # Khóa API của SiliconFlow tồn tại trong [siliconflow].api_key và mã thời gian chạy cũng từ
+        # config.siliconflow đọc; nguồn cấu hình tương tự phải được sử dụng ở đây để tránh thông tin đăng nhập cấu hình không chính xác
+        # Các bài kiểm tra vẫn đang bị bỏ qua do nhầm lẫn.
         if not vs.config.siliconflow.get("api_key"):
             self.skipTest("siliconflow_api_key is not configured")
 
@@ -223,10 +223,10 @@ class TestVoiceService(unittest.TestCase):
             parts = voice_name.split(":")
             if len(parts) >= 3:
                 model = parts[1]
-                # 移除性别后缀，例如 "alex-Male" -> "alex"
+                # Xóa hậu tố giới tính, chẳng hạn như "alex-Male" -> "alex"
                 voice_with_gender = parts[2]
                 voice = voice_with_gender.split("-")[0]
-                # 构建完整的voice参数，格式为 "model:voice"
+                # Xây dựng các tham số giọng nói hoàn chỉnh theo định dạng "model:voice"
                 full_voice = f"{model}:{voice}"
                 voice_file = f"{temp_dir}/tts-siliconflow-{voice}.mp3"
                 subtitle_file = f"{temp_dir}/tts-siliconflow-{voice}.srt"
@@ -265,12 +265,12 @@ class TestVoiceService(unittest.TestCase):
 
     def test_azure_tts_v1_supports_legacy_edge_tts_without_boundary(self):
         """
-        验证 Azure TTS V1 在旧版 edge_tts 依赖残留时仍可继续工作。
+        Xác minh rằng Azure TTS V1 tiếp tục hoạt động với các phần phụ thuộc edge_tts cũ còn lại.
 
-        这个回归场景对应 Windows 便携包更新失败后，现场环境还停留在旧版
-        edge_tts 的情况：
-        1. `Communicate.__init__()` 不接受 `boundary`
-        2. 只有异步 `stream()`，没有 `stream_sync()`
+        Kịch bản hồi quy này tương ứng với thực tế là sau khi cập nhật gói di động Windows không thành công, môi trường tại chỗ vẫn ở phiên bản cũ.
+        Trong trường hợp edge_tts:
+        1. `Communicate.__init__()` không chấp nhận `ranh`
+        2. Chỉ có `stream()` không đồng bộ, không có `stream_sync()`
         """
 
         class _LegacyCommunicate:
@@ -318,12 +318,12 @@ class TestVoiceService(unittest.TestCase):
 
     def test_azure_tts_v1_times_out_hanging_stream_sync(self):
         """
-        验证 Azure TTS V1 在 edge_tts 同步流卡住时能够快速失败。
+        Đã xác minh rằng Azure TTS V1 nhanh chóng bị lỗi khi luồng đồng bộ hóa edge_tts bị kẹt.
 
-        真实现场里，网络异常、服务端限流、voice 语言与文本不匹配时，
-        `stream_sync()` 可能长时间不返回，导致 WebUI 任务只停在
-        `start, voice name...`。这里用阻塞的 fake stream 复现该场景，
-        确认超时保护会让函数结束并返回 None。
+        Trong cảnh thực, khi mạng không bình thường, máy chủ bị điều tiết hoặc ngôn ngữ giọng nói không khớp với văn bản,
+        `stream_sync()` có thể không quay lại trong một thời gian dài, khiến tác vụ WebUI dừng ở
+        `bắt đầu, tên giọng nói...`. Ở đây chúng tôi sử dụng luồng giả bị chặn để tái tạo cảnh,
+        Việc xác nhận bảo vệ thời gian chờ sẽ khiến hàm chấm dứt và trả về Không.
         """
 
         class _HangingCommunicate:
@@ -395,7 +395,7 @@ class TestVoiceService(unittest.TestCase):
         self.loop.run_until_complete(_do())
 
     def test_azure_tts_v2_ssml_applies_rate_and_escapes_text(self):
-        """Azure V2 必须通过 SSML 应用语速，并避免用户文案破坏 XML。"""
+        """Azure V2 phải áp dụng tốc độ giọng nói qua SSML và tránh việc bản sao của người dùng làm hỏng XML."""
         ssml = vs._build_azure_v2_ssml(
             text='A < B & "quoted"',
             voice_name="zh-CN-XiaoxiaoMultilingualNeural",
@@ -407,7 +407,7 @@ class TestVoiceService(unittest.TestCase):
         self.assertIn("A &lt; B &amp; \"quoted\"", ssml)
 
     def test_tts_forwards_rate_to_azure_v2(self):
-        """统一 TTS 入口不能在分发 Azure V2 时丢失 voice_rate。"""
+        """Mục nhập TTS hợp nhất không thể mất voice_rate khi phân phối Azure V2."""
         voice_name = "zh-CN-XiaoxiaoMultilingualNeural-V2-Female"
         with patch.object(vs, "azure_tts_v2", return_value=object()) as mock_tts:
             result = vs.tts(
@@ -426,7 +426,7 @@ class TestVoiceService(unittest.TestCase):
         )
 
     def test_tts_strips_gemini_style_metadata_before_dispatch(self):
-        """Gemini 下拉框的官方风格描述不能成为 API voice_name 的一部分。"""
+        """Mô tả kiểu chính thức cho hộp thả xuống Gemini không thể là một phần của API voice_name."""
         sentinel = object()
 
         with patch.object(vs, "gemini_tts", return_value=sentinel) as gemini_tts:
@@ -449,10 +449,10 @@ class TestVoiceService(unittest.TestCase):
 
     def test_gemini_tts_uses_google_genai_and_compatible_submaker_fields(self):
         """
-        验证 Gemini TTS 在 edge_tts 7.x 环境下仍会返回项目兼容的字幕结构，
-        并且可以被 `subtitle_provider=edge` 的字幕生成链路直接消费，
-        避免再次回退 Whisper。同时使用不存在的嵌套输出目录，覆盖 API 或
-        CLI 直接调用服务时没有提前创建任务目录的边界情况。
+        Đã xác minh rằng Gemini TTS vẫn trả về cấu trúc phụ đề tương thích với dự án trong môi trường edge_tts 7.x,
+        Và có thể được sử dụng trực tiếp bởi liên kết tạo phụ đề của `subtitle_provider=edge`,
+        Tránh quay lại Whisper lần nữa. Đồng thời sử dụng thư mục đầu ra lồng nhau không tồn tại, ghi đè API hoặc
+        Có một trường hợp khó khăn khi CLI gọi trực tiếp dịch vụ mà không tạo trước thư mục tác vụ.
         """
 
         class _InlineData:
@@ -547,11 +547,11 @@ class TestVoiceService(unittest.TestCase):
 
     def test_mimo_tts_uses_openai_compatible_audio_response(self):
         """
-        验证 Xiaomi MiMo TTS 可以消费 OpenAI-compatible 的音频响应结构。
+        Xác minh rằng Xiaomi MiMo TTS có thể sử dụng cấu trúc phản hồi âm thanh tương thích với OpenAI.
 
-        这里用 fake OpenAI client 和 fake AudioSegment 覆盖真实网络与 ffmpeg，
-        确认运行时代码会把待合成文本放到 assistant message，并把返回的
-        base64 WAV 音频导出到项目后续流程使用的音频文件。
+        Ở đây, ứng dụng khách OpenAI giả và AudioSegment giả được sử dụng để bao phủ mạng thực và ffmpeg.
+        Xác nhận rằng mã thời gian chạy sẽ đưa văn bản được tổng hợp vào tin nhắn trợ lý và đặt văn bản được trả về
+        Xuất âm thanh WAV base64 sang tệp âm thanh để sử dụng sau này trong dự án.
         """
 
         class _FakeAudio:
@@ -679,7 +679,7 @@ class TestVoiceService(unittest.TestCase):
         self.assertEqual(captured["json"]["audio_setting"]["format"], "mp3")
 
     def test_minimax_tts_reuses_cn_llm_key_and_endpoint(self):
-        """TTS 未单独配置时，应复用同区域的 MiniMax LLM 凭证和地址。"""
+        """Khi TTS không được định cấu hình riêng biệt, thông tin xác thực và địa chỉ MiniMax LLM trong cùng khu vực sẽ được sử dụng lại."""
         class _Response:
             status_code, text = 200, ""
 
@@ -720,7 +720,7 @@ class TestVoiceService(unittest.TestCase):
         self.assertEqual(captured["headers"]["Authorization"], "Bearer shared-cn-key")
 
     def test_get_minimax_voice_catalog_normalizes_all_voice_types(self):
-        """音色查询应统一不同来源的响应结构，并忽略重复或空 Voice ID。"""
+        """Truy vấn giọng nói phải thống nhất cấu trúc phản hồi giữa các nguồn và bỏ qua ID giọng nói trùng lặp hoặc trống."""
 
         class _Response:
             status_code, text = 200, ""
@@ -777,7 +777,7 @@ class TestVoiceService(unittest.TestCase):
         )
 
     def test_get_minimax_voice_catalog_exposes_provider_error(self):
-        """远端业务错误应明确抛出，不能被伪装成账号没有可用音色。"""
+        """Các lỗi kinh doanh từ xa phải được trình bày rõ ràng và không thể ngụy trang vì tài khoản không có sẵn âm thanh."""
 
         class _Response:
             status_code, text = 200, ""
@@ -796,7 +796,7 @@ class TestVoiceService(unittest.TestCase):
                 vs.get_minimax_voice_catalog(api_key="invalid-key")
 
     def test_minimax_tts_does_not_leave_invalid_audio_output(self):
-        """响应音频无法解析时，不应覆盖已有文件或留下临时文件。"""
+        """Các tệp hiện có không được ghi đè hoặc để lại các tệp tạm thời khi không thể phân tích cú pháp âm thanh phản hồi."""
         class _Response:
             status_code, text = 200, ""
 
@@ -1058,8 +1058,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_generate_subtitle_keeps_edge_provider_for_gemini_legacy_submaker(self):
         """
-        验证 Gemini TTS 返回的 legacy 字幕结构在 edge provider 下可以直接产出
-        SRT，不会因为匹配失败而回退到 Whisper。
+        Xác minh rằng cấu trúc phụ đề cũ được Gemini TTS trả về có thể được xuất trực tiếp theo nhà cung cấp biên
+        SRT, sẽ không quay lại Whisper do trận đấu thất bại.
         """
         script = "Gemini subtitle generation should work now. Testing multiple lines."
         sub_maker = vs.populate_legacy_submaker_with_full_text(
@@ -1095,9 +1095,9 @@ class TestVoiceService(unittest.TestCase):
 
     def test_script_split_keeps_thousand_separator_comma(self):
         """
-        Edge TTS 会把 "1,000 years" 作为连续文本返回。脚本断句时不能把
-        数字中间的英文逗号当成句子边界，否则字幕聚合会出现 issue #894
-        里的 sub_items 数量少于 script_lines，并错误回退 Whisper。
+        Edge TTS sẽ trả về "1.000 năm" dưới dạng văn bản liên tục. Khi ngắt câu trong chữ viết, bạn không thể
+        Dấu phẩy tiếng Anh giữa các số được dùng làm ranh giới câu, nếu không việc gộp phụ đề sẽ xuất hiện issue #894
+        Số lượng mục con trong đó ít hơn script_lines và lỗi xảy ra với Whisper.
         """
         text = (
             "It takes about 1,000 years for a single drop of water to finish "
@@ -1116,9 +1116,9 @@ class TestVoiceService(unittest.TestCase):
 
     def test_edge_cue_aggregation_handles_thousand_separator_comma(self):
         """
-        复现 issue #894 的关键形态：Edge cues 中最后一句作为连续文本返回，
-        包含 `1,000 years`。脚本断句必须与 cues 聚合结果一致，不能把它
-        拆成两条字幕。
+        Tái tạo dạng chính của vấn đề #894: câu cuối cùng trong Edge Cues được trả về dưới dạng văn bản liên tục,
+        Chứa `1.000 năm`. Việc phân đoạn tập lệnh phải nhất quán với kết quả tổng hợp tín hiệu và không thể
+        Chia thành hai phụ đề.
         """
         text = (
             "The ocean isn't just sitting stil, it moves around the world like a massive "
@@ -1131,8 +1131,8 @@ class TestVoiceService(unittest.TestCase):
         script_lines = utils.split_string_by_punctuations(text)
         cues = []
         for index, line in enumerate(script_lines):
-            # Edge 的 cue content 经常没有脚本里的空格和标点布局，这里去掉空格
-            # 来模拟更严格的匹配场景。
+            # Nội dung gợi ý của Edge thường không có dấu cách và bố cục dấu câu trong tập lệnh. Các khoảng trống được loại bỏ ở đây.
+            # để mô phỏng các kịch bản kết hợp chặt chẽ hơn.
             cues.append(
                 SimpleNamespace(
                     content=line.replace(" ", ""),
@@ -1149,8 +1149,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_script_split_supports_arabic_punctuation(self):
         """
-        阿拉伯语脚本常用 ، ؛ ؟ 作为自然断句标点。断句阶段必须识别这些
-        标点，否则 edge-tts cue 的停顿边界和脚本行边界会错位。
+        Chữ viết Ả Rập thường sử dụng ، ؛ ؟ như dấu câu tự nhiên. Những điều này phải được xác định trong giai đoạn phân đoạn câu
+        Dấu câu, nếu không thì ranh giới tạm dừng và ranh giới dòng tập lệnh của tín hiệu edge-tts sẽ bị căn chỉnh sai.
         """
         text = "مرحبا بالعالم، كيف حالك؟ هذا اختبار؛ يعمل بشكل جيد."
 
@@ -1166,8 +1166,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_match_script_line_normalizes_arabic_letter_forms(self):
         """
-        edge-tts 可能把阿拉伯语中的不同字母形态归一化，或返回带变音符号、
-        Tatweel 的 cue 文本。匹配时应容错，但最终字幕仍保留原始脚本文案。
+        edge-tts có thể bình thường hóa các dạng chữ cái khác nhau trong tiếng Ả Rập hoặc trả về dấu phụ,
+        Văn bản gợi ý của Tatweel. Các kết quả trùng khớp phải có khả năng chấp nhận được lỗi nhưng phụ đề cuối cùng phải giữ lại bản sao tập lệnh gốc.
         """
         script_lines = ["أهلاً وسهلاً بك في المدرسة"]
 
@@ -1181,8 +1181,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_edge_cue_aggregation_handles_arabic_variant_forms(self):
         """
-        复现阿拉伯语字幕失败的核心路径：脚本包含 أ/ة 等字母形态，edge cue
-        返回 ا/ه 等归一化形态时，聚合仍应生成完整字幕，避免回退 Whisper。
+        Con đường cốt lõi để tái tạo sự thất bại của phụ đề tiếng Ả Rập: chữ viết chứa các dạng chữ cái như أ/ة, dấu hiệu cạnh
+        Khi trả về các dạng chuẩn hóa như ا/ه, việc tổng hợp vẫn phải tạo ra phụ đề đầy đủ để tránh quay lại Whisper.
         """
         text = "أهلاً وسهلاً بك في المدرسة؟ هذا اختبار رائع، شكراً لك."
         script_lines = utils.split_string_by_punctuations(text)
@@ -1210,9 +1210,9 @@ class TestVoiceService(unittest.TestCase):
 
     def test_create_subtitle_ignores_markdown_separator_lines(self):
         """
-        用户手动脚本可能包含 `---` 这类 Markdown 分隔符。TTS 不会朗读
-        这些符号行，字幕聚合也不应把它们当成目标字幕行，否则后续真实
-        字幕会卡住并回退到 Whisper。
+        Các tập lệnh hướng dẫn sử dụng có thể chứa các dấu phân cách Markdown, chẳng hạn như `---`. TTS không đọc to
+        Các dòng ký hiệu, tổng hợp phụ đề này không nên coi chúng là các dòng phụ đề đích, nếu không thì phần tiếp theo sẽ
+        Phụ đề sẽ bị kẹt và rơi trở lại Whisper.
         """
         text = "第一段\n---\n第二段"
         sub_maker = SimpleNamespace(
@@ -1246,7 +1246,7 @@ class TestVoiceService(unittest.TestCase):
         self.assertNotIn("00:00:00,000 --> 00:00:00,000", subtitle_content)
 
     def test_create_subtitle_word_level_preserves_edge_cue_timing(self):
-        """Edge TTS 的细粒度 cue 应逐项写入，不能再被按标点聚合。"""
+        """Các tín hiệu chi tiết của Edge TTS phải được viết theo từng mục và không thể tổng hợp bằng dấu câu nữa."""
         sub_maker = SimpleNamespace(
             cues=[
                 SimpleNamespace(
@@ -1279,15 +1279,15 @@ class TestVoiceService(unittest.TestCase):
 
     def test_create_subtitle_word_level_falls_back_to_provider_granularity(self):
         """
-        旧版 SubMaker 没有 cue 时，应保留语音服务返回的原始时间粒度。
+        Các phiên bản cũ hơn của SubMaker không có tín hiệu sẽ giữ nguyên độ chi tiết về thời gian ban đầu được dịch vụ giọng nói trả về.
 
-        ElevenLabs、Fish Audio 等服务可能只返回短语或整句时间轴。此时不能
-        按字符平均拆分并伪造逐词精度，否则字幕会逐渐偏离真实语音。
+        Các dịch vụ như ElevenLabs, Fish Audio, v.v. chỉ có thể trả về các cụm từ hoặc toàn bộ dòng thời gian của câu. Không thể vào lúc này
+        Chia đều theo ký tự và độ chính xác giả từng chữ, nếu không phụ đề sẽ dần trôi xa khỏi lời nói thật.
         """
         sub_maker = SimpleNamespace(
             cues=[],
             subs=["Hello world"],
-            # 旧版 SubMaker 的 offset 使用 100 纳秒为单位的整数时间戳。
+            # Các phiên bản cũ hơn của phần bù của SubMaker đã sử dụng dấu thời gian số nguyên theo đơn vị 100 nano giây.
             offset=[(2_000_000, 11_000_000)],
         )
 
@@ -1307,8 +1307,8 @@ class TestVoiceService(unittest.TestCase):
 
     def test_create_subtitle_ignores_markdown_underscore_marks(self):
         """
-        `_` 常被用户用作 Markdown 强调标记，但 TTS 返回的 cue 通常不包含
-        这些格式符。匹配时应忽略 `_`，避免生成空字幕或回退到 Whisper。
+        `_` thường được người dùng sử dụng làm dấu nhấn mạnh Markdown, nhưng tín hiệu được TTS trả về thường không chứa
+        các ký tự định dạng này. Nên bỏ qua `_` khi khớp để tránh tạo ra phụ đề trống hoặc quay lại Whisper.
         """
         text = "这是_a_测试。"
         sub_maker = SimpleNamespace(
@@ -1346,8 +1346,8 @@ class TestVoiceService(unittest.TestCase):
         self.assertEqual(vs.convert_rate_to_percent(0.8), "-20%")
 
     def test_convert_rate_to_percent_invalid_values_default_to_normal(self):
-        # API 和批处理脚本可能把空语速传成 0、None 或空字符串；这些都不应让
-        # edge-tts 收到 -100% 或触发异常，而是按正常语速处理。
+        # API và tập lệnh bó có thể chuyển các chuỗi trống dưới dạng 0, Không có hoặc chuỗi trống; những điều này không nên
+        # edge-tts nhận -100% hoặc kích hoạt một ngoại lệ và thay vào đó xử lý nó ở tốc độ giọng nói bình thường.
         self.assertEqual(vs.convert_rate_to_percent(0), "+0%")
         self.assertEqual(vs.convert_rate_to_percent(0.0), "+0%")
         self.assertEqual(vs.convert_rate_to_percent(None), "+0%")
@@ -1446,8 +1446,8 @@ class TestElevenLabsVoice(unittest.TestCase):
     @patch("app.services.voice.config")
     def test_elevenlabs_tts_no_api_key(self, mock_config):
         mock_config.elevenlabs.get.return_value = ""
-        # Key 解析包含环境变量回退，测试必须显式清空宿主环境，避免开发机或 CI
-        # 恰好设置 ELEVENLABS_API_KEY 后改变“未配置”的测试前提。
+        # Phân tích cú pháp chính bao gồm dự phòng biến môi trường và các thử nghiệm phải xóa rõ ràng môi trường máy chủ để tránh các máy phát triển hoặc CI
+        # Thay đổi điều kiện kiểm tra "không được định cấu hình" sau khi cài đặt chính xác ELEVENLABS_API_KEY.
         with patch.dict(os.environ, {}, clear=True):
             result = vs.elevenlabs_tts("Hello", "abc123", "/tmp/test.mp3")
         self.assertIsNone(result)
@@ -1473,7 +1473,7 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertEqual(vs.get_elevenlabs_api_key(), "env-key")
 
     def test_elevenlabs_api_key_matches_music_service(self):
-        """TTS 和配乐共用同一账号配置，两条生成链路必须解析出相同 Key。"""
+        """TTS và nhạc phim chia sẻ cùng một cấu hình tài khoản và hai liên kết được tạo phải giải quyết cùng một Khóa."""
         from app.services import elevenlabs_music
 
         for configured_key, env_key in (("config-key", "env-key"), ("", "env-key")):
@@ -1545,7 +1545,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         )
 
     def test_pause_tag_detection_and_parsing(self):
-        """测试多语言停顿标签的检测、解析与清洗。"""
+        """Kiểm tra khả năng phát hiện, phân tích cú pháp và làm sạch các thẻ tạm dừng đa ngôn ngữ."""
         sample_script = (
             "Hola a todos. [pausa: 2s] "
             "Welcome back. [pause: 1.5s] "
@@ -1599,7 +1599,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertNotIn("[pause", flex_cleaned)
 
     def test_tts_with_pauses_shifts_submaker_timeline(self):
-        """测试包含停顿标签时，SubMaker 时间轴和音频拼接正确偏移。"""
+        """Dòng thời gian và nối âm thanh của SubMaker được bù đắp chính xác khi thử nghiệm bao gồm các thẻ tạm dừng."""
         from edge_tts.srt_composer import Subtitle
 
         fake_sub1 = vs.ensure_legacy_submaker_fields(vs.SubMaker())
@@ -1647,14 +1647,14 @@ class TestElevenLabsVoice(unittest.TestCase):
             mock_silence.assert_called_once()
             mock_concat.assert_called_once()
 
-            # 验证第二段 cues 偏移了 1.5s + 2.0s = 3.5s
+            # Xác minh rằng đoạn tín hiệu thứ hai được bù 1,5 giây + 2,0 giây = 3,5 giây
             self.assertEqual(len(result_submaker.cues), 2)
             self.assertAlmostEqual(result_submaker.cues[0].start.total_seconds(), 0.1, places=2)
             self.assertAlmostEqual(result_submaker.cues[0].end.total_seconds(), 1.5, places=2)
             self.assertAlmostEqual(result_submaker.cues[1].start.total_seconds(), 3.5 + 0.2, places=2)
             self.assertAlmostEqual(result_submaker.cues[1].end.total_seconds(), 3.5 + 1.8, places=2)
 
-            # 验证 legacy offset 也正确偏移
+            # Xác minh rằng phần bù kế thừa cũng được bù chính xác
             self.assertEqual(len(result_submaker.offset), 2)
             self.assertEqual(result_submaker.offset[0], (1000000, 15000000))
             expected_ns_offset = int(3.5 * 10000000)
@@ -1665,8 +1665,8 @@ class TestElevenLabsVoice(unittest.TestCase):
 
 
     def test_pause_invalid_and_excessive_durations(self):
-        """测试无效时长（<= 0s）被忽略，以及超长时长被限制在最大上限内。"""
-        # 1. 无效或零时长：不应识别为停顿段
+        """Khoảng thời gian thử nghiệm không hợp lệ (<= 0 giây) sẽ bị bỏ qua và khoảng thời gian cực dài bị giới hạn ở giới hạn tối đa."""
+        # 1. Thời lượng không hợp lệ hoặc bằng 0: không được coi là phân đoạn tạm dừng
         zero_script = "Hello [pause: 0s] world. [pause: -2s] Bye."
         segments = utils.parse_script_with_pauses(zero_script)
         speech_only = [s for s in segments if s[0] == "speech"]
@@ -1675,7 +1675,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertTrue(any("Hello" in s[1] for s in speech_only))
         self.assertTrue(any("world" in s[1] for s in speech_only))
 
-        # 2. 超长停顿：超过 MAX_PAUSE_DURATION_SECONDS 被 clamp
+        # 2. Tạm dừng quá lâu: bị kẹp hơn MAX_PAUSE_DUration_SECONDS
         long_script = "Hello [pause: 99s] world."
         segments_long = utils.parse_script_with_pauses(long_script)
         pauses = [s for s in segments_long if s[0] == "pause"]
@@ -1683,15 +1683,15 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertEqual(pauses[0][1], utils.MAX_PAUSE_DURATION_SECONDS)
 
     def test_pause_consecutive_merging(self):
-        """测试连续停顿标签自动合并为一个停顿段，且总时长受上限保护。"""
-        # 两个连续停顿合并为 1s + 2s = 3s
+        """Các thẻ tạm dừng kiểm tra liên tục được tự động hợp nhất thành một phân đoạn tạm dừng và tổng thời lượng được bảo vệ bởi giới hạn trên."""
+        # Hai lần tạm dừng liên tiếp gộp lại thành 1s + 2s = 3s
         script = "First part. [pause: 1s] [pause: 2s] Second part."
         segments = utils.parse_script_with_pauses(script)
         pauses = [s for s in segments if s[0] == "pause"]
         self.assertEqual(len(pauses), 1)
         self.assertEqual(pauses[0][1], 3.0)
 
-        # 多个停顿叠加超过最大上限时，合并后被截断在 MAX_PAUSE_DURATION_SECONDS
+        # Khi nhiều lần tạm dừng vượt quá giới hạn tối đa, chúng sẽ bị cắt bớt ở MAX_PAUSE_DUration_SECONDS sau khi hợp nhất.
         over_script = "Start. [pause: 7s] [pause: 8s] End."
         over_segments = utils.parse_script_with_pauses(over_script)
         over_pauses = [s for s in over_segments if s[0] == "pause"]
@@ -1699,7 +1699,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertEqual(over_pauses[0][1], utils.MAX_PAUSE_DURATION_SECONDS)
 
     def test_pause_leading_and_trailing(self):
-        """测试开头停顿（leading）和结尾停顿（trailing）的音轨和时间轴偏移。"""
+        """Kiểm tra độ lệch của đường đua và dòng thời gian cho phần đầu và phần cuối."""
         from edge_tts.srt_composer import Subtitle
 
         fake_sub = vs.ensure_legacy_submaker_fields(vs.SubMaker())
@@ -1733,7 +1733,7 @@ class TestElevenLabsVoice(unittest.TestCase):
             )
             self.assertIsNotNone(result)
             mock_silence.assert_called_with(1.5, mock_silence.call_args[0][1])
-            # 字幕 cue 应该从 1.5s + 0.1s = 1.6s 开始
+            # Tín hiệu phụ đề phải bắt đầu ở 1,5 giây + 0,1 giây = 1,6 giây
             self.assertAlmostEqual(result.cues[0].start.total_seconds(), 1.6, places=2)
 
         with (
@@ -1752,12 +1752,12 @@ class TestElevenLabsVoice(unittest.TestCase):
             )
             self.assertIsNotNone(result)
             mock_silence.assert_called_with(2.0, mock_silence.call_args[0][1])
-            # 语音字幕应该保持在原本位置，不受结尾静音后移
+            # Phụ đề giọng nói phải được giữ nguyên ở vị trí ban đầu và không được di chuyển sau khi kết thúc khoảng lặng.
             self.assertAlmostEqual(result.cues[0].start.total_seconds(), 0.1, places=2)
             self.assertAlmostEqual(result.cues[0].end.total_seconds(), 1.2, places=2)
 
     def test_pause_script_with_only_pauses(self):
-        """测试脚本只包含停顿标签时的纯静音生成与安全性。"""
+        """Tập lệnh thử nghiệm chỉ chứa tính năng tạo im lặng thuần túy và an toàn khi tạm dừng thẻ."""
         def fake_silence(duration, voice_file):
             _write_test_wav(voice_file, duration)
             return True
@@ -1779,17 +1779,17 @@ class TestElevenLabsVoice(unittest.TestCase):
             mock_silence.assert_called_once_with(2.5, out_file)
             self.assertEqual(vs.get_audio_duration(result), 2.5)
 
-            # 字幕生成应安全处理无台词脚本，不抛出异常
+            # Việc tạo phụ đề phải xử lý an toàn các tập lệnh không có dòng mà không đưa ra ngoại lệ
             srt_path = str(Path(tmp_dir) / "only_pauses.srt")
             vs.create_subtitle(result, "[pause: 2.5s]", srt_path, word_level=False)
             vs.create_subtitle(result, "[pause: 2.5s]", srt_path, word_level=True)
 
     def test_subtitle_sync_sentence_mode_with_pauses(self):
-        """测试句子模式 (sentence) 下包含停顿标签的字幕时间轴与内容完全同步。"""
+        """Dòng thời gian của phụ đề chứa thẻ tạm dừng ở chế độ câu kiểm tra (câu) được đồng bộ hoàn toàn với nội dung."""
         from edge_tts.srt_composer import Subtitle
 
         fake_sub = vs.ensure_legacy_submaker_fields(vs.SubMaker())
-        # 第一段话在 0.1s - 1.5s，第二段话在停顿 2s 后 (3.5s - 5.0s)
+        # Đoạn đầu tiên là 0,1s - 1,5s, đoạn thứ hai là sau khoảng dừng 2s (3,5s - 5,0s)
         fake_sub.cues = [
             Subtitle(1, timedelta(seconds=0.1), timedelta(seconds=0.7), "Primera"),
             Subtitle(2, timedelta(seconds=0.8), timedelta(seconds=1.5), "frase."),
@@ -1814,12 +1814,12 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertIn("Primera frase", content)
             self.assertIn("Segunda frase", content)
             self.assertNotIn("[pausa", content)
-            # 第一句开始于 0.1s，第二句开始于 3.6s (体现了 2s 停顿)
+            # Câu đầu tiên bắt đầu ở 0,1 giây và câu thứ hai bắt đầu ở 3,6 giây (phản ánh khoảng dừng 2 giây)
             self.assertIn("00:00:00,100 --> 00:00:01,500", content)
             self.assertIn("00:00:03,600 --> 00:00:05,000", content)
 
     def test_subtitle_sync_word_mode_with_pauses(self):
-        """测试单字模式 (word_by_word) 下包含停顿标签的字幕时间轴与内容完全同步。"""
+        """Đã thử nghiệm dòng thời gian phụ đề với thẻ tạm dừng ở chế độ một từ (word_by_word) để được đồng bộ hóa hoàn toàn với nội dung."""
         from edge_tts.srt_composer import Subtitle
 
         fake_sub = vs.ensure_legacy_submaker_fields(vs.SubMaker())
@@ -1848,13 +1848,13 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertIn("world.", content)
             self.assertIn("Good", content)
             self.assertIn("morning.", content)
-            # 第二段词条被正确偏移到了 3.3s 和 3.9s
+            # Mục nhập thứ hai được bù chính xác thành 3,3 giây và 3,9 giây
             self.assertIn("00:00:00,100 --> 00:00:00,500", content)
             self.assertIn("00:00:03,300 --> 00:00:03,800", content)
             self.assertIn("00:00:03,900 --> 00:00:04,500", content)
 
     def test_tts_without_pauses_calls_single_tts_directly(self):
-        """验证不包含停顿标签时，直接调用 _single_tts，原有行为和性能完全不变。"""
+        """Khi xác minh rằng thẻ tạm dừng không được bao gồm, _single_tts được gọi trực tiếp và hành vi cũng như hiệu suất ban đầu hoàn toàn không thay đổi."""
         with (
             patch.object(vs, "_single_tts", return_value="normal_submaker") as mock_single_tts,
             patch.object(vs, "_tts_with_pauses") as mock_pauses,
@@ -1870,8 +1870,8 @@ class TestElevenLabsVoice(unittest.TestCase):
             mock_pauses.assert_not_called()
 
     def test_pause_invalid_tags_rejected_and_cleaned(self):
-        """验证非法标签（如 [pause: -2s]、[pause: nope]、[pause: 0s]）被彻底过滤，不朗读也不生成静音。"""
-        # 1. utils.remove_pause_tags 彻底清除所有非法标签
+        """Xác minh rằng các thẻ không hợp lệ (chẳng hạn như [tạm dừng: -2s], [tạm dừng: không], [tạm dừng: 0s]) đã được lọc hoàn toàn, không được nói cũng như không bị im lặng."""
+        # 1. utils.remove_pause_tags xóa hoàn toàn tất cả các thẻ bất hợp pháp
         dirty_text = "Hello [pause: 0s] world. [pause: -2s] [pause: nope] Bye."
         cleaned = utils.remove_pause_tags(dirty_text)
         self.assertNotIn("[pause", cleaned)
@@ -1880,7 +1880,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertIn("Hello world.", cleaned)
         self.assertIn("Bye.", cleaned)
 
-        # 2. parse_script_with_pauses 忽略非法标签，且文案中不包含这些标签
+        # 2. Parse_script_with_pauses bỏ qua các thẻ không hợp lệ và không đưa các thẻ này vào bản sao
         segments = utils.parse_script_with_pauses(dirty_text)
         pauses = [s for s in segments if s[0] == "pause"]
         speech = [s for s in segments if s[0] == "speech"]
@@ -1891,7 +1891,7 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertNotIn("-2s", text)
             self.assertNotIn("nope", text)
 
-        # 3. 当脚本全是非法标签时，tts 回退到 _single_tts，传递清洗后的文案而不是原始脏文本
+        # 3. Khi tập lệnh là tất cả các thẻ không hợp lệ, tts sẽ quay trở lại _single_tts, chuyển bản sao đã được làm sạch thay vì văn bản bẩn ban đầu
         with (
             tempfile.TemporaryDirectory() as tmp_dir,
             patch.object(vs, "_single_tts", return_value="submaker_ok") as mock_single,
@@ -1912,7 +1912,7 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertIn("Hello world", called_text)
 
     def test_pause_minimum_duration_validation(self):
-        """验证微小停顿（如 1ms）会被校验并限制在最低有效阈值 MIN_PAUSE_DURATION_SECONDS (0.1s/100ms)。"""
+        """Xác minh rằng các khoảng dừng nhỏ (ví dụ: 1 mili giây) đã được kiểm tra và giới hạn ở ngưỡng hợp lệ thấp nhất MIN_PAUSE_DUration_SECONDS (0,1 giây/100 mili giây)."""
         script = "Start [pause: 1ms] End"
         segments = utils.parse_script_with_pauses(script)
         pauses = [s for s in segments if s[0] == "pause"]
@@ -1921,8 +1921,8 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertEqual(utils.MIN_PAUSE_DURATION_SECONDS, 0.1)
 
     def test_tts_provider_limitation_to_azure_v1(self):
-        """验证仅 Azure TTS v1 (Edge TTS) 进入分段链路，Gemini/Fish Audio/SiliconFlow/Kokoro 保持单次请求。"""
-        # 1. 声音提供商判断
+        """Đã xác minh rằng chỉ Azure TTS v1 (Edge TTS) mới đi vào liên kết được phân đoạn, Gemini/Fish Audio/SiliconFlow/Kokoro vẫn là một yêu cầu duy nhất."""
+        # 1. Đánh giá của nhà cung cấp âm thanh
         self.assertTrue(vs.is_azure_v1_voice("zh-CN-XiaoxiaoNeural"))
         self.assertTrue(vs.is_azure_v1_voice("es-ES-AlvaroNeural"))
         self.assertFalse(vs.is_azure_v1_voice("gemini:Puck-Male"))
@@ -1931,7 +1931,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         self.assertFalse(vs.is_azure_v1_voice("kokoro:af_bella"))
         self.assertFalse(vs.is_azure_v1_voice("elevenlabs:voice-id:voice-name"))
 
-        # 2. 其他提供商脚本含停顿标签时，必须先清除标签并调用单次合成，不调用 _tts_with_pauses
+        # 2. Khi các tập lệnh của nhà cung cấp khác chứa thẻ tạm dừng, trước tiên họ phải xóa thẻ và gọi một tổng hợp duy nhất mà không gọi _tts_with_pauses
         non_azure_voices = [
             "gemini:Puck-Male",
             "fish_audio:default",
@@ -1959,7 +1959,7 @@ class TestElevenLabsVoice(unittest.TestCase):
                 self.assertIn("Part 1. Part 2.", called_text)
 
     def test_real_multi_segment_concatenation_no_drift(self):
-        """真实音频多段拼接测试：12个1s音频与11个0.5s停顿，验证字幕偏移与真实解码样本完全一致，无累积漂移。"""
+        """Thử nghiệm ghép nối nhiều đoạn âm thanh thực: âm thanh 12 giây 1 và 11 giây tạm dừng 0,5 giây, xác minh rằng độ lệch phụ đề hoàn toàn giống với mẫu được giải mã thực, không bị trôi tích lũy."""
         import wave
         import struct
         import math
@@ -1967,7 +1967,7 @@ class TestElevenLabsVoice(unittest.TestCase):
         from edge_tts.srt_composer import Subtitle
 
         sr = 24000
-        # 生成标准 1 秒正弦波单声道 16-bit PCM WAV
+        # Tạo WAV PCM 16-bit đơn sắc hình sin 1 giây tiêu chuẩn
         speech_pcm = bytearray()
         for i in range(sr):
             val = int(32767.0 * 0.3 * math.sin(2.0 * math.pi * 440.0 * i / sr))
@@ -1975,7 +1975,7 @@ class TestElevenLabsVoice(unittest.TestCase):
 
         def make_fake_speech_submaker(idx):
             sub = vs.ensure_legacy_submaker_fields(vs.SubMaker())
-            # 每段台词在自身片段内的 cue 从 0.0s 到 1.0s
+            # Tín hiệu của mỗi dòng trong phân đoạn riêng của nó nằm trong khoảng từ 0,0 giây đến 1,0 giây
             sub.cues = [
                 Subtitle(1, timedelta(seconds=0.0), timedelta(seconds=1.0), f"Word_{idx}"),
             ]
@@ -1986,7 +1986,7 @@ class TestElevenLabsVoice(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             def real_single_tts_wav(text, voice_name, voice_rate, voice_file, voice_volume=1.0):
-                # 写入真实的 1 秒 WAV 音频数据
+                # Viết dữ liệu âm thanh WAV thực 1 giây
                 with wave.open(voice_file, "wb") as wf:
                     wf.setnchannels(1)
                     wf.setsampwidth(2)
@@ -1995,7 +1995,7 @@ class TestElevenLabsVoice(unittest.TestCase):
                 idx = int(text.split()[-1]) if text.split()[-1].isdigit() else 0
                 return make_fake_speech_submaker(idx)
 
-            # 构造 12 个台词段和 11 个 0.5s 停顿的脚本
+            # Xây dựng một đoạn script có 12 dòng và 11 lần tạm dừng 0,5 giây
             script_parts = []
             for i in range(12):
                 script_parts.append(f"Word {i}")
@@ -2005,7 +2005,7 @@ class TestElevenLabsVoice(unittest.TestCase):
 
             out_mp3 = str(Path(tmp_dir) / "output.mp3")
 
-            # 在不 mock _concat_audio_files 和 get_audio_duration 的情况下运行真实分段链路
+            # Chạy các liên kết được phân đoạn thực mà không cần giả lập _concat_audio_files và get_audio_duration
             with patch.object(vs, "_single_tts", side_effect=real_single_tts_wav):
                 result_submaker = vs._tts_with_pauses(
                     text=full_script,
@@ -2018,17 +2018,17 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertTrue(os.path.exists(out_mp3))
             self.assertGreater(os.path.getsize(out_mp3), 0)
 
-            # 验证字幕线索数量为 12
+            # Xác minh số đầu mối phụ đề là 12
             self.assertEqual(len(result_submaker.cues), 12)
 
-            # 验证第 12 段（最后一个台词）：
-            # 前面经历了 11 个 1.0s 语音 + 11 个 0.5s 停顿 = 11.0s + 5.5s = 16.50s
+            # Xác minh đoạn 12 (dòng cuối cùng):
+            # Chúng tôi đã trải qua 11 bài phát biểu 1,0 giây + 11 lần tạm dừng 0,5 giây = 11,0 giây + 5,5 giây = 16,50 giây
             last_cue = result_submaker.cues[-1]
-            # 严格断言：开始时间必须为 16.50s，绝不能漂移到 17.71s！
+            # Khẳng định chặt chẽ: thời gian xuất phát phải là 16h50 và không được trôi về 17,71s!
             self.assertAlmostEqual(last_cue.start.total_seconds(), 16.50, places=2)
             self.assertAlmostEqual(last_cue.end.total_seconds(), 17.50, places=2)
 
-            # 真实解码输出的 MP3 音频，验证解码后的总样本时长为 17.50s
+            # Âm thanh MP3 đầu ra được giải mã thực tế, xác minh rằng tổng thời lượng mẫu sau khi giải mã là 17,50 giây
             decoded_wav = str(Path(tmp_dir) / "decoded.wav")
             ffmpeg_binary = utils.get_ffmpeg_binary()
             subprocess.run(
@@ -2041,11 +2041,11 @@ class TestElevenLabsVoice(unittest.TestCase):
                 total_sr = wf.getframerate()
                 decoded_duration = total_frames / float(total_sr)
 
-            # 验证最终解码时长与字幕结尾完全一致（17.50s）
+            # Xác minh rằng thời lượng giải mã cuối cùng giống hệt với thời lượng cuối của phụ đề (17,50 giây)
             self.assertAlmostEqual(decoded_duration, 17.50, delta=0.06)
 
     def test_tts_with_pauses_fails_on_empty_chunk_audio(self):
-        """回归测试：当语音片段合成生成了空文件（0字节）或文件丢失时，_tts_with_pauses 报错失败返回 None，绝不能回退生成静音掩盖错误。"""
+        """Kiểm tra hồi quy: Khi quá trình tổng hợp đoạn giọng nói tạo ra một tệp trống (0 byte) hoặc tệp bị thiếu, _tts_with_pauses không báo cáo được lỗi và trả về Không có. Nó không được quay lại để tạo ra lỗi mặt nạ im lặng."""
         from edge_tts.srt_composer import Subtitle
 
         fake_sub = vs.ensure_legacy_submaker_fields(vs.SubMaker())
@@ -2069,7 +2069,7 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertIsNone(result)
 
     def test_tts_with_pauses_fails_on_corrupted_chunk_audio(self):
-        """回归测试：当语音片段音频损坏无法解码为 PCM 时，_tts_with_pauses 必须报错返回 None，而不是用静音代替旁白继续执行。"""
+        """Kiểm tra hồi quy: Khi âm thanh của clip lời nói bị hỏng và không thể giải mã thành PCM, _tts_with_pauses phải báo lỗi và trả về None thay vì tiếp tục thực hiện với chế độ im lặng thay vì tường thuật."""
         from edge_tts.srt_composer import Subtitle
 
         fake_sub = vs.ensure_legacy_submaker_fields(vs.SubMaker())
@@ -2094,7 +2094,7 @@ class TestElevenLabsVoice(unittest.TestCase):
             self.assertIsNone(result)
 
     def test_tts_passes_original_text_unchanged_without_pauses(self):
-        """测试无停顿标签时，tts 将原始文本原样直通给 _single_tts，不执行正则替换或清洗。"""
+        """Khi kiểm tra các thẻ không tạm dừng, tts chuyển trực tiếp văn bản gốc tới _single_tts mà không thực hiện thay thế hoặc làm sạch thường xuyên."""
         original_text = "  Leading and trailing spaces, [regular bracket] and punctuation!  \nNew line here.  "
         with patch.object(vs, "_single_tts", return_value="dummy_submaker") as mock_single:
             result = vs.tts(

@@ -549,7 +549,7 @@ class TestLoomLoomVideoBackend(unittest.TestCase):
                     self.backend.resolve_video_capability()
 
     def test_resolver_rejects_non_string_model_fields(self):
-        """服务返回 null/数值时应在目录阶段报错，不把伪 ID 传进付费请求。"""
+        """Khi dịch vụ trả về giá trị null/số, lỗi sẽ được báo cáo trong giai đoạn thư mục và ID giả sẽ không được chuyển vào yêu cầu thanh toán."""
         for field in ("modelId", "displayName"):
             for value in (None, 123, {}, []):
                 with self.subTest(field=field, value=value):
@@ -562,7 +562,7 @@ class TestLoomLoomVideoBackend(unittest.TestCase):
                         self.backend.resolve_video_capability()
 
     def test_prepares_one_video_row_per_scene(self):
-        """默认 SkillBot 必须按场景逐行报价，并携带固定的视频安全要求。"""
+        """Theo mặc định, SkillBot phải trích dẫn từng cảnh và thực hiện các yêu cầu bảo mật video cố định."""
         batch = self.backend.prepare_video_batch(
             subject="AI 办公效率",
             scene_prompts=["office worker", "AI assistant"],
@@ -641,7 +641,7 @@ class TestLoomLoomVideoBackend(unittest.TestCase):
         )
 
     def test_downloads_video_artifact_without_forwarding_api_key(self):
-        """签名产物地址无需 Bearer Key，避免把账户凭证泄漏给对象存储。"""
+        """Địa chỉ sản phẩm đã ký không yêu cầu Khóa ghi tên để tránh rò rỉ thông tin xác thực tài khoản vào bộ lưu trữ đối tượng."""
         self.session.request.return_value = _Response(
             200,
             {
@@ -675,7 +675,7 @@ class TestLoomLoomVideoBackend(unittest.TestCase):
         self.assertTrue(response.closed)
 
     def test_closes_download_response_when_artifact_is_too_large(self):
-        """大小预检拒绝下载时也必须立即释放流式 HTTP 连接。"""
+        """Các kết nối HTTP truyền trực tuyến cũng phải được giải phóng ngay lập tức khi kích thước preflight từ chối tải xuống."""
         self.session.request.return_value = _Response(
             200,
             {

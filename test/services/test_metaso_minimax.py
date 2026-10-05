@@ -12,13 +12,13 @@ from app.services import task as task_service
 
 
 def _response(payload, status_code=200):
-    """构造只暴露服务层实际使用字段的轻量 HTTP 响应。"""
+    """Xây dựng các phản hồi HTTP nhẹ chỉ hiển thị các trường thực sự được lớp dịch vụ sử dụng."""
     return SimpleNamespace(status_code=status_code, json=lambda: payload)
 
 
 @pytest.fixture(autouse=True)
 def restore_config():
-    """隔离全局配置，避免供应商测试影响其它 Provider 用例。"""
+    """Cô lập cấu hình chung để ngăn việc thử nghiệm của nhà cung cấp ảnh hưởng đến các trường hợp sử dụng khác của Nhà cung cấp."""
     original_app = dict(config.app)
     original_proxy = dict(config.proxy)
     config.app.update(

@@ -144,13 +144,13 @@ class TestOFoxService(unittest.TestCase):
         config.app["ofox_resolution"] = "   "
         self.assertEqual(ofox._resolution(), ofox.DEFAULT_RESOLUTION)
 
-        # 分辨率白名单随远端模型目录变化，本地不做校验；配置值原样提交，
-        # 由服务端按模型给出明确的 400 拒绝（不创建付费任务）。
+        # Danh sách trắng độ phân giải thay đổi theo thư mục mô hình từ xa và không được xác minh cục bộ; giá trị cấu hình được gửi như hiện tại.
+        # Máy chủ đưa ra mức từ chối 400 rõ ràng theo mô hình (không có tác vụ trả phí nào được tạo).
         config.app["ofox_resolution"] = " 480p "
         self.assertEqual(ofox._resolution(), "480p")
 
     def test_provider_pinning_defaults_to_byteplus_and_stays_configurable(self):
-        # 未配置时默认钉定国际厂商 byteplus（内容政策一致、路由可预期）。
+        # Khi không được định cấu hình, byteplus của nhà sản xuất quốc tế được cố định theo mặc định (chính sách nội dung nhất quán và định tuyến có thể dự đoán được).
         submit = self._response({"id": "vid-route", "status": "queued"}, 202)
         completed = self._response(
             {
@@ -169,7 +169,7 @@ class TestOFoxService(unittest.TestCase):
             post.call_args.kwargs["json"]["provider"], {"type": "byteplus"}
         )
 
-        # None 视同未配置（配置解析异常时的兜底），仍走默认。
+        # Không có cái nào được coi là không được định cấu hình (dự phòng khi định cấu hình các ngoại lệ phân tích cú pháp) và mặc định vẫn được sử dụng.
         config.app["ofox_provider"] = None
         with (
             patch.object(ofox.requests, "post", return_value=submit) as post,
@@ -180,7 +180,7 @@ class TestOFoxService(unittest.TestCase):
             post.call_args.kwargs["json"]["provider"], {"type": "byteplus"}
         )
 
-        # 显式配置为空字符串 = 不钉定，交回网关按权重自动分发。
+        # Được định cấu hình rõ ràng là một chuỗi trống = không được ghim, cổng trả về sẽ tự động phân phối dựa trên trọng lượng.
         for blank in ("", "   "):
             with self.subTest(blank=blank):
                 config.app["ofox_provider"] = blank
@@ -191,8 +191,8 @@ class TestOFoxService(unittest.TestCase):
                     ofox.generate_videos("sunrise", 5)
                 self.assertNotIn("provider", post.call_args.kwargs["json"])
 
-        # 配置其它厂商名则钉定那一家；非法厂商名由服务端以 400
-        # invalid_provider_type 拒绝（不创建付费任务），走常规 4xx 路径。
+        # Việc định cấu hình tên nhà sản xuất khác sẽ xác định tên đó; tên nhà sản xuất bất hợp pháp sẽ được gửi bởi máy chủ với 400
+        # từ chối không hợp lệ_provider_type (không tạo tác vụ phải trả phí), hãy đi theo đường dẫn 4xx thông thường.
         config.app["ofox_provider"] = " volcengine "
         with (
             patch.object(ofox.requests, "post", return_value=submit) as post,
@@ -293,8 +293,8 @@ class TestOFoxService(unittest.TestCase):
                 self.assertEqual(post.call_count, 1)
 
     def test_pending_status_is_active_and_polling_continues(self):
-        # 官方成功路径为 pending → queued → in_progress → completed；首次轮询
-        # 拿到 pending 属于正常在途状态，不能当作未知状态终止任务。
+        # Đường dẫn thành công chính thức đang chờ xử lý → xếp hàng → in_progress → đã hoàn thành; bỏ phiếu đầu tiên
+        # Đang chờ xử lý là trạng thái đang thực hiện bình thường và không thể được sử dụng làm trạng thái không xác định để chấm dứt tác vụ.
         submit = self._response({"id": "vid-pending", "status": "queued"}, 202)
         polls = [
             self._response({"id": "vid-pending", "status": "pending"}),
@@ -339,8 +339,8 @@ class TestOFoxService(unittest.TestCase):
         )
 
     def test_missing_or_invalid_mirror_urls_fall_back_to_unsigned_urls(self):
-        # mirror_urls 仅在上游开启镜像时返回；缺失、为空或不含合法直链时都
-        # 必须回退到 unsigned_urls，不能让任务失败。
+        # mirror_urls chỉ được trả về khi phản chiếu được bật ở thượng nguồn; nó được trả về khi bị thiếu, trống hoặc không chứa liên kết trực tiếp hợp pháp.
+        # Phải quay lại unsigned_urls và không thể để nhiệm vụ thất bại.
         for mirror in (None, [], ["not-a-url", 123]):
             with self.subTest(mirror=mirror):
                 submit = self._response({"id": "vid-fallback", "status": "queued"}, 202)
@@ -422,8 +422,8 @@ class TestOFoxService(unittest.TestCase):
         self.assertEqual(raised.exception.task_id, "vid-running")
 
     def test_network_retry_stops_when_total_run_deadline_is_reached(self):
-        # 第一次请求前仍有 59 秒；请求异常返回时总截止时间已经过去，不能继续
-        # 执行其余五次网络重试，也不能再进入退避 sleep。
+        # Vẫn còn 59 giây trước yêu cầu đầu tiên; khi yêu cầu trả về bất thường thì tổng thời hạn đã qua và không thể tiếp tục.
+        # Sau khi thực hiện năm lần thử lại mạng còn lại, bạn không thể chuyển sang chế độ ngủ dự phòng được nữa.
         config.app["ofox_run_timeout"] = 60
         clock = iter([0.0, 1.0, 61.0])
         with (
@@ -474,8 +474,8 @@ class TestOFoxService(unittest.TestCase):
             }
         )
         running = self._response({"id": "vid-running", "status": "in_progress"})
-        # 第一次响应完成时只剩 0.25 秒，应只休眠剩余时间；下一轮在发起
-        # 网络请求前发现截止时间已过，避免额外一次远端请求。
+        # Chỉ còn 0,25 giây khi phản hồi đầu tiên hoàn thành và nó chỉ nên ngủ trong thời gian còn lại; vòng tiếp theo được bắt đầu
+        # Người ta nhận thấy rằng thời hạn đã trôi qua trước khi yêu cầu mạng được thực hiện để tránh yêu cầu từ xa bổ sung.
         clock = iter([0.0, 59.0, 59.75, 60.1])
         with (
             patch.object(ofox.requests, "get", return_value=running) as get,
@@ -556,8 +556,8 @@ class TestOFoxService(unittest.TestCase):
                 self.assertEqual(raised.exception.task_id, "vid-malformed")
 
     def test_all_terminal_failure_statuses_end_the_task_without_billing_doubt(self):
-        # 远端明确失败（如触发内容审核）意味着任务已结束、无计费悬念。返回
-        # None 让上层跳过该关键词继续生成，而不是中止整条视频。
+        # Một lỗi từ xa rõ ràng (chẳng hạn như kích hoạt xem xét nội dung) có nghĩa là nhiệm vụ đã kết thúc và không có tình trạng chờ đợi thanh toán. trở lại
+        # Không cho phép lớp trên bỏ qua từ khóa và tiếp tục tạo thay vì hủy bỏ toàn bộ video.
         for status in ofox.TERMINAL_FAILURE_STATUSES:
             with self.subTest(status=status):
                 terminal = self._response(
@@ -702,8 +702,8 @@ class TestOFoxMaterialIntegration(unittest.TestCase):
         self.assertEqual(len(persist.call_args.args[1]), 2)
 
     def test_failed_keyword_is_skipped_and_generation_continues(self):
-        # 单个关键词被远端明确判失败（generate_videos 返回空列表）时应跳过该
-        # 片段继续下一个关键词，而不是中止整条视频。
+        # Nên bỏ qua điều này khi đầu từ xa không xác định rõ ràng một từ khóa (generate_videos trả về một danh sách trống).
+        # Clip tiếp tục với từ khóa tiếp theo thay vì hủy toàn bộ video.
         with (
             patch.object(
                 ofox,

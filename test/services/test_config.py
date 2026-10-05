@@ -15,7 +15,7 @@ from app.models.llm_provider import LLM_PROVIDER_REGISTRY, get_llm_provider
 class TestConfigPersistence:
     @staticmethod
     def _wait_for_deferred_flush(timeout=1):
-        """等待配置刷新线程退出，避免并发测试之间共享后台状态。"""
+        """Đợi luồng làm mới cấu hình thoát ra để tránh chia sẻ trạng thái nền giữa các lần kiểm tra đồng thời."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             with config._pending_config_lock:
@@ -30,7 +30,7 @@ class TestConfigPersistence:
         return tomllib.loads(config_path.read_text(encoding="utf-8"))
 
     def test_example_config_documents_runtime_settings(self):
-        """示例配置应展示用户需要手工维护的服务、素材和高级运行参数。"""
+        """Cấu hình mẫu phải thể hiện các dịch vụ, vật liệu và thông số vận hành nâng cao mà người dùng cần duy trì theo cách thủ công."""
         example_config = self._load_example_config()
         app_config = example_config["app"]
 
@@ -66,7 +66,7 @@ class TestConfigPersistence:
         assert example_config["whisper"]["device"] == "cpu"
 
     def test_example_config_covers_llm_provider_registry(self):
-        """Registry 中可配置的 Provider 字段必须能在示例文件中被发现。"""
+        """Các trường Nhà cung cấp có thể định cấu hình trong Sổ đăng ký phải được tìm thấy trong các tệp mẫu."""
         app_config = self._load_example_config()["app"]
 
         for provider in LLM_PROVIDER_REGISTRY:
@@ -80,7 +80,7 @@ class TestConfigPersistence:
                 assert provider.config_key(field.config_suffix) in app_config
 
     def test_load_config_accepts_repeated_utf8_bom_without_rewriting_file(self):
-        """重复 BOM 不应阻止 Windows 用户启动，也不能改写已有配置。"""
+        """Các BOM trùng lặp không được ngăn người dùng Windows khởi động cũng như không được ghi đè lên các cấu hình hiện có."""
         with TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.toml"
             original_content = b"\xef\xbb\xbf\xef\xbb\xbf[app]\nvideo_source = \"pexels\"\n"
@@ -93,7 +93,7 @@ class TestConfigPersistence:
             assert config_path.read_bytes() == original_content
 
     def test_load_config_still_rejects_invalid_toml_after_bom_normalization(self):
-        """BOM 兼容不能掩盖真实语法错误，失败时应保留明确诊断日志。"""
+        """Khả năng tương thích BOM không thể che giấu các lỗi cú pháp thực sự và phải lưu giữ nhật ký chẩn đoán rõ ràng khi xảy ra lỗi."""
         with TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.toml"
             config_path.write_text("[app\nvideo_source = \"pexels\"\n", encoding="utf-8")
@@ -114,14 +114,14 @@ class TestConfigPersistence:
             assert "TomlDecodeError" in error_message
 
     def test_kimi_uses_current_default_model(self):
-        """Kimi 未配置模型覆盖值时，应使用当前发布版本的默认模型。"""
+        """Khi Kimi không định cấu hình giá trị ghi đè mô hình, nó sẽ sử dụng mô hình mặc định của phiên bản phát hành hiện tại."""
         provider = get_llm_provider("moonshot")
 
         assert provider is not None
         assert provider.resolve_model_name("") == "kimi-k3"
 
     def test_upload_post_settings_belong_to_app_section(self):
-        """发布配置必须位于 app 节点，确保示例文件与运行时读取路径一致。"""
+        """Cấu hình phát hành phải được đặt trên nút ứng dụng, đảm bảo rằng các tệp mẫu nhất quán với đường dẫn đọc thời gian chạy."""
         example_config = self._load_example_config()
         upload_post_keys = {
             "upload_post_enabled",
@@ -138,8 +138,8 @@ class TestConfigPersistence:
 
     def test_save_config_uses_parseable_atomic_output(self):
         """
-        配置保存先写临时文件再原子替换。测试同时确认输出仍是合法 TOML，
-        且成功保存后不会在配置目录遗留临时文件。
+        Cấu hình được lưu bằng cách trước tiên ghi một tệp tạm thời và sau đó thay thế nó một cách nguyên tử. Quá trình kiểm tra cũng xác nhận rằng đầu ra vẫn là TOML hợp lệ,
+        Và sẽ không còn tập tin tạm thời nào trong thư mục cấu hình sau khi lưu thành công.
         """
         original_cfg = dict(config._cfg)
         original_app = dict(config.app)
@@ -164,8 +164,8 @@ class TestConfigPersistence:
 
     def test_save_config_falls_back_for_bind_mounted_file(self):
         """
-        Docker Desktop 的单文件挂载点不能被 os.replace 替换。遇到 EBUSY 时
-        应在锁内原地覆盖，并确保最终内容完整、可解析且不遗留临时文件。
+        Điểm gắn tệp đơn của Docker Desktop không thể được thay thế bằng os.replace. Khi gặp EBUSY
+        Nó phải được ghi đè tại chỗ trong khóa, đảm bảo rằng nội dung cuối cùng hoàn chỉnh, có thể phân tích cú pháp và không để lại các tệp tạm thời.
         """
         original_cfg = dict(config._cfg)
         original_app = dict(config.app)
@@ -201,7 +201,7 @@ class TestConfigPersistence:
             config._cfg.update(original_cfg)
 
     def test_save_config_does_not_hide_other_replace_errors(self):
-        """非 EBUSY 错误必须继续抛出，不能把权限或磁盘故障伪装成保存成功。"""
+        """Các lỗi không phải EBUSY phải tiếp tục được đưa ra và quyền hoặc lỗi ổ đĩa không thể được ngụy trang thành các lần lưu thành công."""
         original_cfg = dict(config._cfg)
         original_app = dict(config.app)
         try:
@@ -236,7 +236,7 @@ class TestConfigPersistence:
             config._cfg.update(original_cfg)
 
     def test_runtime_config_lock_blocks_concurrent_config_writes(self):
-        """长任务持有运行锁时，其它会话不能在任务中途改写全局配置。"""
+        """Khi một tác vụ dài bị khóa chạy, các phiên khác không thể ghi đè lên cấu hình chung ở giữa tác vụ."""
         write_started = threading.Event()
         write_finished = threading.Event()
 
@@ -257,7 +257,7 @@ class TestConfigPersistence:
         config.app.pop("runtime_lock_test", None)
 
     def test_runtime_config_lock_allows_idempotent_page_writes(self):
-        """生成期间刷新页面时，相同控件值的回写不能阻塞整页渲染。"""
+        """Khi trang được làm mới trong quá trình tạo, việc ghi lại cùng một giá trị điều khiển không thể chặn hiển thị toàn bộ trang."""
         key = "runtime_lock_idempotent_test"
         config.app[key] = "unchanged"
         write_finished = threading.Event()
@@ -279,7 +279,7 @@ class TestConfigPersistence:
         config.app.pop(key, None)
 
     def test_try_runtime_config_lock_returns_immediately_when_busy(self):
-        """试听锁不能等待长任务释放全局配置，忙碌时应立即让 UI 提示重试。"""
+        """Khóa thử giọng không thể đợi tác vụ lâu để giải phóng cấu hình chung. Khi bận, giao diện người dùng sẽ nhắc bạn thử lại ngay lập tức."""
         attempted = threading.Event()
         result = []
 
@@ -300,7 +300,7 @@ class TestConfigPersistence:
             assert acquired is True
 
     def test_nonblocking_update_is_applied_after_runtime_task_finishes(self):
-        """WebUI 改动不能等待长任务，且任务结束后必须应用并保存最新值。"""
+        """Các thay đổi của WebUI không thể chờ các tác vụ mất nhiều thời gian và các giá trị mới nhất phải được áp dụng và lưu sau khi tác vụ hoàn thành."""
         key = "nonblocking_runtime_update_test"
         original_value = config.app.get(key, config._MISSING)
         update_finished = threading.Event()
@@ -331,7 +331,7 @@ class TestConfigPersistence:
                 config.app[key] = original_value
 
     def test_nonblocking_update_keeps_only_latest_value(self):
-        """同一控件在任务期间反复修改时，只应用最后一次选择。"""
+        """Khi cùng một điều khiển được sửa đổi nhiều lần trong một tác vụ, chỉ lựa chọn cuối cùng được áp dụng."""
         key = "nonblocking_latest_value_test"
         original_value = config.app.get(key, config._MISSING)
         updates_finished = threading.Event()
@@ -357,7 +357,7 @@ class TestConfigPersistence:
                 config.app[key] = original_value
 
     def test_nonblocking_delete_is_applied_after_runtime_task_finishes(self):
-        """切回默认选项时，删除配置同样不能阻塞正在运行的视频任务。"""
+        """Khi chuyển về các tùy chọn mặc định, việc xóa cấu hình sẽ không chặn các tác vụ video đang chạy."""
         key = "nonblocking_runtime_delete_test"
         config.app[key] = "custom"
         delete_finished = threading.Event()
@@ -383,7 +383,7 @@ class TestConfigPersistence:
             config.app.pop(key, None)
 
     def test_try_save_config_returns_immediately_while_runtime_task_is_active(self):
-        """页面 rerun 请求保存时不能等待视频任务释放配置锁。"""
+        """Chạy lại trang không thể đợi tác vụ video giải phóng khóa cấu hình khi yêu cầu lưu."""
         save_finished = threading.Event()
         save_result = []
 
@@ -404,7 +404,7 @@ class TestConfigPersistence:
         self._wait_for_deferred_flush()
 
     def test_try_runtime_lock_flushes_updates_queued_during_operation(self):
-        """短操作释放配置锁时，也必须应用并保存期间到达的页面修改。"""
+        """Khi một thao tác ngắn giải phóng khóa cấu hình, các sửa đổi trang xuất hiện trong quá trình thao tác cũng phải được áp dụng và lưu lại."""
         key = "try_runtime_queued_update_test"
         original_value = config.app.get(key, config._MISSING)
         update_finished = threading.Event()
@@ -434,7 +434,7 @@ class TestConfigPersistence:
                 config.app[key] = original_value
 
     def test_update_queued_during_save_is_flushed_after_lock_release(self):
-        """退出保存期间的新修改不能停留在队列中，也不能被较早值覆盖。"""
+        """Các sửa đổi mới trong quá trình lưu thoát không thể tồn tại trong hàng đợi và chúng cũng không thể bị ghi đè bởi các giá trị trước đó."""
         key = "late_runtime_update_test"
         original_value = config.app.get(key, config._MISSING)
         runtime_entered = threading.Event()
@@ -471,8 +471,8 @@ class TestConfigPersistence:
                 release_runtime.set()
                 assert first_save_started.wait(timeout=1)
 
-                # 第一轮保存已经取得配置快照，此时到达的值必须由后台刷新线程
-                # 在锁释放后再次应用和保存，最终结果应以该值为准。
+                # Ảnh chụp nhanh cấu hình đã được lấy trong vòng lưu đầu tiên. Giá trị đến vào thời điểm này phải được làm mới bởi luồng nền.
+                # Sau khi áp dụng và lưu lại sau khi khóa được giải phóng, kết quả cuối cùng phải dựa trên giá trị này.
                 assert not config.update_config_nonblocking(config.app, key, "latest")
                 release_first_save.set()
 
@@ -492,7 +492,7 @@ class TestConfigPersistence:
                 config.app[key] = original_value
 
     def test_config_snapshot_includes_pending_updates(self):
-        """视频生成占锁时，新 LLM 请求应看到界面最新选择而非旧配置。"""
+        """Khi quá trình tạo video bị khóa, các yêu cầu LLM mới sẽ thấy lựa chọn giao diện mới nhất thay vì cấu hình cũ."""
         keys = {
             "llm_provider": "pending-provider",
             "pending-provider_api_key": "pending-key",

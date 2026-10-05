@@ -42,7 +42,7 @@ SETTINGS_TRANSFER_CONSTANTS = {
 
 
 class _FakeStreamlit:
-    """只提供 _apply_key_backup 需要的 session_state 字典。"""
+    """Chỉ cung cấp từ điển session_state theo yêu cầu của _apply_key_backup."""
 
     def __init__(self):
         self.session_state = {}
@@ -57,10 +57,10 @@ def _record_runtime_config(section_name, key, value):
 
 def _load_settings_transfer_helpers():
     """
-    从 WebUI 入口中隔离加载导出导入相关的纯函数。
+    Tách biệt các chức năng thuần túy liên quan đến tải, xuất và nhập từ cổng WebUI.
 
-    与任务历史测试相同，直接导入 Main.py 会执行整套页面渲染。这里只编译目标
-    常量和函数，既验证真实实现，也不需要为测试拆出额外的生产模块。
+    Giống như kiểm tra lịch sử tác vụ, việc nhập trực tiếp Main.py sẽ thực hiện toàn bộ quá trình hiển thị trang. Chỉ biên dịch mục tiêu ở đây
+    Các hằng số và hàm không chỉ xác minh việc triển khai thực tế mà còn loại bỏ nhu cầu tách các mô-đun sản xuất bổ sung để thử nghiệm.
     """
     tree = ast.parse(WEBUI_MAIN.read_text(encoding="utf-8"))
     selected_nodes = []
@@ -81,8 +81,8 @@ def _load_settings_transfer_helpers():
         "VideoParams": VideoParams,
         "bgm_service": bgm_service,
         "LLM_PROVIDER_REGISTRY": LLM_PROVIDER_REGISTRY,
-        # _apply_key_backup 写配置并清理控件状态，两者都由测试替身记录，
-        # 这样可以验证真实实现而不需要启动 Streamlit 会话。
+        # _apply_key_backup ghi cấu hình và xóa trạng thái điều khiển, cả hai đều được ghi lại bởi kiểm tra kép,
+        # Điều này cho phép xác minh việc triển khai thực tế mà không cần bắt đầu phiên Streamlit.
         "st": _FakeStreamlit(),
         "_set_runtime_config": _record_runtime_config,
     }
@@ -270,10 +270,10 @@ def test_key_backup_collects_credentials_and_their_companion_settings():
 
 def test_key_backup_carries_llm_provider_extra_fields_with_the_key():
     """
-    Cloudflare AI Gateway 的 Key 单独恢复没有意义，必须带上网关标识。
+    Việc chỉ khôi phục Khóa của Cloudflare AI Gateway là vô nghĩa và phải bao gồm nhận dạng cổng.
 
-    额外字段从 Provider Registry 读取，因此以后新增的 Provider 字段也会
-    自动进入备份。
+    Các trường bổ sung được đọc từ Sổ đăng ký nhà cung cấp, vì vậy các trường Nhà cung cấp được thêm trong tương lai cũng sẽ
+    Tự động nhập bản sao lưu.
     """
     cloudflare = get_llm_provider("cloudflare")
     extra_config_keys = [
@@ -382,7 +382,7 @@ def test_credential_widget_state_keys_match_settings_inputs():
 
 
 def test_credential_widget_state_keys_cover_shared_input_aliases():
-    """音频面板为同一份密钥提供了第二个输入框，别名必须一起返回。"""
+    """Bảng điều khiển âm thanh cung cấp hộp nhập thứ hai cho cùng một khóa và bí danh phải được trả về cùng nhau."""
     assert credential_widget_state_keys("app", "gemini_api_key") == (
         "gemini_api_key_input",
         "gemini_tts_api_key_input",
@@ -427,7 +427,7 @@ def test_apply_key_backup_writes_config_and_clears_every_widget_alias():
         ("azure", "speech_key", "new-azure"),
         ("azure", "speech_region", "westeurope"),
     ]
-    # 每一个别名控件状态都必须消失，否则旧密钥会在下一次 rerun 写回配置。
+    # Mỗi trạng thái kiểm soát bí danh phải biến mất, nếu không khóa cũ sẽ được ghi lại vào cấu hình trong lần chạy lại tiếp theo.
     assert FAKE_STREAMLIT.session_state == {"video_subject": "untouched"}
 
 

@@ -18,8 +18,8 @@ PROVIDER_TIPS_PREFIXES = (
     LLM_PROVIDER_TIPS_PREFIX,
     TTS_PROVIDER_TIPS_PREFIX,
 )
-# 合作 Provider 的品牌名和长说明只维护中英文。次要 locale 统一回退英文，
-# 避免把完全相同的品牌名复制十份，也避免长说明后续只更新部分语言。
+# Tên thương hiệu và mô tả dài về nhà cung cấp hợp tác xã chỉ được duy trì bằng tiếng Trung và tiếng Anh. Ngôn ngữ thứ cấp thống nhất trở lại tiếng Anh.
+# Tránh trùng lặp chính xác cùng một tên thương hiệu mười lần và tránh những mô tả dài dòng chỉ cập nhật một phần ngôn ngữ sau này.
 ENGLISH_FALLBACK_KEYS = frozenset(
     {
         "AI Video Quote Required",
@@ -115,7 +115,7 @@ def _load_translation(locale):
 
 
 def _required_translation_keys(translations):
-    """返回二级语言必须维护的 key，Provider 长说明统一回退英文。"""
+    """Trả về khóa phải được duy trì bằng ngôn ngữ cấp hai và mô tả dài về Nhà cung cấp sẽ chuyển sang tiếng Anh."""
     return {
         key
         for key in translations
@@ -125,12 +125,12 @@ def _required_translation_keys(translations):
 
 
 def _format_placeholders(value):
-    """提取运行时格式化变量，防止翻译遗漏或误改变量名。"""
+    """Trích xuất các biến được định dạng trong thời gian chạy để tránh tên biến bị thiếu hoặc không chính xác trong bản dịch."""
     return set(FORMAT_PLACEHOLDER_PATTERN.findall(value))
 
 
 def _markdown_urls(value):
-    """提取 Markdown 链接目标，允许翻译链接文字但不允许改坏地址。"""
+    """Trích xuất các mục tiêu liên kết Markdown, cho phép dịch văn bản liên kết nhưng không thay đổi địa chỉ."""
     return set(MARKDOWN_URL_PATTERN.findall(value))
 
 
@@ -173,7 +173,7 @@ class TestWebuiI18n(unittest.TestCase):
         self.assertEqual(sorted(visitor.keys - en_keys), [])
 
     def test_shengsuanyun_provider_tips_keep_registration_and_model_links(self):
-        """合作入口和模型目录属于产品配置，避免后续改文案时误删追踪链接。"""
+        """Cổng hợp tác và thư mục mẫu thuộc về cấu hình sản phẩm, để tránh vô tình xóa liên kết theo dõi khi thay đổi bản sao sau này."""
         expected_urls = {
             "https://www.shengsuanyun.com/?from=CH_XUQ4OTSK",
             "https://global.modelmesh.info/model",
@@ -191,7 +191,7 @@ class TestWebuiI18n(unittest.TestCase):
                 self.assertEqual(_markdown_urls(rendered), expected_urls)
 
     def test_metaso_api_key_label_keeps_mpt_referral_link(self):
-        """秘塔 Key 获取入口必须保留 MPT 追踪参数，避免赞助转化链路失效。"""
+        """Lối vào mua lại Secret Tower Key phải giữ lại các tham số theo dõi MPT để tránh lỗi liên kết chuyển đổi tài trợ."""
         expected_url = "https://metaso.cn/minimax-h3/?s=MPT"
 
         for locale in ("zh", "en"):
@@ -209,8 +209,8 @@ class TestWebuiI18n(unittest.TestCase):
                 self.assertEqual(sorted(required_en_keys - locale_keys), [])
 
     def test_secondary_locales_do_not_duplicate_provider_tips(self):
-        # Provider 配置长说明只维护中英文，其它语言运行时回退英文。
-        # 禁止复制这些 key，避免出现不会持续维护的半翻译内容。
+        # Mô tả dài về cấu hình của nhà cung cấp chỉ được duy trì bằng tiếng Trung và tiếng Anh và quay lại tiếng Anh khi chạy bằng các ngôn ngữ khác.
+        # Việc sao chép các khóa này bị cấm để tránh nội dung bán dịch sẽ không được duy trì liên tục.
         for locale in SECONDARY_LOCALES:
             with self.subTest(locale=locale):
                 locale_keys = set(_load_translation(locale))

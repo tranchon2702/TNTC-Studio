@@ -1,4 +1,4 @@
-"""任务目录中持久化文件的安全读写。"""
+"""Đọc và ghi an toàn các tập tin liên tục trong thư mục tác vụ."""
 
 from __future__ import annotations
 
@@ -14,18 +14,18 @@ from app.utils import utils
 
 
 def _script_file(task_id: str) -> Path:
-    """返回任务脚本清单路径，并复用统一的任务目录创建逻辑。"""
+    """Trả về đường dẫn tệp kê khai tập lệnh tác vụ và sử dụng lại logic tạo thư mục tác vụ thống nhất."""
     return Path(utils.task_dir(task_id)) / "script.json"
 
 
 def _write_json_atomic(target: Path, payload: Mapping[str, Any]) -> None:
     """
-    在目标目录内原子写入 JSON，避免进程中断留下半个文件。
+    Viết JSON nguyên tử vào thư mục đích để tránh gián đoạn quá trình và để lại một nửa tệp.
 
-    临时文件和目标文件必须位于同一目录，才能保证 ``os.replace`` 在常见
-    本地文件系统和 Docker 挂载目录中保持原子替换语义。写入成功前不会修改
-    现有文件；异常时只清理本次创建的临时文件，并把错误交给调用方决定是否
-    影响主流程。
+    Tệp tạm thời và tệp đích phải nằm trong cùng một thư mục để đảm bảo rằng ``os.replace``
+    Ngữ nghĩa thay thế nguyên tử được duy trì trong hệ thống tệp cục bộ và thư mục gắn kết Docker. Nó sẽ không được sửa đổi cho đến khi ghi thành công.
+    Các tập tin hiện có; trong trường hợp ngoại lệ, chỉ các tệp tạm thời được tạo lần này sẽ được dọn sạch và lỗi sẽ được chuyển cho người gọi để quyết định xem có
+    Ảnh hưởng đến quá trình chính.
     """
     temp_path: Path | None = None
     try:
@@ -57,17 +57,17 @@ def _write_json_atomic(target: Path, payload: Mapping[str, Any]) -> None:
 
 
 def write_script_data(task_id: str, payload: Mapping[str, Any]) -> None:
-    """创建或完整替换任务的 ``script.json`` 清单。"""
+    """Tạo hoặc thay thế hoàn toàn tệp kê khai ``script.json`` của tác vụ."""
     _write_json_atomic(_script_file(task_id), payload)
 
 
 def patch_script_data(task_id: str, **updates: Any) -> bool:
     """
-    在保留原有字段的前提下补充任务清单，失败时返回 ``False``。
+    Bổ sung danh sách nhiệm vụ trong khi giữ lại các trường ban đầu và trả về Sai nếu không thành công.
 
-    素材来源属于辅助诊断信息，不能因为文件权限、磁盘瞬时异常或历史文件损坏
-    阻断视频生成。因此该入口会记录完整异常并降级；首次创建任务清单仍使用
-    ``write_script_data``，由主流程决定基础任务数据写入失败时如何处理。
+    Nguồn của tài liệu là thông tin chẩn đoán phụ trợ và không thể do quyền của tệp, các bất thường của đĩa tạm thời hoặc hư hỏng tệp lịch sử gây ra.
+    Chặn việc tạo video. Do đó, mục này sẽ ghi lại ngoại lệ hoàn chỉnh và phân hủy; khi danh sách nhiệm vụ được tạo lần đầu tiên, nó vẫn sẽ được sử dụng.
+    ``write_script_data``, quy trình chính quyết định cách xử lý khi dữ liệu tác vụ cơ bản không được ghi.
     """
     try:
         target = _script_file(task_id)
@@ -80,8 +80,8 @@ def patch_script_data(task_id: str, **updates: Any) -> bool:
         _write_json_atomic(target, payload)
         return True
     except FileNotFoundError:
-        # ``download_videos`` 也可能被测试、脚本或第三方代码独立调用，此时没有
-        # 任务清单属于正常场景，不应制造警告或为了辅助记录创建残缺文件。
+        # ``download_videos`` cũng có thể được gọi độc lập bằng các bài kiểm tra, tập lệnh hoặc mã của bên thứ ba. Tại thời điểm này, không có
+        # Danh sách việc cần làm là tình huống bình thường và không được tạo cảnh báo hoặc tạo tệp không đầy đủ cho các bản ghi phụ.
         logger.debug(
             f"skip task script update because script.json does not exist: "
             f"task_id={task_id}"

@@ -58,8 +58,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_cache_round_trip_preserves_material_fields(self):
         """
-        磁盘缓存必须能跨进程恢复 MaterialInfo 所需的全部字段，不能只缓存 URL
-        后丢失 provider 或 duration，导致后续下载与时长计算行为发生变化。
+        Bộ đệm đĩa phải có khả năng khôi phục tất cả các trường được MaterialInfo yêu cầu trong các quy trình, nó không thể chỉ lưu trữ URL
+        Sau đó, nhà cung cấp hoặc thời lượng bị mất, dẫn đến những thay đổi trong hành vi tính toán thời lượng và tải xuống tiếp theo.
         """
         saved = material_cache.save_material_search_cache(
             provider="pixabay",
@@ -93,8 +93,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_expired_cache_is_removed_and_treated_as_miss(self):
         """
-        Pixabay 要求搜索结果最多复用 24 小时。过期文件必须立即失效并删除，
-        防止旧素材 URL 被无限复用，也避免缓存目录持续积累无效 JSON。
+        Pixabay yêu cầu sử dụng lại kết quả tìm kiếm trong tối đa 24 giờ. Các tập tin hết hạn phải hết hạn và xóa ngay lập tức,
+        Điều này ngăn các URL tài liệu cũ được sử dụng lại vô hạn và ngăn thư mục bộ đệm liên tục tích lũy JSON không hợp lệ.
         """
         material_cache.save_material_search_cache(
             provider="pixabay",
@@ -120,7 +120,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertFalse(cache_path.exists())
 
     def test_future_dated_cache_is_removed_and_treated_as_miss(self):
-        """系统时间异常时不能让未来时间戳绕过 24 小时有效期。"""
+        """Khi thời gian của hệ thống không bình thường, các dấu thời gian trong tương lai không được phép bỏ qua khoảng thời gian hiệu lực 24 giờ."""
         material_cache.save_material_search_cache(
             provider="pixabay",
             search_term="nature",
@@ -146,8 +146,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_corrupted_cache_is_removed_without_breaking_search(self):
         """
-        进程异常退出、磁盘故障或用户手动修改都可能留下损坏文件。读取失败应回退
-        到远端搜索并清理坏文件，不能让一个缓存永久阻断素材生成。
+        Quá trình thoát bất thường, lỗi ổ đĩa hoặc người dùng sửa đổi thủ công có thể để lại các tệp bị hỏng. Đọc thất bại sẽ quay trở lại
+        Tìm kiếm trang web từ xa và dọn sạch các tập tin xấu. Đừng để bộ đệm chặn vĩnh viễn việc tạo vật liệu.
         """
         cache_path = self._cache_path()
         cache_path.write_text("{invalid-json", encoding="utf-8")
@@ -166,8 +166,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_empty_results_are_not_cached(self):
         """
-        当前 provider 接口用 [] 同时表示没有结果和请求失败。缓存空列表会把
-        Cloudflare 拦截或短暂网络故障固化 24 小时，因此只能缓存非空成功结果。
+        Giao diện nhà cung cấp hiện tại sử dụng [] để biểu thị cả không có kết quả và yêu cầu không thành công. Bộ nhớ đệm một danh sách trống sẽ
+        Cloudflare chặn hoặc ngừng hoạt động mạng tạm thời trong 24 giờ, do đó, chỉ những kết quả thành công không có giá trị mới có thể được lưu vào bộ đệm.
         """
         saved = material_cache.save_material_search_cache(
             provider="pixabay",
@@ -182,8 +182,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_cache_file_does_not_contain_search_parameters_or_credentials(self):
         """
-        缓存文件名使用摘要，内容只保存素材字段。即使用户共享 storage 目录，
-        文件中也不应出现关键词、API Key 或其它请求配置。
+        Tên tệp bộ đệm sử dụng bản tóm tắt và nội dung chỉ lưu trường tài liệu. Ngay cả khi người dùng chia sẻ thư mục lưu trữ,
+        Từ khóa, Khóa API hoặc các cấu hình yêu cầu khác cũng sẽ không xuất hiện trong tệp.
         """
         item = self._item()
         item.source_info["source_page"] += "?token=drop"
@@ -206,7 +206,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertNotIn("token=drop", raw_payload)
 
     def test_coverr_signed_urls_are_never_cached(self):
-        """Coverr 下载地址包含签名 JWT，不能进入可长期保留的磁盘缓存。"""
+        """Địa chỉ tải xuống Coverr chứa JWT đã ký và không thể đi vào bộ đệm đĩa dài hạn."""
         item = self._item(
             "https://storage.coverr.co/video/download?token=signed-jwt"
         )
@@ -225,7 +225,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertEqual(list(Path(self.temp_dir.name).glob("*.json")), [])
 
     def test_coverr_cache_load_removes_legacy_signed_url(self):
-        """访问 Coverr 时应清理旧版本可能留下的签名下载地址缓存。"""
+        """Khi truy cập Coverr, bạn nên dọn sạch bộ nhớ đệm địa chỉ tải xuống chữ ký mà các phiên bản cũ hơn có thể để lại."""
         cache_path = material_cache._cache_path(
             provider="coverr",
             search_term="nature",
@@ -259,7 +259,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertFalse(cache_path.exists())
 
     def test_version_one_cache_is_invalidated(self):
-        """旧缓存缺少来源信息，升级后必须重新查询而不能生成残缺任务记录。"""
+        """Bộ nhớ đệm cũ thiếu thông tin nguồn và phải được truy vấn lại sau khi nâng cấp mà không tạo ra các bản ghi tác vụ chưa hoàn chỉnh."""
         cache_path = self._cache_path()
         cache_path.write_text(
             json.dumps(
@@ -289,8 +289,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_cache_key_separates_provider_duration_and_aspect(self):
         """
-        素材源、最小时长和画幅都会改变远端搜索结果，任何一个参数变化都必须
-        使用独立缓存，避免把不符合当前任务要求的素材返回给视频生成流程。
+        Nguồn tài liệu, thời lượng tối thiểu và kích thước khung hình đều sẽ thay đổi kết quả tìm kiếm từ xa. Mọi thay đổi tham số phải
+        Sử dụng bộ nhớ đệm độc lập để tránh trả lại tài liệu không đáp ứng yêu cầu của tác vụ hiện tại cho quy trình tạo video.
         """
         base_path = material_cache._cache_path(
             provider="pixabay",
@@ -324,8 +324,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_search_wrapper_reuses_cache_across_calls(self):
         """
-        第一次调用远端搜索并写缓存，第二次相同参数必须直接复用磁盘结果。
-        这是减少 Pixabay API 调用和 Cloudflare 风控触发概率的核心行为。
+        Lần đầu tiên tìm kiếm từ xa được gọi và bộ đệm được ghi, lần thứ hai, các tham số tương tự phải được sử dụng để trực tiếp sử dụng lại kết quả đĩa.
+        Đây là hành vi cốt lõi nhằm giảm xác suất xảy ra các lệnh gọi API Pixabay và kích hoạt kiểm soát rủi ro Cloudflare.
         """
         remote_search = Mock(return_value=[self._item()])
 
@@ -349,8 +349,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_search_wrapper_refreshes_mixed_orientation_cache(self):
         """
-        升级前的缓存可能混入其它方向的素材。只返回过滤后的少量条目会降低素材
-        多样性，因此发现任意方向不匹配时应重新请求并替换整个候选集。
+        Bộ đệm trước khi nâng cấp có thể chứa các tài liệu từ các hướng khác. Chỉ trả lại một số lượng nhỏ các mục đã lọc sẽ làm giảm tài liệu
+        Tính đa dạng, vì vậy khi tìm thấy sự không phù hợp ở bất kỳ hướng nào, toàn bộ tập hợp ứng cử viên sẽ được yêu cầu lại và thay thế.
         """
         portrait_item = self._item("https://example.com/old-portrait.mp4")
         landscape_item = self._item("https://example.com/old-landscape.mp4")
@@ -394,7 +394,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         )
 
     def test_square_search_reuses_crop_compatible_cache(self):
-        """方形任务应继续复用可裁剪素材缓存，不能因原始方向不同反复请求远端。"""
+        """Tác vụ hình vuông sẽ tiếp tục sử dụng lại bộ đệm vật liệu có thể cắt bớt và không thể liên tục yêu cầu đầu từ xa do các hướng ban đầu khác nhau."""
         landscape_item = self._item("https://example.com/landscape.mp4")
         landscape_item.source_info["rendition"] = {
             "id": "large",
@@ -425,7 +425,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         )
 
     def test_search_wrapper_retries_after_empty_result(self):
-        """空结果不缓存，下一次调用仍应访问远端，以便临时故障恢复后自动重试。"""
+        """Các kết quả trống không được lưu vào bộ nhớ đệm và cuộc gọi tiếp theo vẫn phải truy cập vào đầu từ xa để có thể tự động thử lại sau khi khắc phục lỗi tạm thời."""
         remote_search = Mock(return_value=[])
 
         for _ in range(2):
@@ -441,7 +441,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertEqual(remote_search.call_count, 2)
 
     def test_cache_read_failure_falls_back_to_remote_search(self):
-        """缓存读取异常只能降级为未命中，不能阻断远端素材搜索。"""
+        """Các ngoại lệ đọc bộ đệm chỉ có thể bị hạ cấp xuống mức bỏ lỡ và không thể chặn tìm kiếm tài liệu từ xa."""
         remote_items = [self._item()]
         remote_search = Mock(return_value=remote_items)
 
@@ -463,7 +463,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertTrue(warning.called)
 
     def test_cache_write_failure_keeps_remote_results(self):
-        """远端搜索成功后，即使缓存写入失败也必须继续返回可用素材。"""
+        """Sau khi tìm kiếm từ xa thành công, các tài liệu có sẵn phải tiếp tục được trả về ngay cả khi việc ghi vào bộ đệm không thành công."""
         remote_items = [self._item()]
         remote_search = Mock(return_value=remote_items)
 
@@ -489,7 +489,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertTrue(warning.called)
 
     def test_invalid_cache_item_does_not_raise(self):
-        """异常素材对象不能让可选缓存写入破坏调用方主流程。"""
+        """Các đối tượng vật chất ngoại lệ không được cho phép ghi vào bộ đệm tùy chọn để làm gián đoạn luồng chính của người gọi."""
         with patch.object(material_cache.logger, "warning") as warning:
             saved = material_cache.save_material_search_cache(
                 provider="pixabay",
@@ -504,8 +504,8 @@ class TestMaterialSearchCache(unittest.TestCase):
 
     def test_concurrent_identical_searches_share_remote_request(self):
         """
-        API 服务允许多个任务并发。相同条件首次搜索时，后到线程应等待首个线程
-        写入缓存，而不是再次消耗第三方接口额度。
+        Dịch vụ API cho phép nhiều tác vụ chạy đồng thời. Khi tìm kiếm các điều kiện tương tự lần đầu tiên, luồng đến sau sẽ đợi luồng đầu tiên
+        Ghi vào bộ đệm thay vì sử dụng lại tín dụng giao diện của bên thứ ba.
         """
         remote_started = threading.Event()
         allow_remote_finish = threading.Event()
@@ -537,7 +537,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         first_thread.start()
         self.assertTrue(remote_started.wait(timeout=2))
         second_thread.start()
-        # 给第二个线程时间进入缓存锁等待区，确保测试覆盖真实并发未命中。
+        # Dành thời gian cho luồng thứ hai vào khu vực chờ khóa bộ đệm để đảm bảo rằng quá trình kiểm tra bao gồm các lỗi đồng thời thực sự.
         time.sleep(0.05)
         allow_remote_finish.set()
         first_thread.join(timeout=2)
@@ -550,7 +550,7 @@ class TestMaterialSearchCache(unittest.TestCase):
         self.assertEqual(results[0], results[1])
 
     def test_cleanup_removes_expired_entries_only(self):
-        """低频清理只删除过期缓存，不应影响有效缓存或用户的其它文件。"""
+        """Việc dọn dẹp tần suất thấp chỉ xóa bộ đệm đã hết hạn và không ảnh hưởng đến bộ đệm hợp lệ hoặc các tệp người dùng khác."""
         stale_path = self._cache_path()
         stale_path.write_text(
             json.dumps(

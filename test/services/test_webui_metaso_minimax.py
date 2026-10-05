@@ -11,7 +11,7 @@ WEBUI_MAIN = ROOT_DIR / "webui" / "Main.py"
 
 
 def _widget_by_key(elements, key):
-    """按稳定业务 key 查找经过语言后缀处理的 Streamlit 控件。"""
+    """Tìm điều khiển Streamlit được xử lý bằng hậu tố ngôn ngữ bằng khóa doanh nghiệp ổn định."""
     return next(
         item
         for item in elements
@@ -69,7 +69,7 @@ def test_metaso_source_requires_confirmation_and_never_enters_task_params():
 
 
 def test_invalid_metaso_resolution_requires_an_explicit_replacement():
-    """打开设置不能把无效分辨率静默改成价格更高的默认 2K。"""
+    """Việc mở cài đặt không thể âm thầm thay đổi độ phân giải không hợp lệ thành 2K mặc định đắt tiền hơn."""
     test_config = dict(
         config.app,
         llm_provider="openai",
@@ -101,7 +101,7 @@ def test_invalid_metaso_resolution_requires_an_explicit_replacement():
 
 
 def test_metaso_upload_voiceover_uses_actual_audio_billing_copy():
-    """上传配音时不得用脚本文字长度冒充真实的付费任务数量。"""
+    """Khi tải lên bản lồng tiếng, độ dài văn bản tập lệnh không được sử dụng để che giấu số lượng tác vụ phải trả phí thực tế."""
     test_config = dict(
         config.app,
         video_source="metaso_minimax",

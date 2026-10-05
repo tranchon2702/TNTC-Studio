@@ -23,7 +23,7 @@ TEST_LOCALES = ("en", "zh")
 
 
 def _valid_wav_bytes() -> bytes:
-    """生成一个很短的标准 WAV，避免测试依赖仓库外部音频或系统录音文件。"""
+    """Tạo một WAV tiêu chuẩn rất ngắn, tránh việc kiểm tra phải dựa vào âm thanh bên ngoài hoặc các tệp ghi hệ thống từ kho lưu trữ."""
     output = io.BytesIO()
     with wave.open(output, "wb") as wav_file:
         wav_file.setnchannels(1)
@@ -36,14 +36,14 @@ def _valid_wav_bytes() -> bytes:
 class TestWebuiBackgroundMusic(unittest.TestCase):
     @staticmethod
     def _translation(locale, key):
-        """按测试语言读取期望文案，避免断言反过来依赖某一种展示语言。"""
+        """Đọc bản sao dự kiến ​​bằng ngôn ngữ kiểm tra để tránh những xác nhận phụ thuộc vào một ngôn ngữ trình bày nhất định."""
         locale_data = json.loads(
             (I18N_DIR / f"{locale}.json").read_text(encoding="utf-8")
         )
         return locale_data["Translation"][key]
 
     def _widget_by_key(self, elements, key_prefix):
-        """通过稳定业务 key 查找控件，展示标签翻译后仍能命中同一控件。"""
+        """Tìm điều khiển thông qua khóa doanh nghiệp ổn định và vẫn có thể đạt được điều khiển tương tự sau khi nhãn hiển thị được dịch."""
         widget = next(
             (
                 item
@@ -58,12 +58,12 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
 
     def _open_custom_bgm_panel(self, locale):
         app = AppTest.from_file(str(WEBUI_MAIN), default_timeout=30)
-        # CI 没有本机 config.toml 中保存的语言。显式覆盖 session locale，既能
-        # 复现 CI 的英文默认值，也能保护开发者常用的中文界面回归。
+        # CI không có ngôn ngữ bản địa được lưu trong config.toml. Ghi đè rõ ràng ngôn ngữ phiên, cả hai
+        # Việc tái tạo giá trị mặc định bằng tiếng Anh của CI cũng có thể bảo vệ giao diện tiếng Trung thường được các nhà phát triển sử dụng không quay trở lại.
         app.session_state["ui_language"] = locale
         app.run()
         source_select = self._widget_by_key(app.selectbox, "bgm_type_select")
-        # stable_selectbox 的真实选项是业务值，展示文案才会随 locale 变化。
+        # Các tùy chọn thực sự của stable_selectbox là các giá trị doanh nghiệp và bản sao hiển thị sẽ thay đổi theo ngôn ngữ.
         source_select.set_value("custom").run()
         return app
 
@@ -98,7 +98,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
         return self._widget_by_key(app.selectbox, "bgm_volume_select")
 
     def test_preset_song_selection_is_previewed_and_persisted(self):
-        """切换预设歌曲后应立即更新播放器，并保留稳定的文件名配置。"""
+        """Trình phát phải được cập nhật ngay sau khi chuyển đổi các bài hát cài sẵn và cấu hình tên tệp ổn định phải được giữ lại."""
         with tempfile.TemporaryDirectory() as temp_dir:
             first_song = Path(temp_dir) / "first.wav"
             second_song = Path(temp_dir) / "second.wav"
@@ -138,7 +138,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
             self.assertEqual([str(item.value) for item in app.exception], [])
 
     def test_empty_preset_song_list_shows_localized_warning(self):
-        """没有可用歌曲时应给出当前语言提示，而不是渲染无效选择框。"""
+        """Lời nhắc về ngôn ngữ hiện tại sẽ được đưa ra khi không có bài hát nào, thay vì hiển thị hộp chọn không hợp lệ."""
         for locale in TEST_LOCALES:
             with self.subTest(locale=locale):
                 test_ui = dict(config.ui, language=locale, bgm_type="random")
@@ -167,7 +167,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                 self.assertEqual([str(item.value) for item in app.exception], [])
 
     def test_task_restore_selects_the_original_preset_song(self):
-        """恢复历史任务时不能被全局保存的预设歌曲覆盖。"""
+        """Khi khôi phục các tác vụ lịch sử, chúng không thể bị ghi đè bởi các bài hát cài sẵn đã lưu trên toàn cầu."""
         with tempfile.TemporaryDirectory() as temp_dir:
             saved_song = Path(temp_dir) / "saved.wav"
             restored_song = Path(temp_dir) / "restored.wav"
@@ -209,7 +209,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
             self.assertEqual([str(item.value) for item in app.exception], [])
 
     def test_missing_preset_song_does_not_interrupt_the_page(self):
-        """枚举后文件失效时应显示提示，并且不能创建损坏的播放器。"""
+        """Lời nhắc sẽ được hiển thị khi một tệp trở nên không hợp lệ sau khi liệt kê và không thể tạo trình phát bị hỏng."""
         missing_song = Path(tempfile.gettempdir()) / "mpt-missing-preset.wav"
         missing_song.unlink(missing_ok=True)
         test_ui = dict(config.ui, language="en", bgm_type="random")
@@ -244,8 +244,8 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                             "audio/mp4",
                         )
                     ).run()
-                    # 非法文件留在上传控件时，音量调整会触发 Streamlit rerun。
-                    # 缓存命中只能重绘错误，不能重复校验或重复记录 warning。
+                    # Kích hoạt điều chỉnh âm lượng Streamlit chạy lại khi các tệp bất hợp pháp bị bỏ lại trong kiểm soát tải lên.
+                    # Các lần truy cập bộ nhớ đệm chỉ có thể vẽ lại lỗi và không thể xác minh nhiều lần hoặc ghi lại cảnh báo nhiều lần.
                     self._volume_select(app).set_value(0.4).run()
 
                 rejection_logs = [
@@ -272,8 +272,8 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                     ("valid.wav", _valid_wav_bytes(), "audio/wav")
                 ).run()
 
-                # 首次校验通过后，把服务函数改成显式失败；如果音量 rerun
-                # 错误地再次调用 FFmpeg，AppTest 会收到 AssertionError。
+                # Sau khi lần xác minh đầu tiên thành công, hãy thay đổi chức năng dịch vụ thành lỗi rõ ràng; nếu âm lượng chạy lại
+                # Nếu FFmpeg được gọi lại do nhầm lẫn, AppTest sẽ nhận được AssertionError.
                 with patch.object(
                     bgm,
                     "validate_bgm_upload",
@@ -295,7 +295,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                 self.assertEqual(len(app.get("audio")), 1)
 
     def test_zero_volume_defers_custom_upload_validation_until_enabled(self):
-        """0 音量保留上传选择，但必须等重新启用 BGM 后才校验和预览。"""
+        """0 vẫn giữ lựa chọn tải lên nhưng phải đợi cho đến khi bật lại BGM trước khi xác minh và xem trước."""
         app = self._open_custom_bgm_panel("en")
         self._volume_select(app).set_value(0.0).run()
 
@@ -310,8 +310,8 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
         self.assertFalse(any("deferred.wav" in item.value for item in app.info))
         self.assertEqual(len(app.get("audio")), 0)
 
-        # 文件仍保留在 Streamlit 会话中。用户调高音量后，同一次 rerun 应自动
-        # 完成校验并显示播放器，不需要重新选择文件。
+        # Tệp vẫn còn trong phiên Streamlit. Sau khi người dùng tăng âm lượng, quá trình chạy lại tương tự sẽ tự động được thực hiện
+        # Quá trình xác minh hoàn tất và trình phát được hiển thị mà không cần chọn lại tệp.
         with patch.object(bgm, "validate_bgm_upload") as validation:
             self._volume_select(app).set_value(0.2).run()
 
@@ -346,7 +346,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                 self.assertEqual(len(app.get("audio")), 0)
 
     def test_sonilo_source_shows_masked_prefilled_key_and_optional_prompt(self):
-        """选择 Sonilo 后应回填本机 Key，且保持密码显示模式。"""
+        """Sau khi chọn Sonilo, Khóa cục bộ sẽ được điền lại và chế độ hiển thị mật khẩu phải được duy trì."""
         for locale in TEST_LOCALES:
             with self.subTest(locale=locale):
                 test_config = dict(config.app, sonilo_api_key="saved-test-key")
@@ -368,8 +368,8 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                     self._translation(locale, "Sonilo API Key"),
                 )
                 self.assertIn("platform.sonilo.com", api_key_input.label)
-                # AppTest 的 element.type 表示控件种类（text_input）；密码模式
-                # 保存在底层 protobuf 枚举中，必须检查该字段才能验证真实渲染。
+                # Element.type của AppTest đại diện cho loại điều khiển (text_input); chế độ mật khẩu
+                # Được lưu trong bảng liệt kê protobuf cơ bản, trường này phải được kiểm tra để xác minh kết xuất thực.
                 self.assertEqual(
                     api_key_input.proto.type, api_key_input.proto.PASSWORD
                 )
@@ -397,10 +397,10 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
         )
 
     def test_zero_volume_does_not_require_sonilo_key(self):
-        """Sonilo 音量为 0 时，WebUI 不应继续显示 API Key 必填警告。"""
+        """WebUI không được tiếp tục hiển thị cảnh báo yêu cầu Khóa API khi âm lượng Sonilo bằng 0."""
         test_config = dict(config.app, sonilo_api_key="")
-        # BGM 音量现在是可持久化的用户偏好。显式给定本测试的
-        # 非零初始条件，避免其他 AppTest 会话保存的默认值影响前置断言。
+        # Âm lượng BGM hiện là tùy chọn ưa thích của người dùng. Được đưa ra rõ ràng cho bài kiểm tra này
+        # Các điều kiện ban đầu khác 0 để ngăn các giá trị mặc định được lưu bởi các phiên AppTest khác ảnh hưởng đến các xác nhận trước.
         test_ui = dict(config.ui, bgm_volume=0.2)
         required_warning = self._translation("en", "Sonilo API Key Required")
         with (
@@ -417,7 +417,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
         self.assertEqual([str(item.value) for item in app.exception], [])
 
     def test_elevenlabs_source_reuses_masked_tts_key_and_shows_prompt(self):
-        """配乐和 TTS 应共用 Key，并保持密码输入和独立音乐模型配置。"""
+        """Nhạc phim và TTS phải chia sẻ Khóa và duy trì mục nhập mật khẩu cũng như cấu hình mô hình âm nhạc độc lập."""
         for locale in TEST_LOCALES:
             with self.subTest(locale=locale):
                 test_config = dict(
@@ -458,7 +458,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                 self.assertEqual([str(item.value) for item in app.exception], [])
 
     def test_elevenlabs_tts_and_music_share_one_api_key_widget(self):
-        """同时启用配音和配乐时只能存在一个 Key 状态，修改后不能被旧值覆盖。"""
+        """Khi lồng tiếng và nhạc phim được bật cùng lúc, chỉ có thể tồn tại một trạng thái Khóa và không thể ghi đè bằng giá trị cũ sau khi sửa đổi."""
         test_config = dict(config.elevenlabs, api_key="key-A")
         test_ui = dict(config.ui, voice_mode="tts")
         with (
@@ -528,7 +528,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
         )
 
     def test_elevenlabs_connection_reports_paid_plan_requirement(self):
-        """免费套餐错误应使用当前界面的自然语言，而不是直接展示英文异常。"""
+        """Lỗi ở bậc miễn phí nên sử dụng ngôn ngữ tự nhiên của giao diện hiện tại thay vì hiển thị trực tiếp các ngoại lệ bằng tiếng Anh."""
         for locale in TEST_LOCALES:
             with self.subTest(locale=locale):
                 test_config = dict(
@@ -562,7 +562,7 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                 )
 
     def test_zero_volume_does_not_require_elevenlabs_key(self):
-        """ElevenLabs 音量为 0 时同样不应要求 Key 或调用付费服务。"""
+        """ElevenLabs cũng không nên yêu cầu Key hoặc gọi các dịch vụ trả phí khi âm lượng ở mức 0."""
         test_config = dict(config.elevenlabs, api_key="")
         required_warning = self._translation(
             "en", "ElevenLabs API Key Required"

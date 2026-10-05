@@ -33,16 +33,16 @@ _api_key_lock = threading.Lock()
 
 
 class _OpenAIImageDecodeError(ValueError):
-    """表示兼容接口返回的字节无法解码为图片，不包含本地文件写入故障。"""
+    """Cho biết rằng các byte được giao diện tương thích trả về không thể được giải mã thành hình ảnh và không bao gồm lỗi ghi tệp cục bộ."""
 
 
 def _safe_public_url(value: Any) -> str | None:
     """
-    只保留可公开展示的 HTTP(S) 页面地址，并移除查询参数和凭据。
+    Chỉ giữ lại các địa chỉ trang HTTP(S) có thể xem công khai và xóa các tham số truy vấn cũng như thông tin xác thực.
 
-    素材下载地址可能携带 API Key、签名 JWT 或临时 token。任务清单只需要
-    帮助用户回到供应商的公开素材页，不应保存鉴权参数；用户信息形式的 URL
-    同样拒绝，避免 ``https://user:pass@example.com`` 一类内容落盘。
+    Địa chỉ tải xuống tài liệu có thể mang Khóa API, JWT đã ký hoặc mã thông báo tạm thời. Danh sách nhiệm vụ chỉ yêu cầu
+    Để giúp người dùng quay lại trang tài liệu công khai của nhà cung cấp, không nên lưu các tham số xác thực; URL ở dạng thông tin người dùng
+    Đồng thời từ chối và tránh những nội dung như ``https://user:pass@example.com``.
     """
     if not isinstance(value, str) or not value.strip():
         return None
@@ -62,7 +62,7 @@ def _safe_public_url(value: Any) -> str | None:
 
 
 def _creator_info(value: Any) -> dict[str, str] | None:
-    """从不同供应商的作者结构中提取统一的公开字段。"""
+    """Trích xuất các trường công khai thống nhất từ ​​cấu trúc tác giả từ các nhà cung cấp khác nhau."""
     if isinstance(value, str) and value.strip():
         return {"name": value.strip()}
     if not isinstance(value, dict):
@@ -85,11 +85,11 @@ def _creator_info(value: Any) -> dict[str, str] | None:
 
 def _material_source_record(item: MaterialInfo, local_path: str) -> dict[str, Any]:
     """
-    为成功下载的素材生成轻量来源记录。
+    Tạo bản ghi xuất xứ nhẹ cho nội dung được tải xuống thành công.
 
-    ``source_info`` 可能来自缓存，甚至来自外部构造的 ``MaterialInfo``，因此
-    不能原样写入。这里按白名单重新构造，只保留公开页面、业务标识和尺寸，
-    并只记录本地文件名，避免用户目录或 Docker 挂载路径进入任务文件。
+    ``source_info`` có thể đến từ bộ đệm hoặc thậm chí từ ``MaterialInfo`` được xây dựng bên ngoài, vì vậy
+    Không thể viết như cũ được. Nó được cơ cấu lại theo danh sách trắng và chỉ giữ lại trang công khai, logo doanh nghiệp và kích thước.
+    Và chỉ ghi lại tên tệp cục bộ để ngăn thư mục người dùng hoặc đường dẫn gắn Docker vào tệp tác vụ.
     """
     source = item.source_info if isinstance(item.source_info, dict) else {}
     record: dict[str, Any] = {
@@ -129,11 +129,11 @@ def _persist_material_sources(
     material_sources: list[dict[str, Any]],
 ) -> None:
     """
-    将当前实际下载成功的素材来源补充到任务清单。
+    Thêm các nguồn tài liệu hiện đã tải xuống thành công vào danh sách nhiệm vụ.
 
-    任务记录是辅助能力，不能改变视频下载函数的返回值，也不能因为写盘失败
-    中断成片主流程。``patch_script_data`` 会负责原子替换和异常日志；这里仅在
-    成功后记录数量，便于确认任务追溯信息是否已经落盘。
+    Ghi tác vụ là một khả năng phụ trợ và không thể thay đổi giá trị trả về của chức năng tải xuống video, cũng như không thể do lỗi ghi đĩa.
+    Làm gián đoạn quá trình sản xuất phim chính. ``patch_script_data`` sẽ chịu trách nhiệm thay thế nguyên tử và ghi nhật ký ngoại lệ; chỉ ở đây
+    Sau khi thành công, số lượng được ghi lại để tạo điều kiện xác nhận xem thông tin truy xuất nguồn gốc của nhiệm vụ đã được đặt hay chưa.
     """
     try:
         saved = task_artifacts.patch_script_data(
@@ -146,8 +146,8 @@ def _persist_material_sources(
                 f"task_id={task_id}, count={len(material_sources)}"
             )
     except Exception as exc:
-        # task_artifacts 自身已经按失败降级设计，这里仍保留最后一道隔离，
-        # 防止未来实现调整或目录解析异常意外影响素材下载返回值。
+        # Bản thân task_artifacts đã được thiết kế để giảm thiểu lỗi và sự cô lập cuối cùng vẫn được giữ lại ở đây.
+        # Ngăn chặn các điều chỉnh triển khai trong tương lai hoặc ngoại lệ phân tích cú pháp thư mục vô tình ảnh hưởng đến giá trị trả về tải xuống tài liệu.
         logger.warning(
             "failed to persist material source records: "
             f"task_id={task_id}, error={type(exc).__name__}, detail={exc}"
@@ -155,9 +155,9 @@ def _persist_material_sources(
 
 
 def _get_tls_verify() -> bool:
-    # 默认开启 TLS 证书校验，防止素材搜索和下载过程被中间人篡改。
-    # 仅在企业代理、自签证书等明确需要的场景下，允许用户通过
-    # `config.toml` 显式设置 `tls_verify = false` 临时关闭。
+    # Xác minh chứng chỉ TLS được bật theo mặc định để ngăn quá trình tìm kiếm và tải xuống tài liệu khỏi bị người trung gian giả mạo.
+    # Chỉ trong những trường hợp được yêu cầu rõ ràng như đại lý công ty và chứng chỉ tự ký, người dùng mới được phép vượt qua
+    # Cài đặt rõ ràng `tls_verify = false` trong `config.toml` tạm thời bị tắt.
     tls_verify = config.app.get("tls_verify", True)
     if isinstance(tls_verify, str):
         tls_verify = tls_verify.strip().lower() not in ("0", "false", "no", "off")
@@ -191,11 +191,11 @@ def get_api_key(cfg_key: str):
 
 def _redact_secret(message: str, secret: str) -> str:
     """
-    对即将写入日志的异常文本做最小范围脱敏。
+    Giảm thiểu tối đa văn bản bất thường sẽ được ghi vào nhật ký.
 
-    requests 的连接异常可能包含完整请求 URL，而 Pixabay API Key 通过查询
-    参数传递。这里同时替换原始值和 URL 编码值，既保留网络错误信息用于排查，
-    又避免密钥进入日志文件。
+    Ngoại lệ kết nối cho các yêu cầu có thể chứa URL yêu cầu đầy đủ, trong khi Khóa API Pixabay được truy vấn bởi
+    Truyền tham số. Ở đây, giá trị ban đầu và giá trị được mã hóa URL được thay thế cùng lúc, không chỉ giữ lại thông tin lỗi mạng để khắc phục sự cố,
+    Điều này cũng ngăn khóa nhập vào tệp nhật ký.
     """
     safe_message = str(message)
     if not secret:
@@ -210,10 +210,10 @@ def _redact_secret(message: str, secret: str) -> str:
 
 def _redact_request_error(error: Exception, *secrets: str) -> str:
     """
-    保留网络异常的可排查信息，同时移除 API Key 和代理凭据。
+    Lưu giữ thông tin khắc phục sự cố về các điểm bất thường của mạng trong khi xóa khóa API và thông tin xác thực proxy.
 
-    直接只记录异常类型会丢失 DNS、证书、超时等关键上下文；直接记录原始异常
-    又可能回显完整请求 URL。统一入口可以让三个素材供应商使用相同脱敏规则。
+    Chỉ ghi nhật ký trực tiếp loại ngoại lệ sẽ làm mất ngữ cảnh chính như DNS, chứng chỉ, thời gian chờ, v.v. Ghi nhật ký trực tiếp ngoại lệ ban đầu
+    Cũng có thể lặp lại URL yêu cầu đầy đủ. Lối vào thống nhất cho phép ba nhà cung cấp vật liệu sử dụng các quy tắc giải mẫn cảm giống nhau.
     """
     safe_message = str(error)
     for secret in secrets:
@@ -225,11 +225,11 @@ def _redact_request_error(error: Exception, *secrets: str) -> str:
 
 def _is_cloudflare_challenge(response: requests.Response) -> bool:
     """
-    识别 Cloudflare 返回的 HTML Challenge，而不是把它当成 Pixabay JSON。
+    Nhận biết Thử thách HTML do Cloudflare trả về thay vì coi nó là JSON JSON.
 
-    Cloudflare 通常会设置 `cf-mitigated: challenge`；部分部署只返回带有
-    "Just a moment" 或 challenge-platform 的 HTML，因此保留内容特征兜底。
-    响应正文仅在内存中判断，不写入日志，避免记录无价值的大段 HTML。
+    Cloudflare thường đặt `cf-minigated: challenge`; một số triển khai chỉ trả về `cf-mitigated: challenge` với
+    "Chỉ một lát" hoặc HTML nền tảng thử thách, do đó duy trì các đặc điểm nội dung.
+    Nội dung phản hồi chỉ được đánh giá trong bộ nhớ và không được ghi vào nhật ký để tránh ghi lại các phần lớn HTML vô giá trị.
     """
     headers = getattr(response, "headers", {}) or {}
     if str(headers.get("cf-mitigated", "")).lower() == "challenge":
@@ -251,11 +251,11 @@ def _matches_video_aspect(
     is_vertical: Any = None,
 ) -> bool:
     """
-    判断远端素材是否与目标画面方向一致。
+    Xác định xem vật liệu từ xa có cùng hướng với màn hình mục tiêu hay không.
 
-    Pexels、Pixabay 和 Coverr 的响应字段并不统一，因此先使用宽高做可靠判断；
-    Coverr 部分历史响应缺少尺寸时，再使用明确的 ``is_vertical`` 布尔值兜底。
-    无法确认方向的素材直接跳过，避免竖屏任务混入横屏素材并在成片中产生黑边。
+    Các trường phản hồi của Pexels, Pixabay và Coverr không đồng nhất, vì vậy trước tiên hãy sử dụng chiều rộng và chiều cao để đưa ra phán đoán đáng tin cậy;
+    Coverr sử dụng giá trị Boolean ``is_vertical`` rõ ràng khi một số phản hồi lịch sử bị thiếu thứ nguyên.
+    Các vật liệu không thể xác nhận hướng sẽ được bỏ qua trực tiếp để tránh các tác vụ màn hình dọc bị trộn lẫn với các vật liệu màn hình ngang và gây ra viền đen trong phim cuối cùng.
     """
     aspect = VideoAspect(video_aspect)
     try:
@@ -282,16 +282,16 @@ def _filter_materials_by_aspect(
     video_aspect: VideoAspect,
 ) -> List[MaterialInfo]:
     """
-    对缓存结果再次校验方向。
+    Xác minh lại hướng của kết quả được lưu trong bộ nhớ đệm.
 
-    素材搜索缓存最长保留 24 小时，升级前写入的缓存可能包含方向不匹配的素材。
-    在统一缓存入口过滤可以让修复立即生效，也能防御第三方 Provider 或旧缓存
-    遗漏远端筛选。无法读取 rendition 尺寸的旧条目按未验证处理并跳过。
+    Bộ đệm tìm kiếm tài liệu được giữ lại tối đa 24 giờ và bộ đệm được ghi trước khi nâng cấp có thể chứa tài liệu có hướng không khớp.
+    Việc lọc mục nhập bộ nhớ đệm hợp nhất cho phép bản sửa lỗi có hiệu lực ngay lập tức và cũng bảo vệ khỏi các nhà cung cấp bên thứ ba hoặc bộ nhớ đệm cũ
+    Sàng lọc ở xa bị bỏ sót. Các mục cũ có kích thước hiển thị không thể đọc được sẽ được coi là không hợp lệ và bị bỏ qua.
     """
     aspect = VideoAspect(video_aspect)
     if aspect == VideoAspect.square:
-        # Pixabay 和 Coverr 很少提供原生方形素材。方形输出沿用既有行为，
-        # 接受可用候选并交给视频合成阶段裁剪，避免升级后 1:1 任务无素材。
+        # Pixabay và Coverr hiếm khi cung cấp cảnh vuông gốc. Đầu ra vuông tuân theo hành vi hiện có,
+        # Tiếp nhận các ứng viên có sẵn và chuyển sang khâu tổng hợp video để cắt xén tránh trường hợp không còn nguyên liệu cho nhiệm vụ 1:1 sau khi nâng cấp.
         return list(items)
 
     filtered_items = []
@@ -474,8 +474,8 @@ def search_videos_pixabay(
                     h = int(video["height"])
                 except (KeyError, TypeError, ValueError):
                     continue
-                # Pixabay 很少返回原生方形视频；1:1 输出继续接受满足分辨率的
-                # 候选并由合成阶段裁剪。横竖屏则必须严格匹配目标方向。
+                # Pixabay hiếm khi trả về video vuông gốc; Đầu ra 1:1 tiếp tục chấp nhận độ phân giải thỏa mãn
+                # các ứng cử viên và được cắt tỉa ở giai đoạn tổng hợp. Màn hình ngang và dọc phải phù hợp chặt chẽ với hướng mục tiêu.
                 orientation_matches = aspect == VideoAspect.square or (
                     _matches_video_aspect(w, h, aspect)
                 )
@@ -526,18 +526,18 @@ def search_videos_coverr(
     subject to Coverr license terms (https://coverr.co/license).
 
     Coverr API notes (based on official docs at api.coverr.co/docs/):
-      - 鉴权: Authorization: Bearer <api_key>
-      - 搜索端点: GET /videos?query=...,响应结构 {"hits": [...], ...}
-      - 加 ?urls=true 在搜索响应里直接返回 mp4 直链
-      - URL 是 signed JWT(绑定 API key,无过期时间)
-      - Coverr 支持通过 filter=is_vertical:true/false 筛选横竖屏素材；
-        响应返回后仍根据 max_width/max_height 或 is_vertical 做本地校验
-      - duration 字段同时存在 number 和 string 两种形态,本函数都接受
+      - Xác thực: Ủy quyền: Bearer <api_key>
+      - Điểm cuối tìm kiếm: GET /video?query=..., cấu trúc phản hồi {"hits": [...], ...}
+      - Thêm ?urls=true để trả về trực tiếp liên kết trực tiếp mp4 trong phản hồi tìm kiếm
+      - URL được ký JWT (bound API key, không có thời gian hết hạn)
+      - Coverr hỗ trợ lọc các vật liệu màn hình ngang và dọc thông qua filter=is_vertical:true/false;
+        Sau khi phản hồi được trả về, xác minh cục bộ vẫn được thực hiện dựa trên max_width/max_height hoặc is_vertical.
+      - Trường thời lượng tồn tại ở cả dạng số và dạng chuỗi và hàm này chấp nhận cả hai.
 
-    本函数使用 urls.mp4_download 字段作为下载地址 —— 按 Coverr 官方文档
-    (https://api.coverr.co/docs/videos/#download-a-video) 的说法,
-    GET 这个 URL 本身就被 Coverr 当作一次合法的 download 事件计入统计,
-    无需再调用 PATCH /videos/:id/stats/downloads。
+    Hàm này sử dụng trường urls.mp4_download làm địa chỉ tải xuống - theo tài liệu chính thức của Coverr
+    (https://api.coverr.co/docs/videos/#download-a-video),
+    Bản thân URL GET được Coverr coi là sự kiện tải xuống hợp pháp và được đưa vào số liệu thống kê.
+    Không cần phải gọi PATCH /videos/:id/stats/downloads nữa.
     """
     aspect = VideoAspect(video_aspect)
     api_key = get_api_key("coverr_api_keys")
@@ -548,8 +548,8 @@ def search_videos_coverr(
         "urls": "true",
         "sort": "popular",
     }
-    # 服务端方向筛选可以直接从完整搜索结果中返回目标素材，避免先取热门结果再
-    # 本地过滤导致竖屏候选为空。方形素材没有对应布尔条件，继续依赖本地宽高校验。
+    # Tính năng lọc phía máy chủ có thể trả về trực tiếp các tài liệu mục tiêu từ các kết quả tìm kiếm hoàn chỉnh, tránh việc phải tìm nạp các kết quả phổ biến trước rồi mới đến.
+    # Lọc cục bộ dẫn đến các ứng cử viên chân dung trống. Vật liệu hình vuông không tương ứng với các điều kiện Boolean và tiếp tục dựa vào xác minh chiều rộng và chiều cao cục bộ.
     if aspect == VideoAspect.portrait:
         params["filter"] = "is_vertical:true"
     elif aspect == VideoAspect.landscape:
@@ -573,7 +573,7 @@ def search_videos_coverr(
             return video_items
 
         for v in response["hits"]:
-            # duration 在不同响应里可能是 number(11.625) 或 string("10.500000")
+            # thời lượng có thể là số (11,625) hoặc chuỗi ("10,500000") trong các phản hồi khác nhau
             try:
                 duration = int(float(v.get("duration") or 0))
             except (TypeError, ValueError):
@@ -620,39 +620,39 @@ def search_videos_coverr(
     return []
 
 
-# WaveSpeed AI (https://wavespeed.ai) 通过文生视频模型按脚本关键词直接生成素材，
-# 与三个库存素材源共用 MaterialInfo 结果结构和后续下载、剪辑流程。
+# WaveSpeed ​​​​AI (https://wavespeed.ai) sử dụng mô hình video Wensheng để trực tiếp tạo tài liệu dựa trên từ khóa của tập lệnh.
+# Chia sẻ cấu trúc kết quả MaterialInfo cũng như các quá trình tải xuống và chỉnh sửa tiếp theo với ba nguồn tài liệu có sẵn.
 WAVESPEED_API_BASE_URL = "https://api.wavespeed.ai/api/v3"
 WAVESPEED_DEFAULT_T2V_MODEL = "bytedance/seedance-2.0-fast/text-to-video"
 WAVESPEED_POLL_INTERVAL_SECONDS = 2.0
 WAVESPEED_RUN_TIMEOUT_SECONDS = 600.0
-# 默认模型 bytedance/seedance-2.0-fast/text-to-video 只接受 4-15 秒；超出
-# 范围的请求会被 API 直接拒绝。WebUI 默认片段时长是 3 秒，因此必须在提交
-# 前收敛到模型支持区间，多出的时长由现有剪辑流程按片段时长裁掉。
+# Mô hình mặc định byteance/seedance-2.0-fast/text-to-video chỉ chấp nhận 4-15 giây; vượt quá
+# Các yêu cầu về phạm vi sẽ bị API trực tiếp từ chối. Độ dài đoạn mặc định của WebUI là 3 giây, vì vậy nó phải được gửi trước
+# Trước khi hội tụ đến phạm vi hỗ trợ mô hình, thời lượng vượt quá sẽ bị cắt bỏ bởi quá trình chỉnh sửa hiện có theo thời lượng của clip.
 WAVESPEED_MIN_DURATION_SECONDS = 4
 WAVESPEED_MAX_DURATION_SECONDS = 15
-# 三个失败态语义不同（模型报错 / 用户取消 / 平台超时），但对素材流程都意味着
-# 本关键词没有产物，统一按空结果处理，交给上层跳过该片段继续生成。
+# Ba trạng thái lỗi có ngữ nghĩa khác nhau (lỗi mô hình/hủy người dùng/hết thời gian chờ nền tảng), nhưng chúng đều có ý nghĩa đối với quy trình vật chất
+# Từ khóa này không có sản phẩm nên sẽ được coi là kết quả trống và được chuyển lên lớp trên để bỏ qua đoạn và tiếp tục tạo ra nó.
 WAVESPEED_FAILURE_STATUSES = frozenset({"failed", "cancelled", "timeout"})
-# 与 WaveSpeed 官方 Python SDK / n8n 节点保持同一口径：429 与 5xx 属于临时
-# 故障，值得有限次退避重试；4xx 是明确的客户端错误，快速失败。
+# Giữ nguyên cỡ nòng như nút Python SDK/n8n chính thức của WaveSpeed: 429 và 5xx là tạm thời
+# Thất bại đáng để thử lại thời gian chờ hạn chế; 4xx là lỗi máy khách rõ ràng và nhanh chóng bị lỗi.
 WAVESPEED_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
-# 单次轮询允许的连续临时失败次数。一次不走运的 GET 不能让已经计费的任务失联。
+# Số lần thất bại tạm thời liên tiếp được phép trong một cuộc thăm dò. Một GET không may mắn không thể khiến một tác vụ đã được tính phí bị ngắt kết nối.
 WAVESPEED_MAX_POLL_RETRIES = 5
-# 线性退避基数，第 n 次重试等待 base * n 秒。
+# Cơ sở lùi tuyến tính, lần thử lại thứ n đợi cơ sở * n giây.
 WAVESPEED_RETRY_BASE_SECONDS = 1.0
-# 产物下载失败时对同一个签名地址的重试次数。素材已经付费生成，优先重试原
-# 地址，不能因为一次下载抖动就重新提交一次付费生成任务。
+# Số lần thử lại cho cùng một địa chỉ chữ ký khi tải xuống sản phẩm không thành công. Các tài liệu đã được tạo ra cho một khoản phí. Ưu tiên thử lại bản gốc.
+# Địa chỉ, bạn không thể gửi lại tác vụ tạo phải trả phí chỉ vì hiện tượng giật hình khi tải xuống.
 WAVESPEED_MAX_DOWNLOAD_RETRIES = 2
 
 
 class WaveSpeedUnconfirmedTaskError(RuntimeError):
     """
-    付费生成任务已提交，但最终状态无法在本地确认。
+    Nhiệm vụ xây dựng phải trả phí đã được gửi nhưng trạng thái cuối cùng không thể được xác nhận cục bộ.
 
-    这类异常绝不等价于“该任务失败、可以重来”：远端任务可能仍在运行或已经
-    完成并计费。素材流程必须就此停止，不再为后续关键词提交新的付费任务，
-    并把已提交的 prediction id 留在日志中供人工找回。
+    Loại ngoại lệ này hoàn toàn không tương đương với "tác vụ thất bại và có thể được lặp lại": tác vụ từ xa có thể vẫn đang chạy hoặc có thể có
+    Đã hoàn thành và thanh toán. Quá trình quan trọng phải dừng ở đây và sẽ không có nhiệm vụ trả phí mới nào được gửi cho các từ khóa tiếp theo.
+    Và để lại id dự đoán đã gửi trong nhật ký để truy xuất thủ công.
     """
 
     def __init__(self, message: str, prediction_id: str = ""):
@@ -661,7 +661,7 @@ class WaveSpeedUnconfirmedTaskError(RuntimeError):
 
 
 def _wavespeed_status_code(response: Any) -> int:
-    """读取响应状态码；测试替身或异常对象缺少该字段时按 200 处理。"""
+    """Đọc mã trạng thái phản hồi; xử lý nó là 200 khi trường này bị thiếu trong đối tượng ngoại lệ hoặc đối tượng kiểm tra kép."""
     try:
         return int(getattr(response, "status_code", 200))
     except (TypeError, ValueError):
@@ -670,10 +670,10 @@ def _wavespeed_status_code(response: Any) -> int:
 
 def _is_wavespeed_retryable_error(error: Exception) -> bool:
     """
-    判断轮询异常是否值得重试。
+    Xác định xem ngoại lệ bỏ phiếu có đáng để thử lại hay không.
 
-    连接、超时一类网络异常没有状态码，按临时故障处理；带状态码的响应只在
-    429 和 5xx 时重试，与官方 SDK 的重试集合保持一致。
+    Các bất thường của mạng như kết nối và hết thời gian chờ không có mã trạng thái và được xử lý như lỗi tạm thời; phản hồi với mã trạng thái chỉ
+    429 và 5xx, nhất quán với bộ thử lại của SDK chính thức.
     """
     if isinstance(
         error,
@@ -692,11 +692,11 @@ def _is_wavespeed_retryable_error(error: Exception) -> bool:
 
 def _wavespeed_duration_bounds() -> tuple[int, int]:
     """
-    返回当前模型支持的生成时长区间（秒）。
+    Trả về khoảng thời gian tạo (giây) được mô hình hiện tại hỗ trợ.
 
-    默认区间对应默认 Seedance 模型；用户切换到其它文生视频模型时，可以在
-    配置中同步调整区间。任何异常配置都退回默认值，并保证 min <= max，
-    避免把用户输入变成必然失败的远端请求。
+    Khoảng thời gian mặc định tương ứng với mô hình Seedance mặc định; khi người dùng chuyển sang các mẫu video Wensheng khác, họ có thể
+    Đồng bộ hóa khoảng thời gian điều chỉnh trong cấu hình. Mọi cấu hình bất thường sẽ quay về giá trị mặc định và đảm bảo min <= max,
+    Tránh biến thông tin đầu vào của người dùng thành một yêu cầu từ xa không thành công.
     """
 
     def read_bound(key: str, fallback: int) -> int:
@@ -717,11 +717,11 @@ def generate_videos_wavespeed(
     video_aspect: VideoAspect = VideoAspect.portrait,
 ) -> List[MaterialInfo]:
     """
-    用 WaveSpeed 文生视频模型为一个脚本关键词生成一段素材。
+    Sử dụng mô hình video WaveSpeed ​​​​Vincent để tạo một đoạn phim cho từ khóa kịch bản.
 
-    与库存素材源的 search_videos_* 保持同一签名和空列表失败约定，
-    使其可以直接接入 ``download_videos`` 的通用下载与时长核算流程。
-    ``minimum_duration`` 在生成语境下就是目标片段时长（秒）。
+    Duy trì cùng một quy ước về lỗi chữ ký và danh sách trống như search_videos_* của nguồn chứng khoán,
+    Cho phép kết nối trực tiếp với quy trình tính toán thời lượng và tải xuống chung của ``download_videos``.
+    ``thời lượng_tối thiểu`` trong ngữ cảnh tạo là thời lượng phân đoạn mục tiêu tính bằng giây.
     """
     aspect = VideoAspect(video_aspect)
     video_width, video_height = aspect.to_resolution()
@@ -739,8 +739,8 @@ def generate_videos_wavespeed(
     min_duration, max_duration = _wavespeed_duration_bounds()
     duration = min(max(requested_duration, min_duration), max_duration)
     if duration != requested_duration:
-        # 生成比请求更长不会影响成片：剪辑流程仍按片段时长裁剪；生成比请求
-        # 更短的情况只发生在请求超过模型上限时，此时也只能收敛到上限。
+        # Việc tạo dài hơn yêu cầu sẽ không ảnh hưởng tới phim cuối cùng: quá trình biên tập vẫn được cắt bớt theo thời lượng của clip; tạo ra lâu hơn yêu cầu
+        # Tình huống ngắn hơn chỉ xảy ra khi yêu cầu vượt quá giới hạn trên của mô hình và lúc này nó chỉ có thể hội tụ đến giới hạn trên.
         logger.info(
             f"wavespeed clip duration clamped to model-supported range: "
             f"requested={requested_duration}s, using={duration}s "
@@ -756,8 +756,8 @@ def generate_videos_wavespeed(
         f"term={search_term!r}, duration={duration}s"
     )
 
-    # 提交 POST 绝不自动重试：请求可能已经在远端创建了付费任务，重发会造成
-    # 重复生成和重复扣费（与官方 SDK 的 submission 策略一致）。
+    # Việc gửi POST sẽ không bao giờ tự động thử lại: yêu cầu có thể đã tạo một tác vụ phải trả phí ở đầu từ xa và việc gửi lại sẽ gây ra
+    # Tạo lặp lại và khấu trừ lặp lại (phù hợp với chính sách gửi của SDK chính thức).
     try:
         submit_response = requests.post(
             f"{WAVESPEED_API_BASE_URL}/{model_id}",
@@ -768,8 +768,8 @@ def generate_videos_wavespeed(
             timeout=(30, 60),
         )
     except Exception as e:
-        # 没有收到响应并不代表任务没有创建。此时状态不明，必须终止整个生成
-        # 流程，而不是继续为下一个关键词提交新的付费任务。
+        # Không nhận được phản hồi không có nghĩa là tác vụ chưa được tạo. Trạng thái không xác định tại thời điểm này và toàn bộ thế hệ phải bị chấm dứt
+        # xử lý thay vì tiếp tục gửi nhiệm vụ trả phí mới cho từ khóa tiếp theo.
         raise WaveSpeedUnconfirmedTaskError(
             "wavespeed submission did not return a response, the task may "
             "already exist remotely: "
@@ -778,7 +778,7 @@ def generate_videos_wavespeed(
 
     submit_status = _wavespeed_status_code(submit_response)
     if submit_status >= 500:
-        # 5xx 可能发生在任务创建之后，无法判断是否已经计费。
+        # 5xx có thể xảy ra sau khi tác vụ được tạo và không thể xác định liệu tác vụ đó đã được lập hóa đơn hay chưa.
         raise WaveSpeedUnconfirmedTaskError(
             f"wavespeed submission failed with HTTP {submit_status}, "
             "the task may already exist remotely"
@@ -793,8 +793,8 @@ def generate_videos_wavespeed(
 
     submit_data = submit_body.get("data") if isinstance(submit_body, dict) else None
     if not isinstance(submit_body, dict) or submit_body.get("code") != 200:
-        # 4xx 与业务错误码是明确的拒绝，远端没有创建任务，也就不存在重复
-        # 计费风险，按现有素材源约定返回空结果并继续。
+        # 4xx và mã lỗi kinh doanh là những sự từ chối rõ ràng. Không có tác vụ nào được tạo ở đầu xa nên không có sự trùng lặp.
+        # Rủi ro thanh toán, trả lại kết quả trống và tiếp tục theo thỏa thuận nguồn nguyên liệu hiện có.
         logger.error(
             "wavespeed video generation request rejected: "
             f"http_status={submit_status}, "
@@ -806,12 +806,12 @@ def generate_videos_wavespeed(
         str(submit_data.get("id") or "") if isinstance(submit_data, dict) else ""
     )
     if not prediction_id:
-        # 提交被接受但没拿到 ID：任务可能已经存在却无法追踪，不能继续下单。
+        # Việc gửi đã được chấp nhận nhưng không nhận được ID: nhiệm vụ có thể đã tồn tại nhưng không thể theo dõi và không thể tiếp tục đơn hàng.
         raise WaveSpeedUnconfirmedTaskError(
             "wavespeed accepted the submission without returning a prediction id"
         )
-    # 生成任务提交成功即产生远端计费副作用，先落日志记录任务 ID，
-    # 即使后续轮询失败，用户仍能凭 ID 在 WaveSpeed 控制台找回产物。
+    # Nếu nhiệm vụ tạo được gửi thành công, việc thanh toán từ xa sẽ có tác dụng phụ. ID nhiệm vụ của bản ghi nhật ký sẽ được nhập đầu tiên.
+    # Ngay cả khi cuộc bỏ phiếu tiếp theo không thành công, người dùng vẫn có thể truy xuất sản phẩm trong bảng điều khiển WaveSpeed ​​bằng ID.
     logger.info(f"wavespeed prediction created: id={prediction_id}")
 
     result_data = _wait_for_wavespeed_prediction(
@@ -826,8 +826,8 @@ def generate_videos_wavespeed(
         video_items = []
         outputs = result_data.get("outputs")
         for output in outputs if isinstance(outputs, list) else []:
-            # 产物 URL 是带签名的临时下载地址，必须整体保留（不能剥离查询参
-            # 数），因此不写入 source_info，只用于随后的立即下载。
+            # URL sản phẩm là địa chỉ tải xuống tạm thời đã ký và phải được giữ lại toàn bộ (không thể loại bỏ các tham số truy vấn).
+            # số), do đó source_info không được ghi và chỉ được sử dụng cho các lần tải xuống ngay sau đó.
             if not isinstance(output, str) or not output.startswith(
                 ("http://", "https://")
             ):
@@ -854,8 +854,8 @@ def generate_videos_wavespeed(
             )
         return video_items
     except Exception as e:
-        # 产物已经生成并计费，这里的异常只可能来自本地解析。记录后按空结果
-        # 返回，让上层跳过该片段，但任务状态本身是确定的，可以继续后续片段。
+        # Sản phẩm đã được tạo và lập hóa đơn và ngoại lệ ở đây chỉ có thể đến từ phân tích cú pháp cục bộ. Ghi xong nhấn vào kết quả trống
+        # Quay trở lại, cho phép lớp trên bỏ qua phân đoạn, nhưng bản thân trạng thái nhiệm vụ được xác định và các phân đoạn tiếp theo có thể được tiếp tục.
         logger.error(
             "wavespeed output parsing failed: "
             f"id={prediction_id}, error={type(e).__name__}, "
@@ -872,12 +872,12 @@ def _wait_for_wavespeed_prediction(
     api_key: str,
 ) -> dict | None:
     """
-    轮询同一个 prediction id 直到出现确定结果。
+    Thăm dò cùng một id dự đoán cho đến khi xuất hiện kết quả được xác nhận.
 
-    返回 ``completed`` 的 data；远端明确失败（failed / cancelled / timeout）
-    时返回 None，表示该任务已经结束、可以安全地继续后续片段。临时故障按
-    线性退避重试同一个 ID，绝不重新提交任务；状态始终无法确认时抛出
-    :class:`WaveSpeedUnconfirmedTaskError`，由调用方终止整个生成流程。
+    Trả về dữ liệu `` đã hoàn thành``; đầu từ xa rõ ràng không thành công (không thành công/hủy/hết thời gian chờ)
+    Trả về Không có nghĩa là tác vụ đã kết thúc và có thể tiếp tục với các đoạn tiếp theo một cách an toàn. Nút lỗi tạm thời
+    Độ trễ tuyến tính thử lại cùng một ID và không bao giờ gửi lại nhiệm vụ; bị ném khi trạng thái không thể được xác nhận
+    :class:`WaveSpeedUnconfirmedTaskError`, người gọi sẽ chấm dứt toàn bộ quá trình tạo.
     """
     deadline = time.monotonic() + WAVESPEED_RUN_TIMEOUT_SECONDS
     consecutive_failures = 0
@@ -900,8 +900,8 @@ def _wait_for_wavespeed_prediction(
                 result_body.get("data") if isinstance(result_body, dict) else None
             )
             if not isinstance(result_body, dict) or result_body.get("code") != 200:
-                # 轮询被明确拒绝（如 4xx）时任务状态仍然未知：任务已经提交，
-                # 只是本地查不到结果，同样不能继续提交新的付费任务。
+                # Khi bỏ phiếu bị từ chối rõ ràng (ví dụ: 4xx), trạng thái nhiệm vụ vẫn không xác định: nhiệm vụ đã được gửi,
+                # Chỉ là không thể tìm thấy kết quả cục bộ và bạn không thể tiếp tục gửi các nhiệm vụ trả phí mới.
                 raise WaveSpeedUnconfirmedTaskError(
                     "wavespeed prediction status is unknown: "
                     f"http_status={status_code}, "
@@ -944,7 +944,7 @@ def _wait_for_wavespeed_prediction(
             time.sleep(delay)
             continue
 
-        # 拿到一次有效响应就重置计数，只有连续失败才消耗重试额度。
+        # Số lượng được đặt lại khi nhận được phản hồi hợp lệ và hạn ngạch thử lại chỉ được sử dụng nếu có lỗi liên tiếp.
         consecutive_failures = 0
         status = str(result_data.get("status") or "")
         if status == "completed":
@@ -957,7 +957,7 @@ def _wait_for_wavespeed_prediction(
             )
             return None
         if time.monotonic() > deadline:
-            # 远端任务仍在执行，本地无法确认最终状态，必须停止继续下单。
+            # Tác vụ từ xa vẫn đang được thực thi và trạng thái cuối cùng không thể được xác nhận cục bộ nên các đơn hàng phải dừng lại.
             raise WaveSpeedUnconfirmedTaskError(
                 f"wavespeed prediction is still {status or 'pending'} after "
                 f"{WAVESPEED_RUN_TIMEOUT_SECONDS:.0f}s of local waiting",
@@ -970,10 +970,10 @@ def _save_generated_video_with_retry(
     video_url: str, save_dir: str, provider: str
 ) -> str:
     """
-    下载已经付费生成的产物，失败时优先重试同一个地址。
+    Tải xuống sản phẩm đã được thanh toán. Nếu không thành công, trước tiên hãy thử lại với cùng một địa chỉ.
 
-    重新生成一次远端任务的代价是再付一次费，所以下载抖动必须先在原地址上
-    做有限次退避重试，重试耗尽才放弃该片段。
+    Chi phí để tạo lại tác vụ từ xa là phải trả lại, vì vậy việc tải jitter trước tiên phải được thực hiện tại địa chỉ ban đầu.
+    Thực hiện một số lần thử lại có giới hạn và chỉ từ bỏ phân đoạn khi số lần thử lại đã hết.
     """
     for attempt in range(WAVESPEED_MAX_DOWNLOAD_RETRIES + 1):
         try:
@@ -1064,40 +1064,40 @@ def save_video(video_url: str, save_dir: str = "") -> str:
     return ""
 
 
-# OpenAI 兼容文生图（Issue #1274）通过 /images/generations 协议为脚本关键词
-# 生成图片素材，既可指向本地 ComfyUI/SD 网关，也可用于各类 OpenAI 协议中转
-# 服务。生成的图片立即渲染成与 local 素材同款"缓慢放大"mp4 片段，对下游
-# 剪辑流程完全透明。
+# OpenAI tương thích với biểu đồ thế hệ (Số phát hành #1274) thông qua giao thức /images/thế hệ làm từ khóa tập lệnh
+# Tạo tài liệu hình ảnh, có thể được trỏ tới cổng ComfyUI/SD cục bộ hoặc được sử dụng để chuyển giao thức OpenAI khác nhau
+# Phục vụ. Hình ảnh được tạo ngay lập tức được hiển thị thành một đoạn mp4 "được phóng to từ từ" có cùng kiểu với tài liệu cục bộ, rất hữu ích cho việc tải xuống
+# Quá trình chỉnh sửa hoàn toàn minh bạch.
 OPENAI_IMAGE_ENDPOINT_PATH = "images/generations"
-# OpenAI 官方图片接口只接受模型规定的尺寸，不能直接传视频分辨率（如 1080x1920）。
-# 留空 openai_image_size 时按画幅取以下兼容默认值；本地网关可显式配置覆盖。
+# Giao diện hình ảnh chính thức của OpenAI chỉ chấp nhận kích thước do model chỉ định và không thể truyền trực tiếp độ phân giải video (chẳng hạn như 1080x1920).
+# Khi openai_image_size được để trống, các giá trị mặc định tương thích sau đây sẽ được sử dụng theo khung; cổng cục bộ có thể được cấu hình rõ ràng để ghi đè.
 OPENAI_IMAGE_DEFAULT_SIZES = {
     VideoAspect.portrait: "1024x1536",
     VideoAspect.landscape: "1536x1024",
     VideoAspect.square: "1024x1024",
 }
-# 与 WaveSpeed 保持同一重试口径：429 与 5xx 属于临时故障，做有限次退避重试。
+# Giữ nguyên cỡ thử lại như WaveSpeed: 429 và 5xx là những lỗi tạm thời và yêu cầu một số lần thử lại có giới hạn.
 OPENAI_IMAGE_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
-# 401/403 是当前 key 被明确拒绝。get_api_key 每次调用轮换 key，配置了多个
-# key 时重试会自动换 key；只有一个 key 时快速失败，不做无意义重试。
+# 401/403 có nghĩa là khóa hiện tại bị từ chối rõ ràng. get_api_key xoay khóa mỗi lần nó được gọi, nhiều cấu hình được định cấu hình
+# Chìa khóa sẽ được tự động thay đổi khi thử lại; khi chỉ có một chìa khóa, nó sẽ thất bại nhanh chóng và sẽ không có những lần thử lại vô nghĩa.
 OPENAI_IMAGE_KEY_ERROR_STATUS_CODES = frozenset({401, 403})
 OPENAI_IMAGE_MAX_ATTEMPTS = 3
-# 串行出图 + 线性退避，兼容中转服务普遍的限流恢复窗口。
+# Đầu ra nối tiếp + độ trễ tuyến tính, tương thích với cửa sổ khôi phục giới hạn hiện tại chung của các dịch vụ chuyển tuyến.
 OPENAI_IMAGE_RETRY_BACKOFF_SECONDS = (5, 15, 30)
-# 同步生成接口可能需要数十秒才返回图片，读超时给足余量。
+# Giao diện tạo đồng bộ có thể mất hàng chục giây để trả về hình ảnh và thời gian chờ đọc sẽ có đủ biên độ.
 OPENAI_IMAGE_REQUEST_TIMEOUT = (30, 300)
-# 图片已按张计费后的下载重试：优先重试原地址，而不是重新生成同一张图。
+# Thử tải xuống lại sau khi ảnh đã được tính phí trên cơ sở từng ảnh: Ưu tiên thử lại địa chỉ ban đầu thay vì tạo lại cùng một ảnh.
 OPENAI_IMAGE_MAX_DOWNLOAD_ATTEMPTS = 3
 OPENAI_IMAGE_DOWNLOAD_BACKOFF_SECONDS = 2
 
 
 def is_openai_image_enabled(app_config: dict | None = None) -> bool:
     """
-    判断 OpenAI 兼容文生图素材源是否已完成最小配置。
+    Xác định xem nguồn tài liệu hình ảnh Vincent tương thích với OpenAI đã hoàn thành cấu hình tối thiểu hay chưa.
 
-    API Key 允许为空：完全本地的 ComfyUI/SD 网关通常不需要鉴权，为空时
-    请求不带 Authorization 头。供任务预检和 WebUI 在消耗 LLM、TTS 额度
-    前拦截缺失配置的任务。
+    Khóa API được phép để trống: Cổng ComfyUI/SD hoàn toàn cục bộ thường không yêu cầu xác thực khi nó trống
+    Yêu cầu không có tiêu đề ủy quyền. Để kiểm tra trước nhiệm vụ và tín dụng WebUI, LLM và TTS được sử dụng
+    Chặn trước các tác vụ có cấu hình bị thiếu.
     """
     app_config = config.app if app_config is None else app_config
     return bool(
@@ -1108,7 +1108,7 @@ def is_openai_image_enabled(app_config: dict | None = None) -> bool:
 
 def _openai_image_endpoint() -> tuple[str, str]:
     """
-    读取文生图端点与模型名，缺失时抛出带配置指引的错误。
+    Đọc điểm cuối và tên mô hình của sơ đồ Vincent, đồng thời đưa ra lỗi kèm theo hướng dẫn cấu hình khi bị thiếu.
     """
     base_url = (
         str(config.app.get("openai_image_base_url", "") or "").strip().rstrip("/")
@@ -1129,11 +1129,11 @@ def _openai_image_endpoint() -> tuple[str, str]:
 
 def _openai_image_size(video_aspect: VideoAspect) -> str:
     """
-    解析请求的图片 size。
+    Phân tích kích thước hình ảnh được yêu cầu.
 
-    OpenAI 官方接口只接受模型规定的尺寸（如 1024x1536），直接传视频分辨率
-    （如 1080x1920）会返回 400。默认按画幅取兼容尺寸；``openai_image_size``
-    可显式配置覆盖，供支持任意分辨率的本地网关（如 SD WebUI）使用。
+    Giao diện OpenAI chính thức chỉ chấp nhận kích thước do kiểu máy chỉ định (chẳng hạn như 1024x1536) và truyền trực tiếp độ phân giải video.
+    (chẳng hạn như 1080x1920) sẽ trả về 400. Theo mặc định, kích thước tương thích được lấy theo khung; ``openai_image_size``
+    Phần ghi đè có thể được định cấu hình rõ ràng để sử dụng bởi các cổng gốc (chẳng hạn như SD WebUI) hỗ trợ mọi độ phân giải.
     """
     configured = str(config.app.get("openai_image_size", "") or "").strip()
     if configured:
@@ -1143,7 +1143,7 @@ def _openai_image_size(video_aspect: VideoAspect) -> str:
 
 def _openai_image_prompt(search_term: str, character_prompt: str = "") -> str:
     """
-    把脚本关键词包装成最终提示词。支持可选的 character_prompt 实现角色一致性。
+    Gói các từ khóa của tập lệnh vào các từ gợi ý cuối cùng. Hỗ trợ character_prompt tùy chọn để đảm bảo tính nhất quán của ký tự.
     """
     term = f"{character_prompt}, {search_term}" if character_prompt else search_term
     template = str(config.app.get("openai_image_prompt_template", "") or "").strip()
@@ -1156,7 +1156,7 @@ def _openai_image_prompt(search_term: str, character_prompt: str = "") -> str:
 
 
 def _response_json_safely(response: Any) -> Any:
-    """读取响应 JSON；测试替身或异常响应解析失败时返回 None。"""
+    """Đọc JSON phản hồi; trả về Không có nếu phản hồi kiểm tra kép hoặc ngoại lệ không phân tích được."""
     try:
         return response.json()
     except Exception:
@@ -1165,11 +1165,11 @@ def _response_json_safely(response: Any) -> Any:
 
 def _openai_image_response_message(body: Any) -> str:
     """
-    从 OpenAI 兼容响应中提取可读错误描述。
+    Trích xuất các mô tả lỗi mà con người có thể đọc được từ các phản hồi tương thích với OpenAI.
 
-    标准格式是 ``{"error": {"message": ...}}``，中转服务常退化为
-    ``{"message": ...}`` 或直接给一个字符串。都取不到时返回空串，由调用方
-    决定是否回退到响应正文。
+    Định dạng chuẩn là ``{"error": {"message": ...}}`` và các dịch vụ chuyển tuyến thường thoái hóa thành
+    ``{"message": ...}`` hoặc đưa ra một chuỗi trực tiếp. Nếu không thể lấy được, một chuỗi trống sẽ được trả về, được xác định bởi người gọi
+    Xác định xem có quay lại phần thân phản hồi hay không.
     """
     if not isinstance(body, dict):
         return str(body or "")[:300]
@@ -1182,7 +1182,7 @@ def _openai_image_response_message(body: Any) -> str:
 
 
 def _openai_image_http_failure(response: Any, status: int, api_key: str) -> str:
-    """把 HTTP 错误响应整理成一条脱敏后的日志可读描述。"""
+    """Sắp xếp các phản hồi lỗi HTTP thành mô tả có thể đọc được trong nhật ký đã được giải mẫn cảm."""
     message = _openai_image_response_message(_response_json_safely(response))
     if not message:
         message = str(getattr(response, "text", "") or "")[:300]
@@ -1194,10 +1194,10 @@ def _openai_image_download_bytes(
     api_key: str,
 ) -> tuple[bytes | None, str]:
     """
-    下载已生成图片的临时 URL。
+    Tải xuống URL tạm thời của hình ảnh được tạo.
 
-    图片已经按张计费，下载失败时优先重试原地址，而不是回退到重新生成，
-    避免为同一张图重复付费。
+    Hình ảnh được tính phí trên cơ sở mỗi hình ảnh. Khi tải xuống không thành công, ưu tiên thử lại địa chỉ ban đầu thay vì quay lại tạo lại.
+    Tránh trả tiền hai lần cho cùng một bức tranh.
     """
     failure_detail = "no download attempt was made"
     for attempt in range(1, OPENAI_IMAGE_MAX_DOWNLOAD_ATTEMPTS + 1):
@@ -1235,10 +1235,10 @@ def _parse_openai_image_response(
     api_key: str,
 ) -> tuple[bytes | None, str]:
     """
-    解析 /images/generations 响应，取回 url 或 b64_json 图片数据。
+    Phân tích phản hồi /images/thế hệ và truy xuất dữ liệu hình ảnh url hoặc b64_json.
 
-    解析失败属于明确的业务拒绝（如内容策略）或异常响应格式，直接返回
-    错误描述，不做退避重试——重发同样的请求只会得到同样的结果。
+    Nếu lỗi phân tích cú pháp thuộc về sự từ chối kinh doanh rõ ràng (chẳng hạn như chính sách nội dung) hoặc định dạng phản hồi bất thường, nó sẽ được trả về trực tiếp.
+    Mô tả lỗi, thử lại mà không chờ đợi - gửi lại cùng một yêu cầu sẽ chỉ nhận được kết quả tương tự.
     """
     body = _response_json_safely(response)
     data = body.get("data") if isinstance(body, dict) else None
@@ -1265,19 +1265,19 @@ def _parse_openai_image_response(
 
 def _request_openai_image(endpoint: str, payload: dict) -> tuple[bytes | None, str]:
     """
-    调用 OpenAI 兼容 /images/generations 接口，带退避重试与 key 轮换。
+    Gọi giao diện /hình ảnh/thế hệ tương thích với OpenAI với các lần thử lại và xoay phím.
 
-    429/5xx 按临时故障退避重试；401/403 只有在配置了多个 key 时才重试
-    （借助 get_api_key 的轮换机制换 key）；其余 4xx 是明确拒绝，快速失败
-    交给上层跳过该关键词。
+    429/5xx Thử lại theo thời gian lùi lỗi tạm thời; 401/403 Chỉ thử lại khi có nhiều phím được định cấu hình
+    (Sử dụng cơ chế xoay của get_api_key để thay đổi key); 4xx còn lại bị từ chối rõ ràng và nhanh chóng thất bại.
+    Để cấp trên bỏ qua từ khóa này.
 
-    计费安全：POST 的读超时与连接中断视为"未确认"状态——服务端可能已经
-    生成并扣费，只是响应没有返回，自动重新提交可能造成重复生成和重复
-    计费，因此不做重试。只有连接阶段超时（ConnectTimeout，请求确定没有
-    送达服务端）才确认没有创建生成任务，可以安全重试。
+    Bảo mật thanh toán: Thời gian chờ đọc và gián đoạn kết nối của POST được coi là trạng thái "chưa được xác nhận" - máy chủ có thể có
+    Tạo và tính phí, nhưng phản hồi không được trả lại. Việc tự động gửi lại có thể gây ra sự lặp lại và sao chép.
+    Đang thanh toán nên không có lần thử lại nào được thực hiện. Chỉ hết thời gian chờ của giai đoạn kết nối (ConnectTimeout, yêu cầu OK không
+    Đã gửi đến máy chủ) để xác nhận rằng không có tác vụ tạo nào được tạo và bạn có thể thử lại một cách an toàn.
 
-    API Key 允许为空：完全本地的 ComfyUI/SD 网关通常不需要鉴权，为空时
-    不发送 Authorization 头。
+    Khóa API được phép để trống: Cổng ComfyUI/SD hoàn toàn cục bộ thường không yêu cầu xác thực khi nó trống
+    Không có tiêu đề ủy quyền nào được gửi.
     """
     api_keys = config.app.get("openai_image_api_keys")
     if isinstance(api_keys, (list, tuple)):
@@ -1304,15 +1304,15 @@ def _request_openai_image(endpoint: str, payload: dict) -> tuple[bytes | None, s
                 timeout=OPENAI_IMAGE_REQUEST_TIMEOUT,
             )
         except requests.exceptions.ConnectTimeout as e:
-            # 连接阶段超时：请求确定没有送达服务端，没有创建生成任务，
-            # 可以安全重试。
+            # Hết thời gian chờ của giai đoạn kết nối: Yêu cầu được xác định là không được gửi đến máy chủ và tác vụ tạo không được tạo.
+            # Sẽ an toàn để thử lại.
             failure_detail = (
                 f"connect timeout: detail={_redact_request_error(e, api_key)}"
             )
             retryable = True
         except Exception as e:
-            # 读超时/连接中断等属于"未确认"状态：服务端可能已经受理并扣费，
-            # 自动重新提交可能重复生成、重复计费，交由上层跳过该关键词。
+            # Hết thời gian chờ đọc/gián đoạn kết nối, v.v. ở trạng thái "chưa được xác nhận": máy chủ có thể đã chấp nhận và trừ phí.
+            # Việc gửi lại tự động có thể dẫn đến việc tạo lặp lại và thanh toán lặp lại và từ khóa sẽ bị lớp trên bỏ qua.
             failure_detail = (
                 f"unconfirmed request error (no retry to avoid double billing): "
                 f"{type(e).__name__}, detail={_redact_request_error(e, api_key)}"
@@ -1321,7 +1321,7 @@ def _request_openai_image(endpoint: str, payload: dict) -> tuple[bytes | None, s
             status = int(getattr(response, "status_code", 200) or 200)
             if status in OPENAI_IMAGE_KEY_ERROR_STATUS_CODES:
                 failure_detail = _openai_image_http_failure(response, status, api_key)
-                # 只有多 key 配置下，重试才可能轮换到可用 key。
+                # Chỉ trong cấu hình nhiều phím, việc thử lại mới có thể xoay sang các phím có sẵn.
                 retryable = len(configured_keys) > 1
             elif status in OPENAI_IMAGE_RETRYABLE_STATUS_CODES:
                 failure_detail = _openai_image_http_failure(response, status, api_key)
@@ -1357,11 +1357,11 @@ def _save_openai_image_file(
     save_dir: str,
 ) -> tuple[str, int, int]:
     """
-    把生成结果规范成 PNG 落盘，返回 (路径, 宽, 高)。
+    Chuẩn hóa kết quả được tạo thành PNG và trả về (đường dẫn, chiều rộng, chiều cao).
 
-    统一转成 PNG 可以规避两类问题：中转服务返回 WebP/JPEG 却没有可靠
-    扩展名，以及携带异常元数据的图片让 MoviePy 解析失败（与 local 素材
-    的净化逻辑呼应，这里在落盘阶段就完成规范化）。
+    Chuyển đổi hợp nhất sang PNG có thể tránh được hai loại vấn đề: dịch vụ chuyển trả về WebP/JPEG nhưng không đáng tin cậy
+    tiện ích mở rộng và hình ảnh mang siêu dữ liệu bất thường khiến MoviePy không thể phân tích cú pháp (với các tài liệu cục bộ
+    Để đáp ứng logic thanh lọc, việc tiêu chuẩn hóa được hoàn thành trong giai đoạn sắp xếp).
     """
     if not save_dir:
         save_dir = utils.storage_dir("cache_images", create=True)
@@ -1370,10 +1370,10 @@ def _save_openai_image_file(
 
     image_path = os.path.join(save_dir, f"openai-image-{uuid.uuid4().hex[:12]}.png")
 
-    # 图片解码失败可以降级为“跳过当前关键词”，但目录权限、磁盘空间和文件
-    # 写入失败必须继续抛出，否则按需生成循环会在本地无法保存文件时继续创建
-    # 后续付费任务。Image.open 只读取内存字节，因此这里的 OSError 属于格式
-    # 识别失败；image.load 的 OSError 则对应截断或损坏的图片数据。
+    # Lỗi giải mã hình ảnh có thể bị hạ cấp thành "bỏ qua từ khóa hiện tại", nhưng quyền thư mục, dung lượng ổ đĩa và tệp
+    # Lỗi ghi phải tiếp tục được đưa ra, nếu không, vòng lặp tạo theo yêu cầu sẽ tiếp tục tạo tệp khi không thể lưu cục bộ.
+    # Nhiệm vụ được trả tiền tiếp theo. Image.open chỉ đọc byte bộ nhớ nên OSError ở đây thuộc định dạng
+    # Công nhận không thành công; OSError của image.load tương ứng với dữ liệu hình ảnh bị cắt bớt hoặc bị hỏng.
     try:
         image = Image.open(io.BytesIO(image_bytes))
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
@@ -1386,8 +1386,8 @@ def _save_openai_image_file(
             raise _OpenAIImageDecodeError(f"{type(exc).__name__}: {exc}") from exc
         if image.mode not in ("RGB", "RGBA", "L", "LA", "P"):
             image = image.convert("RGB")
-        # save 不放进解码异常保护区：写入错误表示运行环境持续不可用，应立即
-        # 终止整个任务，避免后续关键词继续产生无法落盘的付费图片。
+        # lưu không được đặt trong vùng bảo vệ ngoại lệ giải mã: lỗi ghi cho biết môi trường vận hành tiếp tục không khả dụng và sẽ
+        # Chấm dứt toàn bộ nhiệm vụ để ngăn các từ khóa tiếp theo tiếp tục tạo ra những hình ảnh trả phí không thể đưa ra thị trường.
         image.save(image_path, format="PNG")
         width, height = image.size
     return image_path, width, height
@@ -1420,7 +1420,7 @@ def generate_images_openai(
     character_prompt: str = "",
 ) -> List[MaterialInfo]:
     """
-    用 OpenAI 兼容文生图接口为一个脚本关键词生成一张图片并保存到本地。
+    Sử dụng giao diện hình ảnh Vincent tương thích OpenAI để tạo hình ảnh cho từ khóa tập lệnh và lưu cục bộ.
     """
     aspect = VideoAspect(video_aspect)
     clip_duration = max(int(minimum_duration), 1)
@@ -1454,9 +1454,9 @@ def generate_images_openai(
     try:
         image_path, width, height = _save_openai_image_file(image_bytes, save_dir)
     except _OpenAIImageDecodeError as e:
-        # 兼容层可能返回 200 但 body 不是图片（如伪装成 JSON 的 HTML 错误页、
-        # 网关的降级提示页）。图片无法解码属于"该次生成已失败"，按素材源
-        # 约定返回空列表让上层跳过该关键词继续，而不是让异常中断整个任务。
+        # Lớp tương thích có thể trả về 200 nhưng nội dung không phải là hình ảnh (chẳng hạn như trang lỗi HTML được ngụy trang dưới dạng JSON,
+        # Trang nhắc hạ cấp cổng). Những hình ảnh không thể giải mã được thuộc về “Thế hệ đã thất bại”, theo nguồn tư liệu
+        # Nó được đồng ý trả về một danh sách trống để cho phép lớp trên bỏ qua từ khóa và tiếp tục, thay vì để ngoại lệ làm gián đoạn toàn bộ nhiệm vụ.
         logger.error(
             "openai image response is not a decodable image, skipping term: "
             f"term={search_term!r}, error={type(e).__name__}, detail={e}"
@@ -1480,9 +1480,9 @@ def generate_images_openai(
 
 def _render_openai_image_video(image_path: str, clip_duration: int) -> str:
     """
-    把生成的图片渲染成 mp4 片段，复用 local 素材的"图片 → 动态片段"管线。
+    Kết xuất hình ảnh được tạo thành một đoạn mp4 và sử dụng lại quy trình "hình ảnh → đoạn động" của tài liệu cục bộ.
 
-    渲染失败按素材源约定返回空字符串，由调用方跳过该图片继续。
+    Nếu kết xuất không thành công, một chuỗi trống sẽ được trả về theo quy ước nguồn vật liệu và người gọi sẽ bỏ qua hình ảnh và tiếp tục.
     """
     try:
         return video.render_image_zoom_video(image_path, clip_duration)
@@ -1505,7 +1505,7 @@ def _download_videos_openai_image_on_demand(
     character_prompt: str = "",
 ) -> List[str]:
     """
-    按脚本片段顺序逐张生成 OpenAI 兼容文生图素材，凑够所需总时长立即停止。
+    Tạo từng tài liệu hình ảnh Vincent tương thích với OpenAI theo trình tự các đoạn tập lệnh và dừng ngay lập tức khi đạt đến tổng thời gian yêu cầu.
     """
     if not material_directory:
         material_directory = utils.task_dir(task_id)
@@ -1543,16 +1543,16 @@ def _download_videos_openai_image_on_demand(
             try:
                 material_sources.append(_material_source_record(item, video_file))
             except Exception as source_error:
-                # 与库存源一致：来源记录异常不能把已经付费生成并成功渲染的
-                # 素材当作失败，更不能阻断视频生成。
+                # Nhất quán với nguồn khoảng không quảng cáo: không thể tạo và hiển thị ngoại lệ bản ghi nguồn có tính phí.
+                # Tài liệu được coi là lỗi và không thể chặn quá trình tạo video.
                 logger.warning(
                     "failed to prepare generated material source record: "
                     f"provider=openai_image, "
                     f"error={type(source_error).__name__}, detail={source_error}"
                 )
             total_duration += min(max_clip_duration, item.duration)
-            # 与 WaveSpeed 相同用 >= 判断：恰好凑够时再生成一张就多付一次费。
-            # 内外两处判断必须保持同一语义。
+            # Tương tự như WaveSpeed, sử dụng >= để đánh giá: nếu bạn chỉ nhận đủ, bạn sẽ phải trả thêm một khoản phí nếu tạo một khoản phí khác.
+            # Hai phán đoán bên trong và bên ngoài phải duy trì cùng một ngữ nghĩa.
             if total_duration >= required_duration:
                 break
         if total_duration >= required_duration:
@@ -1576,11 +1576,11 @@ def _search_videos_with_cache(
     video_aspect: VideoAspect,
 ) -> List[MaterialInfo]:
     """
-    统一处理三个在线素材源的 24 小时搜索缓存。
+    Xử lý thống nhất bộ nhớ đệm tìm kiếm 24 giờ cho ba nguồn trực tuyến.
 
-    缓存只包裹搜索 API，不改变后续视频下载与去重逻辑。远端返回空列表时不写
-    缓存，因为现有 provider 接口使用空列表同时表示“没有结果”和“请求失败”；
-    在两者尚未拆分为明确结果类型前，宁可下次重试，也不能把临时故障缓存一天。
+    Bộ đệm chỉ bao bọc API tìm kiếm và không thay đổi logic tải xuống và sao chép video tiếp theo. Không viết khi đầu xa trả về danh sách trống
+    Bộ nhớ đệm, vì giao diện nhà cung cấp hiện tại sử dụng danh sách trống để thể hiện cả "không có kết quả" và "yêu cầu không thành công";
+    Trước khi cả hai được chia thành các loại kết quả rõ ràng, tốt hơn là bạn nên thử lại lần sau thay vì lưu trữ các lỗi tạm thời trong một ngày.
     """
     cache_args = {
         "provider": provider,
@@ -1593,8 +1593,8 @@ def _search_videos_with_cache(
         try:
             return material_cache.load_material_search_cache(**cache_args)
         except Exception as exc:
-            # 缓存是可选优化，任何缓存实现异常都必须按未命中处理，不能阻断
-            # Pexels、Pixabay 或 Coverr 的正常远端搜索。
+            # Bộ nhớ đệm là một tối ưu hóa tùy chọn. Mọi ngoại lệ triển khai bộ nhớ đệm đều phải được coi là thiếu sót và không thể bị chặn.
+            # Tìm kiếm từ xa thông thường từ Pexels, Pixabay hoặc Coverr.
             logger.warning(
                 "material search cache read failed, continue with remote search: "
                 f"provider={provider}, error={type(exc).__name__}, detail={exc}"
@@ -1612,8 +1612,8 @@ def _search_videos_with_cache(
         )
         ignored_count = len(cached_items) - len(filtered_cached_items)
         if ignored_count:
-            # 旧版本缓存可能混入其它方向的素材。即使仍有少量可用条目，也要刷新
-            # 完整候选集，否则在缓存有效期内会反复使用同一批少量视频。
+            # Bộ đệm phiên bản cũ hơn có thể chứa tài liệu từ các hướng khác. Làm mới ngay cả khi vẫn còn một vài mục có sẵn
+            # Bộ ứng cử viên hoàn chỉnh, nếu không, cùng một loạt video nhỏ sẽ được sử dụng lặp đi lặp lại trong thời gian hiệu lực của bộ nhớ đệm.
             return None, ignored_count
         return filtered_cached_items, 0
 
@@ -1629,8 +1629,8 @@ def _search_videos_with_cache(
 
     cache_lock = material_cache.get_material_search_cache_lock(**cache_args)
     with cache_lock:
-        # 等待相同搜索条件的线程完成后再次读取，避免多个 API 任务在首次缓存
-        # 未命中时同时请求远端，降低第三方接口限流和风控触发概率。
+        # Đợi các chuỗi có cùng điều kiện tìm kiếm hoàn tất trước khi đọc lại để tránh nhiều tác vụ API được lưu vào bộ nhớ đệm lần đầu tiên.
+        # Khi xảy ra lỗi, đầu từ xa sẽ được yêu cầu cùng lúc, giảm khả năng kích hoạt giới hạn dòng điện giao diện của bên thứ ba và kích hoạt kiểm soát rủi ro.
         cached_items, _ = load_matching_cache()
         if cached_items is not None:
             return cached_items
@@ -1640,9 +1640,9 @@ def _search_videos_with_cache(
             minimum_duration=minimum_duration,
             video_aspect=video_aspect,
         )
-        # Provider 正常会写入当前关键词，但测试替身、第三方扩展或旧实现可能
-        # 遗漏或携带错误值。缓存读取会根据缓存键恢复该字段，因此远端结果也在
-        # 同一入口校正，保证首次搜索与缓存命中的任务来源记录保持一致。
+        # Nhà cung cấp thường sẽ viết từ khóa hiện tại, nhưng việc kiểm tra sẽ nhân đôi, tiện ích mở rộng của bên thứ ba hoặc triển khai cũ có thể
+        # Thiếu hoặc mang giá trị sai. Quá trình đọc được lưu vào bộ đệm sẽ khôi phục trường dựa trên khóa bộ đệm, do đó kết quả từ xa cũng là
+        # Việc chỉnh sửa mục nhập tương tự đảm bảo rằng các bản ghi nguồn tác vụ truy cập bộ nhớ đệm và tìm kiếm đầu tiên là nhất quán.
         for item in items:
             if isinstance(item.source_info, dict):
                 item.source_info = dict(item.source_info)
@@ -1804,8 +1804,8 @@ def download_videos(
                         _material_source_record(item, saved_video_path)
                     )
                 except Exception as source_error:
-                    # 来源记录异常不能把已经成功下载的素材视为下载失败，更不能
-                    # 阻断视频生成；保留供应商和异常类型用于后续定位。
+                    # Nếu bản ghi nguồn không bình thường thì tài liệu được tải xuống thành công không thể được coi là lỗi tải xuống chứ chưa nói đến
+                    # Chặn việc tạo video; giữ lại các nhà cung cấp và các loại bất thường cho việc định vị tiếp theo.
                     logger.warning(
                         "failed to prepare material source record: "
                         f"provider={item.provider}, "
@@ -1839,12 +1839,12 @@ def _download_videos_wavespeed_on_demand(
     material_directory: str,
 ) -> List[str]:
     """
-    按脚本片段顺序逐段生成 WaveSpeed 素材，凑够所需总时长立即停止。
+    Tạo từng phần vật liệu WaveSpeed ​​​​theo thứ tự các đoạn tập lệnh và dừng ngay lập tức khi đạt đến tổng thời lượng yêu cầu.
 
-    每个关键词天然对应一个脚本片段，生成即付费：先全量生成再挑选会为
-    用不到的片段付费。这里每生成一段就立刻下载并累计有效时长（与库存
-    流程一致，按片段时长封顶），累计超过所需配音时长后不再触发新的生成
-    请求。单段失败按现有素材源约定跳过并继续下一段。
+    Mỗi từ khóa tương ứng một cách tự nhiên với một đoạn tập lệnh và bạn trả tiền khi tạo nó: Tạo nó đầy đủ trước rồi chọn nó.
+    Trả tiền cho những cảnh quay chưa sử dụng. Mỗi khi một đoạn văn được tạo ở đây, nó sẽ được tải xuống ngay lập tức và thời hạn hiệu lực được tích lũy (với kho lưu trữ
+    Quá trình này giống nhau, bị giới hạn bởi thời lượng clip) và thế hệ mới sẽ không còn được kích hoạt sau khi thời lượng lồng tiếng tích lũy vượt quá thời lượng yêu cầu.
+    hỏi. Nếu một đoạn văn không đạt, hãy bỏ qua và tiếp tục sang đoạn tiếp theo theo quy ước về nguồn tài liệu hiện có.
     """
     video_paths: List[str] = []
     material_sources: list[dict[str, Any]] = []
@@ -1857,9 +1857,9 @@ def _download_videos_wavespeed_on_demand(
                 video_aspect=video_aspect,
             )
         except WaveSpeedUnconfirmedTaskError as e:
-            # 已提交的付费任务状态不明：远端可能仍在运行或已经完成并计费。
-            # 继续为后续关键词下单会造成重复生成和重复扣费，因此就地停止，
-            # 并把 prediction id 留在日志里供人工在控制台找回产物。
+            # Trạng thái của các tác vụ phải trả phí đã gửi không xác định: đầu từ xa có thể vẫn đang chạy hoặc có thể đã được hoàn thành và lập hóa đơn.
+            # Việc tiếp tục đặt hàng cho các từ khóa tiếp theo sẽ gây ra việc tạo lặp lại và bị khấu trừ nhiều lần, vì vậy hãy dừng việc này ngay tại chỗ.
+            # Và để lại id dự đoán trong nhật ký để truy xuất sản phẩm theo cách thủ công trên bảng điều khiển.
             logger.error(
                 "stop submitting new wavespeed tasks, the last submitted task "
                 f"is unconfirmed: prediction_id={e.prediction_id or 'unknown'}, "
@@ -1877,16 +1877,16 @@ def _download_videos_wavespeed_on_demand(
             try:
                 material_sources.append(_material_source_record(item, saved_video_path))
             except Exception as source_error:
-                # 与库存源一致：来源记录异常不能把已经付费生成并成功下载的
-                # 素材当作失败，更不能阻断视频生成。
+                # Phù hợp với nguồn hàng tồn kho: bản ghi nguồn không bình thường và không thể tạo và tải xuống thành công với một khoản phí.
+                # Tài liệu được coi là lỗi và không thể chặn quá trình tạo video.
                 logger.warning(
                     "failed to prepare material source record: "
                     f"provider={item.provider}, "
                     f"error={type(source_error).__name__}, detail={source_error}"
                 )
             total_duration += min(max_clip_duration, item.duration)
-            # 用 >= 判断:累计时长恰好等于所需时长时已经够用,再生成会
-            # 多付一次费用。内外两处判断必须保持同一语义。
+            # Sử dụng >= để phán đoán: khi thời gian tích lũy bằng đúng với thời gian yêu cầu là đủ và sẽ được tái tạo.
+            # Trả thêm một khoản phí. Hai phán đoán bên trong và bên ngoài phải duy trì cùng một ngữ nghĩa.
             if total_duration >= audio_duration:
                 break
         if total_duration >= audio_duration:
@@ -1910,13 +1910,13 @@ def _download_videos_seedance_on_demand(
     max_clip_duration: int,
     material_directory: str,
 ) -> List[str]:
-    """顺序生成方舟 Seedance 素材，覆盖配音时长后立即停止付费下单。"""
+    """Tạo các tài liệu Ark Seedance một cách tuần tự và ngừng thanh toán cho các đơn đặt hàng ngay sau khi kết thúc thời gian lồng tiếng."""
     video_paths: List[str] = []
     material_sources: list[dict[str, Any]] = []
 
-    # 付费生成循环必须先验证控制循环次数的两个时长。NaN/Infinity 会让
-    # ``total_duration >= audio_duration`` 永远不成立，而非正片段时长会让
-    # 累计值无法增长，两者都可能为全部关键词创建无用的付费任务。
+    # Các vòng tạo trả phí trước tiên phải xác minh hai khoảng thời gian kiểm soát số vòng lặp. NaN/Infinity sẽ tạo ra
+    # ``total_duration >= audio_duration`` sẽ không bao giờ giữ nguyên và thời lượng clip không tích cực sẽ khiến
+    # Giá trị tích lũy không thể tăng lên và cả hai đều có thể tạo ra các tác vụ phải trả phí vô ích cho tất cả từ khóa.
     try:
         required_duration = float(audio_duration)
     except (TypeError, ValueError) as exc:
@@ -1955,8 +1955,8 @@ def _download_videos_seedance_on_demand(
                 video_aspect=video_aspect,
             )
         except volcengine_seedance.VolcEngineSeedanceUnconfirmedTaskError as exc:
-            # 远端付费任务仍可能成功。立即停止继续下单，并保留任务 ID，方便
-            # 用户随后在方舟控制台确认或找回结果。
+            # Nhiệm vụ trả phí từ xa vẫn có thể thành công. Dừng ngay việc đặt hàng và giữ lại ID nhiệm vụ cho tiện
+            # Sau đó người dùng xác nhận hoặc truy xuất kết quả trên bảng điều khiển Ark.
             logger.error(
                 "stop submitting new Seedance tasks because the last paid task "
                 f"is unconfirmed: task_id={exc.task_id or 'unknown'}, detail={exc}"
@@ -1973,9 +1973,9 @@ def _download_videos_seedance_on_demand(
                 item.url, material_directory, "volcengine_seedance"
             )
             if not saved_video_path:
-                # 远端任务已完成并产生费用，本地下载失败时必须把远端任务 ID
-                # 带回任务状态，便于用户去方舟控制台找回结果。这里直接抛出
-                # 专用错误，同时阻止后续关键词继续创建新的付费任务。
+                # Nhiệm vụ từ xa đã được hoàn thành và phí đã được tạo. Khi tải xuống cục bộ không thành công, ID tác vụ từ xa phải được
+                # Đưa lại trạng thái tác vụ để người dùng có thể vào bảng điều khiển Ark để lấy kết quả. Ném thẳng vào đây
+                # Lỗi đặc biệt, đồng thời ngăn các từ khóa tiếp theo tiếp tục tạo các tác vụ phải trả phí mới.
                 source_info = (
                     item.source_info if isinstance(item.source_info, dict) else {}
                 )
@@ -2023,13 +2023,13 @@ def _download_videos_ofox_on_demand(
     max_clip_duration: int,
     material_directory: str,
 ) -> List[str]:
-    """顺序生成 OFox 素材，覆盖配音时长后立即停止付费下单。"""
+    """Tạo tài liệu OFox một cách tuần tự và ngừng thanh toán cho các đơn đặt hàng ngay sau khi kết thúc thời gian lồng tiếng."""
     video_paths: List[str] = []
     material_sources: list[dict[str, Any]] = []
 
-    # 付费生成循环必须先验证控制循环次数的两个时长。NaN/Infinity 会让
-    # ``total_duration >= audio_duration`` 永远不成立，而非正片段时长会让
-    # 累计值无法增长，两者都可能为全部关键词创建无用的付费任务。
+    # Các vòng tạo trả phí trước tiên phải xác minh hai khoảng thời gian kiểm soát số vòng lặp. NaN/Infinity sẽ tạo ra
+    # ``total_duration >= audio_duration`` sẽ không bao giờ giữ nguyên và thời lượng clip không tích cực sẽ khiến
+    # Giá trị tích lũy không thể tăng lên và cả hai đều có thể tạo ra các tác vụ phải trả phí vô ích cho tất cả từ khóa.
     try:
         required_duration = float(audio_duration)
     except (TypeError, ValueError) as exc:
@@ -2060,8 +2060,8 @@ def _download_videos_ofox_on_demand(
                 video_aspect=video_aspect,
             )
         except ofox.OFoxUnconfirmedTaskError as exc:
-            # 远端付费任务仍可能成功。立即停止继续下单，并保留任务 ID，方便
-            # 用户随后在 OFox 控制台确认或找回结果。
+            # Nhiệm vụ trả phí từ xa vẫn có thể thành công. Dừng ngay việc đặt hàng và giữ lại ID nhiệm vụ cho tiện
+            # Sau đó, người dùng xác nhận hoặc truy xuất kết quả trong bảng điều khiển OOX.
             logger.error(
                 "stop submitting new OFox tasks because the last paid task "
                 f"is unconfirmed: task_id={exc.task_id or 'unknown'}, detail={exc}"
@@ -2073,16 +2073,16 @@ def _download_videos_ofox_on_demand(
             _persist_material_sources(task_id, material_sources)
             raise
 
-        # 单个关键词被远端明确判失败（如触发内容审核）时返回空列表：任务已
-        # 结束、无计费悬念，跳过该片段继续生成后续关键词。
+        # Khi một từ khóa không được đánh giá rõ ràng bởi đầu cuối từ xa (chẳng hạn như kích hoạt xem xét nội dung), một danh sách trống sẽ được trả về: nhiệm vụ đã được hoàn thành
+        # Kết thúc, không cần chần chừ thanh toán, bỏ qua phân đoạn này và tiếp tục tạo các từ khóa tiếp theo.
         for item in video_items:
             saved_video_path = _save_generated_video_with_retry(
                 item.url, material_directory, "ofox"
             )
             if not saved_video_path:
-                # 远端任务已完成并产生费用，本地下载失败时必须把远端任务 ID
-                # 带回任务状态，便于用户去 OFox 控制台找回结果。这里直接抛出
-                # 专用错误，同时阻止后续关键词继续创建新的付费任务。
+                # Nhiệm vụ từ xa đã được hoàn thành và phí đã được tạo. Khi tải xuống cục bộ không thành công, ID tác vụ từ xa phải được
+                # Đưa lại trạng thái tác vụ để người dùng có thể vào bảng điều khiển OOX lấy kết quả. Ném thẳng vào đây
+                # Lỗi đặc biệt, đồng thời ngăn các từ khóa tiếp theo tiếp tục tạo các tác vụ phải trả phí mới.
                 source_info = (
                     item.source_info if isinstance(item.source_info, dict) else {}
                 )
@@ -2128,13 +2128,13 @@ def _download_videos_metaso_minimax_on_demand(
     max_clip_duration: int,
     material_directory: str,
 ) -> List[str]:
-    """顺序生成秘塔 MiniMax 素材，覆盖配音时长后立即停止付费下单。"""
+    """Tài liệu MiniMax của Secret Tower được tạo tuần tự và đơn hàng thanh toán sẽ dừng ngay sau khi hết thời gian lồng tiếng."""
     video_paths: List[str] = []
     material_sources: list[dict[str, Any]] = []
 
-    # 远端最短生成 4 秒，但本地仍按用户片段时长裁剪和累计。提前验证循环
-    # 控制参数，避免 NaN、Infinity 或非正数让停止条件永远无法满足，进而把
-    # 所有关键词都提交为付费任务。
+    # Thời gian tối thiểu do đầu từ xa tạo ra là 4 giây, nhưng phân đoạn cục bộ vẫn được cắt bớt và tích lũy theo thời lượng của phân đoạn người dùng. Trước vòng lặp xác nhận
+    # Kiểm soát các tham số để tránh các số NaN, Infinity hoặc không dương sẽ không bao giờ thỏa mãn điều kiện dừng, do đó
+    # Tất cả các từ khóa được gửi dưới dạng nhiệm vụ phải trả tiền.
     try:
         required_duration = float(audio_duration)
     except (TypeError, ValueError) as exc:
@@ -2173,8 +2173,8 @@ def _download_videos_metaso_minimax_on_demand(
                 video_aspect=video_aspect,
             )
         except metaso_minimax.MetasoMiniMaxUnconfirmedTaskError as exc:
-            # 请求或轮询状态不明时，远端任务仍可能成功并计费。立即停止整个
-            # 生成循环，防止后续关键词继续下单，并把任务 ID 交给任务服务保存。
+            # Khi không xác định được yêu cầu hoặc trạng thái bỏ phiếu, tác vụ từ xa vẫn có thể thành công và bị tính phí. Dừng toàn bộ
+            # Tạo vòng lặp để ngăn không cho đặt thứ tự từ khóa tiếp theo và cung cấp ID tác vụ cho dịch vụ tác vụ để lưu trữ.
             logger.error(
                 "stop submitting new Metaso MiniMax tasks because the last paid "
                 f"task is unconfirmed: task_id={exc.task_id or 'unknown'}, "
@@ -2192,8 +2192,8 @@ def _download_videos_metaso_minimax_on_demand(
                 item.url, material_directory, "metaso_minimax"
             )
             if not saved_video_path:
-                # 生成成功已产生费用，下载失败时不能继续创建新任务来替代。
-                # 抛出携带远端 ID 的专用错误，供任务状态和人工恢复使用。
+                # Nếu việc tạo thành công, phí sẽ phát sinh. Nếu tải xuống không thành công thì không thể tạo tác vụ mới để thay thế.
+                # Đưa ra một lỗi chuyên dụng mang ID từ xa để sử dụng theo trạng thái tác vụ và khôi phục thủ công.
                 source_info = (
                     item.source_info if isinstance(item.source_info, dict) else {}
                 )
@@ -2215,8 +2215,8 @@ def _download_videos_metaso_minimax_on_demand(
                     f"detail={source_error}"
                 )
 
-            # 本地成片只使用用户选择的片段长度；即使 H3 因最短时长约束生成
-            # 了更长素材，也不能把未使用部分计入覆盖时长并少生成必要画面。
+            # Việc tạo phim cục bộ chỉ sử dụng độ dài phân đoạn do người dùng chọn; ngay cả khi H3 được tạo ra do hạn chế về thời lượng tối thiểu
+            # Để có được tài liệu dài hơn, phần chưa sử dụng không thể được tính vào thời gian hiển thị và các cảnh ít cần thiết hơn sẽ được tạo ra.
             total_duration += min(clip_duration, item.duration)
             if total_duration >= required_duration:
                 break
@@ -2243,13 +2243,13 @@ def _download_videos_by_script_order(
     material_directory: str,
 ) -> List[str]:
     """
-    按脚本文案顺序下载素材。
+    Tải tài liệu theo thứ tự copywriting script.
 
-    默认下载逻辑会把所有关键词的候选素材合并成一个大列表；如果第一个
-    关键词返回很多结果，最终下载时可能一直消耗这个关键词的素材，后续
-    脚本主题就排不上时间线。这里按关键词分组后轮询下载：
-    第 1 轮取每个关键词的第 1 个候选，第 2 轮取每个关键词的第 2 个候选。
-    这样在不重写视频合成引擎的前提下，尽量保证素材顺序贴近文案顺序。
+    Logic tải xuống mặc định sẽ hợp nhất tất cả các tài liệu đề xuất từ ​​khóa thành một danh sách lớn; nếu là người đầu tiên
+    Từ khóa trả về nhiều kết quả và nội dung của từ khóa này có thể được sử dụng trong lần tải xuống cuối cùng.
+    Chủ đề kịch bản không thể được lên lịch trên dòng thời gian. Ở đây chúng tôi nhóm theo từ khóa và sau đó thăm dò lượt tải xuống:
+    Vòng 1 lấy ứng viên thứ nhất cho mỗi từ khóa và vòng 2 lấy ứng cử viên thứ 2 cho mỗi từ khóa.
+    Bằng cách này, không cần viết lại công cụ tổng hợp video, hãy cố gắng đảm bảo rằng thứ tự của các tài liệu càng gần với thứ tự của bản sao chép càng tốt.
     """
     logger.info("downloading videos with script-order material matching")
     candidate_groups = []

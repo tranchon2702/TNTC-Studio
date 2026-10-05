@@ -50,31 +50,31 @@ Generate a script for a video, depending on the subject of the video.
 8. respond in the same language as the video subject.
 """.strip()
 
-# Claude Code CLI 默认使用编码 agent 的系统提示词，其中大量约束与文案写作
-# 无关，会让脚本和关键词生成偏离要求，因此调用时整体替换掉。
+# Claude Code CLI sử dụng từ nhắc hệ thống của tác nhân mã hóa theo mặc định, bao gồm một số lượng lớn các ràng buộc và sao chép
+# Không liên quan, nó sẽ khiến việc tạo tập lệnh và từ khóa đi chệch khỏi yêu cầu, vì vậy hãy thay thế chúng hoàn toàn khi gọi.
 CLAUDE_CODE_SYSTEM_PROMPT = (
     "You are a concise copywriter. Follow the user's instructions and output "
     "format exactly, and output nothing else."
 )
 CLAUDE_CODE_DEFAULT_TIMEOUT = 300.0
-# `--tools ""` 关闭全部内置工具，`--safe-mode` 关闭 CLAUDE.md、skills、hooks、
-# plugins、MCP 等所有用户级定制，同时保持鉴权、模型选择和权限正常工作。
-# 二者需要较新的 CLI；低版本会以 "unknown option" 退出，由调用处转成明确提示。
+# `--tools ""` đóng tất cả các công cụ tích hợp, `--safe-mode` đóng CLAUDE.md, kỹ năng, hook,
+# Tất cả các tùy chỉnh ở cấp độ người dùng như plugin, MCP, v.v. trong khi vẫn đảm bảo tính năng xác thực, lựa chọn mô hình và các quyền hoạt động bình thường.
+# Cả hai đều yêu cầu CLI mới hơn; phiên bản thấp hơn sẽ thoát với "tùy chọn không xác định" và thay đổi thành lời nhắc rõ ràng từ trang web gọi điện.
 CLAUDE_CODE_MIN_CLI_VERSION = "2.1.260"
-# 这些环境变量会让 CLI 改用 API Key 或第三方供应商（Bedrock、Vertex、Foundry、
-# Mantle、Gateway 等），从而绕过订阅登录并产生额外计费。逐个列举容易漏项，
-# 而且 CLI 后续还会新增供应商，因此按前缀整类剔除：
-#   ANTHROPIC_*           API Key、Auth Token、Base URL、各家供应商端点和 Profile
-#   CLAUDE_CODE_USE_*     供应商开关
-#   CLAUDE_CODE_SKIP_*_AUTH  跳过供应商鉴权的开关
+# Các biến môi trường này sẽ khiến CLI sử dụng Khóa API hoặc nhà cung cấp bên thứ ba (Bedrock, Vertex, Foundry,
+# Mantle, Gateway, v.v.), do đó bỏ qua việc đăng nhập đăng ký và phát sinh thêm hóa đơn. Rất dễ bỏ sót các mục nếu bạn liệt kê từng mục một.
+# Hơn nữa, CLI sẽ thêm các nhà cung cấp mới trong tương lai, vì vậy toàn bộ danh mục sẽ bị loại bỏ dựa trên tiền tố:
+#   ANTHOPIC_* Khóa API, Mã thông báo xác thực, URL cơ sở, các điểm cuối và hồ sơ nhà cung cấp khác nhau
+#   CLAUDE_CODE_USE_* chuyển đổi nhà cung cấp
+#   CLAUDE_CODE_SKIP_*_AUTH chuyển sang bỏ qua xác thực nhà cung cấp
 CLAUDE_CODE_CONFLICTING_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_CODE_USE_")
 CLAUDE_CODE_CONFLICTING_ENV_VARS = (
     "AWS_BEARER_TOKEN_BEDROCK",
     "CLAUDE_CODE_GATEWAY_TOKEN_FILE_DESCRIPTOR",
 )
-# 这两类变量不能剔除：
-#   CLAUDE_CODE_OAUTH_TOKEN 是容器内唯一的订阅鉴权方式（不匹配上面的前缀）；
-#   *_CONFIG_DIR 只是指出凭证存放位置，剔除后反而会让已登录的订阅失效。
+# Hai loại biến này không thể bị loại bỏ:
+#   CLAUDE_CODE_OAUTH_TOKEN là phương thức xác thực đăng ký duy nhất trong vùng chứa (không khớp với tiền tố trên);
+#   *_CONFIG_DIR chỉ chỉ ra vị trí lưu trữ thông tin xác thực. Nếu bị xóa, đăng ký đã đăng nhập sẽ không còn hiệu lực.
 CLAUDE_CODE_PRESERVED_ENV_VARS = (
     "CLAUDE_CODE_OAUTH_TOKEN",
     "ANTHROPIC_CONFIG_DIR",
@@ -83,7 +83,7 @@ CLAUDE_CODE_PRESERVED_ENV_VARS = (
 
 
 def _is_conflicting_claude_code_env(name: str) -> bool:
-    """判断某个环境变量是否会把 CLI 从订阅登录切换到别的鉴权方式。"""
+    """Xác định xem biến môi trường có chuyển CLI từ đăng nhập đăng ký sang phương thức xác thực khác hay không."""
     if name in CLAUDE_CODE_PRESERVED_ENV_VARS:
         return False
     if name in CLAUDE_CODE_CONFLICTING_ENV_VARS:
@@ -95,17 +95,17 @@ def _is_conflicting_claude_code_env(name: str) -> bool:
 
 def coerce_claude_code_timeout(value, config_key: str = "claude_code_timeout"):
     """
-    把配置里的超时值解析成正的有限秒数。
+    Phân tích giá trị thời gian chờ trong cấu hình thành số giây hữu hạn dương.
 
-    TOML 既可能写成 `claude_code_timeout = 300`（int/float），也可能写成
-    `"300"`（字符串），因此不能直接调用 `strip()`。nan / inf 会让
-    `subprocess.run(timeout=...)` 永久阻塞，这里一并拒绝。
+    TOML có thể được viết là `claude_code_timeout = 300` (int/float) hoặc dưới dạng
+    `"300"` (chuỗi), vì vậy `strip()` không thể được gọi trực tiếp. nan / inf sẽ làm
+    `subprocess.run(timeout=...)` bị chặn vĩnh viễn và bị từ chối tại đây.
     """
     if value is None:
         return CLAUDE_CODE_DEFAULT_TIMEOUT
 
     if isinstance(value, bool):
-        # bool 是 int 的子类，但 True 秒显然不是用户想要的超时配置。
+        # bool là một lớp con của int, nhưng True Seconds rõ ràng không phải là cấu hình thời gian chờ mà người dùng mong muốn.
         raise ValueError(f"{config_key} must be a number of seconds, got {value!r}")
 
     if isinstance(value, str):
@@ -132,11 +132,11 @@ def coerce_claude_code_timeout(value, config_key: str = "claude_code_timeout"):
 
 def _resolve_provider_field_value(raw_value, default_value):
     """
-    只有「未配置」时才回退到 Registry 默认值。
+    Chỉ dự phòng về mặc định của Sổ đăng ký khi "không được định cấu hình".
 
-    之前用 `raw or default_value`，会把 0 和 false 这类合法取值也当成未配置
-    替换掉：`claude_code_timeout = 0` 被静默改成 300，而 `"0"` 却报错。默认值
-    只在 None 或空白字符串时生效，配置校验才能对所有写法保持一致。
+    Trước đây, việc sử dụng `raw hoặc default_value` sẽ coi các giá trị pháp lý như 0 và false là chưa được định cấu hình
+    Đã thay thế: `claude_code_timeout = 0` được âm thầm thay đổi thành 300, trong khi `"0"` báo lỗi. giá trị mặc định
+    Nó chỉ có hiệu lực khi Không có hoặc một chuỗi trống được sử dụng để việc xác minh cấu hình có thể nhất quán cho tất cả các phương pháp ghi.
     """
     if raw_value is None:
         return default_value
@@ -147,11 +147,11 @@ def _resolve_provider_field_value(raw_value, default_value):
 
 def build_claude_code_env(base_env=None):
     """
-    构造只依赖订阅登录的子进程环境。
+    Xây dựng môi trường quy trình con chỉ dựa vào thông tin đăng nhập đăng ký.
 
-    返回 (环境变量字典, 被剔除的变量名列表)。剔除的是会切换鉴权方式或供应商
-    的变量，`CLAUDE_CODE_OAUTH_TOKEN` 必须保留：容器内没有 keychain，CLI 只能
-    靠它完成订阅鉴权。
+    Trả về (từ điển biến môi trường, danh sách tên biến bị loại trừ). Điều bị loại bỏ là phương thức xác thực hoặc nhà cung cấp sẽ được chuyển đổi.
+    Biến `CLAUDE_CODE_OAUTH_TOKEN` phải được giữ lại: không có móc khóa nào trong vùng chứa, CLI chỉ có thể
+    Dựa vào nó để hoàn thành xác thực đăng ký.
     """
     env = dict(os.environ if base_env is None else base_env)
     removed = sorted(name for name in env if _is_conflicting_claude_code_env(name))
@@ -161,9 +161,9 @@ def build_claude_code_env(base_env=None):
 
 
 def _normalize_text_response(content, llm_provider: str) -> str:
-    # 不同 LLM SDK 在异常或被拦截场景下，可能返回 None、空字符串，
-    # 甚至返回非字符串对象。这里统一做兜底校验，避免后续直接调用
-    # `.replace()` 时抛出 `NoneType` 之类的属性错误。
+    # Các SDK LLM khác nhau có thể trả về Không có hoặc chuỗi trống trong các trường hợp bất thường hoặc bị chặn.
+    # Ngay cả các đối tượng không phải chuỗi cũng được trả về. Kiểm tra toàn diện được thực hiện ở đây để tránh các cuộc gọi trực tiếp tiếp theo.
+    # Các lỗi thuộc tính như `NoneType` được đưa ra khi sử dụng `.replace()`.
     if content is None:
         raise ValueError(f"[{llm_provider}] returned empty text content")
 
@@ -172,27 +172,27 @@ def _normalize_text_response(content, llm_provider: str) -> str:
             f"[{llm_provider}] returned non-text content: {type(content).__name__}"
         )
 
-    # MiniMax M3、DeepSeek R1 这类 reasoning 模型可能会把内部推理包在
-    # `<think>...</think>` 中返回。视频脚本和关键词只需要最终可朗读文本，
-    # 如果不在服务层统一清理，WebUI、字幕和配音都会把思考过程当正文处理。
+    # Các mô hình lý luận như MiniMax M3 và DeepSeek R1 có thể bao bọc lý luận nội bộ trong
+    # Được trả về trong `<think>...</think>`. Tập lệnh video và từ khóa chỉ yêu cầu văn bản cuối cùng có thể đọc được,
+    # Nếu lớp dịch vụ không được dọn dẹp một cách thống nhất, WebUI, phụ đề và lồng tiếng sẽ coi quá trình suy nghĩ dưới dạng văn bản.
     content = _THINK_BLOCK_RE.sub("", content)
     content = _UNCLOSED_THINK_BLOCK_RE.sub("", content).strip()
     if not content:
         raise ValueError(f"[{llm_provider}] returned empty text content")
 
-    # 前面的 ``strip()`` 已经清理首尾空白。这里必须保留正文中的单换行和
-    # 双换行：脚本生成依赖双换行区分段落，字幕处理也会按行读取用户文案。
+    # ``strip()`` trước đó đã xóa khoảng trắng ở đầu và cuối. Ở đây bạn phải giữ lại các ngắt dòng đơn và
+    # Ngắt dòng đôi: Việc tạo tập lệnh dựa vào ngắt dòng đôi để phân biệt các đoạn văn và quá trình xử lý phụ đề cũng sẽ đọc bản sao của người dùng theo từng dòng.
     return content
 
 
 def _sanitize_error_message(error: object) -> str:
     """
-    清理返回给 WebUI/API 的错误信息，避免自定义 base_url 中的凭据泄露。
+    Dọn dẹp các thông báo lỗi được trả về WebUI/API để tránh rò rỉ thông tin xác thực trong base_url tùy chỉnh.
 
-    一些 OpenAI-compatible SDK 会把请求 URL 原样拼进异常信息。如果用户为了
-    代理网关配置了 `https://user:pass@example.com/v1`，直接返回 `str(e)`
-    就会把密码暴露给页面、API 调用方或后续日志。这里仅处理错误文案，不改变
-    实际请求地址，避免影响正常调用链路。
+    Một số SDK tương thích với OpenAI sẽ chèn URL yêu cầu vào thông tin ngoại lệ. Nếu người dùng muốn
+    Cổng proxy được định cấu hình bằng `https://user:pass@example.com/v1` và trả về trực tiếp `str(e)`.
+    Điều này sẽ hiển thị mật khẩu cho trang, người gọi API hoặc nhật ký tiếp theo. Chỉ có bản sao lỗi được xử lý ở đây và không bị thay đổi.
+    Địa chỉ yêu cầu thực tế để tránh ảnh hưởng tới link gọi thông thường.
     """
     message = str(error)
     message = _URL_USERINFO_RE.sub(r"\1***:***@", message)
@@ -201,10 +201,10 @@ def _sanitize_error_message(error: object) -> str:
 
 
 def _extract_chat_completion_text(response, llm_provider: str) -> str:
-    # OpenAI 兼容接口在异常场景下，可能返回没有 choices、
-    # 或者 choices/message/content 为空的响应对象。
-    # 这里统一做结构校验，避免出现 `NoneType is not subscriptable`
-    # 这类底层属性访问错误。
+    # Giao diện tương thích OpenAI có thể không trả về lựa chọn nào hoặc
+    # Hoặc các lựa chọn/tin nhắn/nội dung là một đối tượng phản hồi trống.
+    # Việc xác minh cấu trúc được thực hiện thống nhất ở đây để tránh `NoneType không thể đăng ký`
+    # Đây là loại lỗi truy cập thuộc tính cơ bản.
     choices = getattr(response, "choices", None)
     if not choices:
         raise ValueError(f"[{llm_provider}] returned empty choices")
@@ -219,7 +219,7 @@ def _extract_chat_completion_text(response, llm_provider: str) -> str:
 
 
 def _get_response_field(value, key: str):
-    """兼容 dict 和 SDK 响应对象的字段读取。"""
+    """Tương thích với việc đọc trường của các đối tượng phản hồi dict và SDK."""
     if isinstance(value, dict):
         return value.get(key)
 
@@ -231,12 +231,12 @@ def _get_response_field(value, key: str):
 
 def _extract_qwen_generation_text(response) -> str:
     """
-    从 DashScope Generation 响应中提取文本。
+    Trích xuất văn bản từ phản hồi của DashScope Generation.
 
-    Qwen 使用 `messages` 调用时返回的是 chat 结构：
-    `output.choices[0].message.content`；旧 completion 形态才会返回
-    `output.text`。这里两个路径都兼容，避免 `output.text` 为 None 时
-    继续 `.replace()` 触发不可诊断的 AttributeError。
+    Khi Qwen được gọi bằng `messages`, nó sẽ trả về cấu trúc trò chuyện:
+    `output.choices[0].message.content`; chỉ có mẫu hoàn thành cũ sẽ được trả lại
+    `đầu ra.text`. Cả hai đường dẫn ở đây đều tương thích để tránh `output.text` là Không có.
+    Việc tiếp tục với `.replace()` sẽ gây ra một AttributionError không thể chẩn đoán được.
     """
     output = _get_response_field(response, "output")
     choices = _get_response_field(output, "choices") if output else None
@@ -257,9 +257,9 @@ def _extract_qwen_generation_text(response) -> str:
 
 def _generate_response(prompt: str, app_config=None) -> str:
     try:
-        # WebUI 在视频生成期间允许用户准备下一条文案。调用方可以传入提交瞬间
-        # 的配置快照，确保模型请求重试期间不会因为后台任务结束并应用新配置，
-        # 而切换到另一个 Provider、Base URL 或模型。
+        # WebUI cho phép người dùng chuẩn bị bản sao tiếp theo trong quá trình tạo video. Người gọi có thể chuyển giao ngay lập tức
+        # Ảnh chụp nhanh cấu hình để đảm bảo rằng tác vụ nền sẽ không kết thúc và các cấu hình mới sẽ được áp dụng trong quá trình thử lại yêu cầu mô hình.
+        # Thay vào đó hãy chuyển sang Nhà cung cấp, URL cơ sở hoặc mô hình khác.
         runtime_app_config = app_config if app_config is not None else config.app
         llm_provider = str(
             runtime_app_config.get("llm_provider", DEFAULT_LLM_PROVIDER_ID)
@@ -291,8 +291,8 @@ def _generate_response(prompt: str, app_config=None) -> str:
         adapter = provider.adapter
         api_version = ""
 
-        # Ollama 的默认地址依赖当前是否运行在容器中，无法作为静态 Registry
-        # 值保存；Registry 仍负责模型和必填规则，运行环境差异在这里解析。
+        # Địa chỉ mặc định của Ollama phụ thuộc vào việc địa chỉ đó hiện có đang chạy trong vùng chứa hay không và không thể sử dụng làm sổ đăng ký tĩnh.
+        # Các giá trị được lưu; Cơ quan đăng ký vẫn chịu trách nhiệm về mô hình và các quy tắc bắt buộc, đồng thời giải thích những khác biệt về môi trường thời gian chạy ở đây.
         if llm_provider == "ollama":
             api_key = "ollama"
             if not base_url:
@@ -401,8 +401,8 @@ def _generate_response(prompt: str, app_config=None) -> str:
             generated_text = ""
             for g_idx in range(gemini_attempts):
                 try:
-                    # 新版 google-genai 通过统一 Client 暴露模型服务。上下文管理器
-                    # 会在请求结束后关闭底层 HTTP 连接，避免频繁生成时积累连接资源。
+                    # Phiên bản mới của google-genai hiển thị các dịch vụ mô hình thông qua Ứng dụng khách hợp nhất. quản lý bối cảnh
+                    # Kết nối HTTP cơ bản sẽ bị đóng sau khi yêu cầu được hoàn thành để tránh tích lũy tài nguyên kết nối trong quá trình tạo thường xuyên.
                     with genai.Client(
                         api_key=api_key,
                         http_options=http_options,
@@ -437,9 +437,9 @@ def _generate_response(prompt: str, app_config=None) -> str:
         if adapter == "cloudflare_ai_gateway":
             account_id = extra_values["account_id"]
             gateway_id = extra_values["gateway_id"]
-            # Cloudflare 当前推荐的 AI Gateway REST API 兼容 OpenAI SDK。
-            # Account ID 用于构造统一端点，Gateway ID 通过请求头选择；这里
-            # 不再调用 Workers AI 的 /ai/run/{model} 专用接口。
+            # API REST AI Gateway được đề xuất hiện tại của Cloudflare tương thích với OpenAI SDK.
+            # ID tài khoản được sử dụng để xây dựng điểm cuối hợp nhất và ID cổng được chọn thông qua tiêu đề yêu cầu; đây
+            # Giao diện chuyên dụng /ai/run/{model} của Workers AI không còn được gọi nữa.
             client = OpenAI(
                 api_key=api_key,
                 base_url=(
@@ -475,10 +475,10 @@ def _generate_response(prompt: str, app_config=None) -> str:
             return _extract_chat_completion_text(response, llm_provider)
 
         if adapter == "azure":
-            # Azure OpenAI SDK 使用 `azure_endpoint` 和 `api_version` 生成专用请求地址，
-            # 不能继续复用下面普通 OpenAI-compatible 的 `base_url` 初始化逻辑。
-            # 这里在 Azure 分支内完成请求并立即返回，避免客户端被后续 fallback
-            # 覆盖，导致用户配置的 Azure 凭证通过校验但实际请求没有被使用。
+            # Azure OpenAI SDK sử dụng `azure_endpoint` và `api_version` để tạo địa chỉ yêu cầu riêng tư,
+            # Bạn không thể tiếp tục sử dụng lại logic khởi tạo `base_url` tương thích OpenAI phổ biến bên dưới.
+            # Tại đây, yêu cầu được hoàn thành trong nhánh Azure và được trả về ngay lập tức để tránh tình trạng dự phòng tiếp theo trên máy khách.
+            # Ghi đè, khiến thông tin xác thực Azure được định cấu hình của người dùng vượt qua xác thực nhưng không được sử dụng cho yêu cầu thực tế.
             logger.info(f"requesting azure chat completion, model: {model_name}")
             client = AzureOpenAI(
                 api_key=api_key,
@@ -502,10 +502,10 @@ def _generate_response(prompt: str, app_config=None) -> str:
                 )
 
         if adapter == "claude_code":
-            # Claude 订阅（Pro / Max / Team）不签发 API Key，其凭证只能由
-            # Claude Code 官方客户端自己使用。这里不直接请求 Anthropic API，
-            # 而是以 headless 模式调用本机已登录的 claude CLI（`claude -p`），
-            # 由 CLI 完成鉴权，脚本生成只消费它返回的文本。
+            # Đăng ký Claude (Pro/Max/Team) không cấp Khóa API và thông tin đăng nhập của họ chỉ có thể được cấp bởi
+            # Khách hàng chính thức của Claude Code để bạn sử dụng. API Anthropic không được yêu cầu trực tiếp ở đây,
+            # Thay vào đó, hãy gọi claude CLI đã đăng nhập cục bộ (`claude -p`) ở chế độ không đầu,
+            # Việc xác thực được thực hiện bởi CLI và việc tạo tập lệnh chỉ sử dụng văn bản mà nó trả về.
             configured_cli = (extra_values.get("cli_path") or "").strip() or "claude"
             cli_path = shutil.which(configured_cli)
             if not cli_path and os.path.isfile(configured_cli):
@@ -532,29 +532,29 @@ def _generate_response(prompt: str, app_config=None) -> str:
                 "json",
                 "--system-prompt",
                 CLAUDE_CODE_SYSTEM_PROMPT,
-                # 关闭全部内置工具，保证只做文本生成。
+                # Đóng tất cả các công cụ tích hợp và đảm bảo chỉ thực hiện việc tạo văn bản.
                 "--tools",
                 "",
-                # 关闭 CLAUDE.md、skills、hooks、plugins、MCP 等用户级定制；
-                # 鉴权与模型选择不受影响（不能用 --bare，它会禁用 OAuth）。
+                # Tắt tùy chỉnh cấp độ người dùng như CLAUDE.md, kỹ năng, hook, plugin, MCP, v.v.;
+                # Việc xác thực và lựa chọn mô hình không bị ảnh hưởng (không thể sử dụng --bare, điều này sẽ tắt OAuth).
                 "--safe-mode",
             ]
-            # 模型名留空时沿用 CLI 自己的默认模型，避免这里硬编码的模型 ID
-            # 随订阅可用模型变化而失效。
+            # Khi tên mẫu được để trống, mẫu mặc định của CLI sẽ được sử dụng để tránh các ID mẫu được mã hóa cứng ở đây.
+            # Hết hạn khi các mẫu có sẵn đăng ký thay đổi.
             if model_name:
                 command += ["--model", model_name]
 
             cli_env, removed_env = build_claude_code_env()
             if removed_env:
-                # 只记录变量名，不记录取值，避免把密钥写进日志。
+                # Chỉ có tên biến được ghi lại chứ không phải giá trị để tránh ghi khóa vào nhật ký.
                 logger.warning(
                     f"{llm_provider}: ignoring conflicting environment variables "
                     f"so the subscription login is used: {', '.join(removed_env)}"
                 )
 
             logger.info(f"invoking claude cli, model: {model_name or 'cli default'}")
-            # CLI 会读取工作目录下的 CLAUDE.md 和项目设置，这些内容会污染
-            # 文案结果，因此固定在一个临时空目录中执行。
+            # CLI sẽ đọc CLAUDE.md và cài đặt dự án trong thư mục làm việc, điều này sẽ gây ô nhiễm
+            # Do đó, kết quả copywriting được cố định để thực thi trong một thư mục trống tạm thời.
             with tempfile.TemporaryDirectory() as work_dir:
                 try:
                     completed = subprocess.run(
@@ -571,9 +571,9 @@ def _generate_response(prompt: str, app_config=None) -> str:
                         f"{timeout_seconds:.0f}s"
                     )
 
-            # 未登录、用量耗尽这类失败同样会返回 JSON（`is_error` 为真，
-            # `result` 是可读原因），只是退出码非 0。因此先解析 stdout，
-            # 只有在拿不到 JSON 时才回退到退出码和 stderr。
+            # Các lỗi như không đăng nhập và sử dụng hết cũng sẽ trả về JSON (`is_error` là đúng,
+            # `kết quả` có thể đọc được), nhưng mã thoát không phải là 0. Vì vậy, hãy phân tích thiết bị xuất chuẩn trước,
+            # Dự phòng để thoát mã và stderr chỉ khi không có JSON.
             stdout = (completed.stdout or "").strip()
             try:
                 payload = json.loads(stdout) if stdout else None
@@ -601,7 +601,7 @@ def _generate_response(prompt: str, app_config=None) -> str:
                 reason = str(payload.get("result") or "").strip() or (
                     f"claude cli exited with code {completed.returncode}"
                 )
-                # 容器里无法执行交互式 /login，这里直接给出可用的鉴权方式。
+                # Không thể thực thi tương tác/đăng nhập trong vùng chứa. Các phương thức xác thực có sẵn được cung cấp trực tiếp tại đây.
                 if "login" in reason.lower():
                     reason += (
                         " (run `claude setup-token` on the host and pass the token "
@@ -667,11 +667,11 @@ def _generate_response(prompt: str, app_config=None) -> str:
 
 def test_connection() -> tuple[bool, str, float]:
     """
-    使用当前 Provider 配置发起一次最小请求，验证实际生成链路是否可用。
+    Sử dụng cấu hình Nhà cung cấp hiện tại để bắt đầu một yêu cầu tối thiểu nhằm xác minh xem liên kết được tạo thực tế có khả dụng hay không.
 
-    连接测试直接复用 `_generate_response()`，因此会覆盖 API Key、Base URL、
-    模型名称和 Provider 专用字段，但不会进入脚本生成的重试逻辑，也不会发送
-    用户的视频主题或文案。返回值依次为成功状态、错误信息和请求耗时。
+    Kiểm tra kết nối trực tiếp sử dụng lại `_generate_response()`, do đó, nó sẽ bao gồm Khóa API, URL cơ sở,
+    Tên mẫu và các trường dành riêng cho Nhà cung cấp nhưng sẽ không nhập logic thử lại do tập lệnh tạo ra và sẽ không được gửi.
+    Chủ đề video hoặc bản sao của người dùng. Giá trị trả về là trạng thái thành công, thông tin lỗi và thời gian yêu cầu.
     """
     started_at = perf_counter()
     response = _generate_response(prompt="Reply with exactly: OK")
@@ -696,9 +696,9 @@ def _limit_script_text(text: str | None, max_length: int, field_name: str) -> st
     if len(value) <= max_length:
         return value
 
-    # API 层已经用 Pydantic 做长度校验；这里继续兜底，是为了保护
-    # WebUI 或内部服务直接调用 generate_script 时不会把超长提示词发送给模型，
-    # 避免 token 成本异常和请求失败。
+    # Lớp API đã sử dụng Pydantic để xác minh độ dài; chúng tôi tiếp tục che nó ở đây để bảo vệ.
+    # Khi WebUI hoặc các dịch vụ nội bộ gọi trực tiếp generate_script, các từ nhắc quá dài sẽ không được gửi tới mô hình.
+    # Tránh các trường hợp ngoại lệ về chi phí mã thông báo và lỗi yêu cầu.
     logger.warning(
         f"{field_name} is too long and will be truncated to {max_length} characters."
     )
@@ -712,8 +712,8 @@ def _normalize_script_paragraph_number(paragraph_number: int | None) -> int:
         value = MIN_SCRIPT_PARAGRAPH_NUMBER
 
     if value < MIN_SCRIPT_PARAGRAPH_NUMBER or value > MAX_SCRIPT_PARAGRAPH_NUMBER:
-        # WebUI 和 API 都会限制范围；这里兜底处理内部调用，避免异常参数直接扩大
-        # LLM 生成成本或生成空结果。
+        # Cả WebUI và API sẽ giới hạn phạm vi; các cuộc gọi nội bộ được xử lý ở đây để tránh mở rộng trực tiếp các tham số bất thường.
+        # LLM tạo ra chi phí hoặc tạo ra kết quả trống rỗng.
         logger.warning(
             f"script paragraph_number is out of range and will be clamped: {value}"
         )
@@ -737,8 +737,8 @@ def build_script_prompt(
         custom_system_prompt, MAX_SCRIPT_SYSTEM_PROMPT_LENGTH, "custom_system_prompt"
     )
 
-    # 将“脚本生成规则”和“运行时上下文”分开拼接。这样高级用户即使覆盖默认
-    # system prompt，也不会漏掉视频主题、语言、段落数这些每次生成都必须带上的参数。
+    # Tách riêng "quy tắc tạo tập lệnh" và "bối cảnh thời gian chạy". Điều này cho phép người dùng nâng cao ghi đè mặc định
+    # lời nhắc của hệ thống và sẽ không bỏ lỡ các thông số về chủ đề video, ngôn ngữ và số đoạn văn phải có mỗi khi tạo.
     prompt = custom_system_prompt or DEFAULT_SCRIPT_SYSTEM_PROMPT
     prompt += f"""
 
@@ -874,8 +874,8 @@ def generate_terms(
             "6. keep the terms in the same order as the script narration; "
             "earlier terms must describe earlier visual moments."
         )
-        # 有序关键词模式下，示例数量要和 amount 保持一致，避免模型被固定
-        # 的 4 个示例误导，导致长文案只返回少量关键词，影响素材覆盖度。
+        # Trong chế độ từ khóa được sắp xếp, số lượng ví dụ phải phù hợp với số lượng để tránh mô hình bị cố định.
+        # 4 ví dụ trên gây hiểu lầm, dẫn đến bản sao dài chỉ trả lại một số lượng nhỏ từ khóa, ảnh hưởng đến phạm vi nội dung.
         example_terms = [
             "opening visual topic",
             *[f"script visual topic {index}" for index in range(2, max(amount, 1))],
@@ -963,9 +963,9 @@ Please note that you must use English for generating video search terms; Chinese
                     try:
                         search_terms = json.loads(match.group())
                     except Exception as e:
-                        # 这里保留重试流程，但必须记录 LLM 返回的非标准 JSON，
-                        # 否则后续排查搜索词为空时无法定位
-                        # 是模型格式问题还是解析逻辑问题。
+                        # Quá trình thử lại được giữ lại ở đây, nhưng JSON không chuẩn được LLM trả về phải được ghi lại.
+                        # Nếu không, việc khắc phục sự cố tiếp theo sẽ không thể xác định được nếu cụm từ tìm kiếm trống.
+                        # Đây có phải là vấn đề về định dạng mô hình hay vấn đề logic phân tích cú pháp không?
                         logger.warning(f"failed to generate video terms: {str(e)}")
 
         if search_terms and len(search_terms) > 0:
@@ -980,12 +980,12 @@ Please note that you must use English for generating video search terms; Chinese
 # =============================================================================
 # Social publishing metadata
 #
-# 根据视频主题和脚本生成发布到短视频平台时常用的 title、caption 和 hashtags。
-# 这块能力只复用现有 LLM provider，不接入任何外部发布服务，也不影响视频生成主链路。
+# Tạo tiêu đề, chú thích và thẻ bắt đầu bằng # thường được sử dụng khi xuất bản lên nền tảng video ngắn dựa trên chủ đề và tập lệnh video.
+# Khả năng này chỉ sử dụng lại nhà cung cấp LLM hiện có, không kết nối với bất kỳ dịch vụ xuất bản bên ngoài nào và không ảnh hưởng đến liên kết tạo video chính.
 # =============================================================================
 
-# 不同平台的文案长度和 hashtag 数量偏好不同。这里使用保守上限，避免模型返回
-# 过长内容后调用方还需要二次裁剪。
+# Các nền tảng khác nhau có các tùy chọn khác nhau về độ dài bản sao và số lượng hashtag. Giới hạn trên thận trọng được sử dụng ở đây để tránh trả về mô hình
+# Nếu nội dung quá dài, người gọi sẽ phải cắt nội dung đó hai lần.
 SOCIAL_PLATFORMS = {
     "tiktok": {"title_max": 100, "caption_max": 2200, "hashtag_count": 5},
     "youtube_shorts": {"title_max": 100, "caption_max": 5000, "hashtag_count": 3},
@@ -1005,8 +1005,8 @@ SOCIAL_PLATFORM_LABELS = {
     "facebook_reels": "Facebook Reels",
 }
 
-# LLM 不可用时的通用兜底标签。这里故意不绑定某个国家或语种，保证 API
-# 对中文、英文、越南语等不同场景都能返回可用结构。
+# Nhãn tổng hợp chung khi LLM không có sẵn. Điều này cố ý không bị ràng buộc với một quốc gia hoặc ngôn ngữ nhất định để đảm bảo rằng API
+# Các cấu trúc có sẵn có thể được trả về cho các kịch bản khác nhau như tiếng Trung, tiếng Anh và tiếng Việt.
 DEFAULT_SOCIAL_HASHTAGS = [
     "#shorts",
     "#viral",
@@ -1040,8 +1040,8 @@ def _limit_social_text(text: str | None, max_length: int, field_name: str) -> st
     if len(value) <= max_length:
         return value
 
-    # API 层会限制长度；这里继续兜底，是为了保护内部调用或未来 WebUI
-    # 直接调用时不会把超长内容发送给模型，避免 token 成本异常。
+    # Lớp API sẽ giới hạn độ dài; tiếp tục đề cập đến vấn đề này ở đây là để bảo vệ các cuộc gọi nội bộ hoặc WebUI trong tương lai
+    # Khi gọi trực tiếp, nội dung quá dài sẽ không được gửi đến mô hình để tránh sự bất thường về chi phí mã thông báo.
     logger.warning(
         f"{field_name} is too long and will be truncated to {max_length} characters."
     )
@@ -1068,17 +1068,17 @@ def _clamp_text(text, max_length: int) -> str:
 
 def _normalize_hashtags(raw, count: int) -> List[str]:
     """
-    将 LLM 返回的 hashtag 统一整理成 `#tag` 格式。
+    Thống nhất các hashtag được LLM trả về thành định dạng `#tag`.
 
-    LLM 可能返回字符串、数组、带空格的词组、重复标签或包含标点的内容。
-    这里集中清洗，可以让接口响应结构稳定，也避免平台发布时出现空标签、
-    重复标签或不符合常见格式的 hashtag。
+    LLM có thể trả về chuỗi, mảng, cụm từ có dấu cách, thẻ lặp lại hoặc nội dung chứa dấu câu.
+    Việc dọn dẹp tập trung ở đây có thể làm cho cấu trúc phản hồi giao diện ổn định và tránh các thẻ trống và nhãn trống khi nền tảng được phát hành.
+    Thẻ trùng lặp hoặc thẻ bắt đầu bằng # không theo định dạng chung.
     """
     if isinstance(raw, str):
         candidates = re.split(r"[\s,]+", raw)
     elif isinstance(raw, (list, tuple)):
-        # 数组里的每一项视为一个完整标签，因此 "du lich" 会变成
-        # "#dulich"，而不是拆成两个标签。
+        # Mỗi mục trong mảng được coi là một nhãn hoàn chỉnh, do đó "du lich" trở thành
+        # "#dulich" thay vì chia thành hai thẻ.
         candidates = [str(entry) for entry in raw]
     else:
         candidates = []
@@ -1150,8 +1150,8 @@ def _parse_social_metadata(response: str, platform: str) -> dict:
     try:
         data = json.loads(_strip_code_fence(response))
     except Exception:
-        # 部分模型会在 JSON 外层包一段说明文字或 markdown fence。
-        # API 调用方只需要稳定结构，所以这里尝试提取第一个 JSON object。
+        # Một số mô hình sẽ bao bọc văn bản mô tả hoặc hàng rào đánh dấu trong JSON.
+        # Trình gọi API chỉ cần cấu trúc ổn định, vì vậy ở đây chúng tôi cố gắng trích xuất đối tượng JSON đầu tiên.
         match = re.search(r"\{.*\}", response or "", re.DOTALL)
         if match:
             data = json.loads(match.group())
@@ -1178,7 +1178,7 @@ def _fallback_social_metadata(
 
     title = subject
     if not title and script:
-        # 没有主题时，用脚本第一句兜底生成 title，避免接口返回空标题。
+        # Khi không có chủ đề, hãy sử dụng câu đầu tiên của tập lệnh để tạo tiêu đề nhằm tránh giao diện trả về tiêu đề trống.
         title = re.split(r"(?<=[.!?。！？])\s+", script)[0]
 
     return {
@@ -1195,11 +1195,11 @@ def generate_social_metadata(
     platform: str = DEFAULT_SOCIAL_PLATFORM,
 ) -> dict:
     """
-    生成短视频发布文案元数据。
+    Tạo siêu dữ liệu copywriting xuất bản video ngắn.
 
-    返回结构固定为 `{"title": str, "caption": str, "hashtags": List[str]}`。
-    如果 LLM 不可用或返回格式异常，会降级为通用启发式结果，保证 API
-    调用方始终拿到可展示、可发布前编辑的数据结构。
+    Cấu trúc trả về được cố định thành `{"title": str, "caption": str, "hashtags": List[str]}`.
+    Nếu LLM không khả dụng hoặc trả về định dạng bất thường, nó sẽ bị hạ cấp xuống kết quả phỏng đoán chung để đảm bảo rằng API
+    Người gọi luôn nhận được cấu trúc dữ liệu có thể được hiển thị và chỉnh sửa trước khi xuất bản.
     """
     platform = _resolve_social_platform(platform)
     language = _normalize_social_language(language)

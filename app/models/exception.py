@@ -18,9 +18,9 @@ class HttpException(Exception):
         else:
             msg = f"HttpException: {status_code}, {task_id}, {message}\n{tb_str}"
 
-        # 400/401 都是可预期的客户端输入问题。尤其鉴权开启后，公网扫描可能
-        # 产生大量无效 Key；使用 WARNING 既保留定位信息，也避免污染 ERROR
-        # 告警。服务端配置错误和其它异常仍保持 ERROR。
+        # 400/401 đều là các vấn đề đầu vào của khách hàng được mong đợi. Đặc biệt sau khi bật xác thực, quá trình quét mạng công cộng có thể
+        # Một số lượng lớn các khóa không hợp lệ được tạo ra; sử dụng CẢNH BÁO để giữ lại thông tin định vị và tránh làm nhiễm LỖI
+        # Báo động. Lỗi cấu hình phía máy chủ và các ngoại lệ khác vẫn là LỖI.
         if status_code in (400, 401):
             logger.warning(msg)
         else:

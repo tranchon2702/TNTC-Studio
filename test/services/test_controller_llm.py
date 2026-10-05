@@ -11,7 +11,7 @@ from app.models.schema import (
 
 class TestLlmController(unittest.TestCase):
     def test_generate_video_script_forwards_all_prompt_fields(self):
-        """文案接口不能丢失高级提示词或段落数量。"""
+        """Giao diện copywriting không được mất các từ gợi ý hoặc số đoạn văn nâng cao."""
         body = VideoScriptRequest(
             video_subject="Coffee",
             video_language="en",
@@ -40,7 +40,7 @@ class TestLlmController(unittest.TestCase):
         )
 
     def test_generate_video_terms_forwards_order_matching_mode(self):
-        """素材顺序匹配开关必须继续传递到关键词生成服务。"""
+        """Các công tắc khớp trình tự vật liệu phải tiếp tục được chuyển đến dịch vụ tạo từ khóa."""
         body = VideoTermsRequest(
             video_subject="Coffee",
             video_script="First beans, then brewing.",
@@ -67,7 +67,7 @@ class TestLlmController(unittest.TestCase):
         )
 
     def test_generate_social_metadata_returns_service_payload(self):
-        """社交平台元数据接口应保持服务层结果的响应结构。"""
+        """Giao diện siêu dữ liệu nền tảng xã hội phải duy trì cấu trúc phản hồi của kết quả lớp dịch vụ."""
         body = VideoSocialMetadataRequest(
             video_subject="Coffee",
             video_script="Morning coffee.",

@@ -18,9 +18,9 @@ def _widget_by_key(elements, key):
 
 
 def test_webui_upload_post_setup_guide_links_to_required_pages():
-    # 首次使用自动发布时，API Key 和发布用户需要在 Upload-Post 的不同页面
-    # 分别配置。这里锁定两个精确入口，避免后续文案调整后再次退化成无法点击的
-    # 泛化提示，导致用户误把登录邮箱当作发布用户名称。
+    # Khi sử dụng tính năng xuất bản tự động lần đầu tiên, Khóa API và người dùng xuất bản cần ở các trang khác nhau của Bài đăng tải lên.
+    # Cấu hình riêng biệt. Hai lối vào chính xác bị khóa ở đây để ngăn chặn những điều chỉnh về sao chép tiếp theo bị thoái hóa thành những lối vào không thể bấm được.
+    # Lời nhắc chung chung, khiến người dùng nhầm địa chỉ email đăng nhập của họ với tên người dùng xuất bản.
     with patch.object(config, "try_save_config", return_value=True):
         app = AppTest.from_file(str(WEBUI_MAIN), default_timeout=60)
         app.run()
@@ -95,7 +95,7 @@ def test_webui_upload_post_youtube_privacy_fallback_to_public():
 
 @pytest.mark.parametrize("saved", [False, True, "false"])
 def test_youtube_audience_selection_persists_on_first_change(saved):
-    """真实运行 Streamlit 控件，验证布尔值、非法配置及第一次切换的持久化。"""
+    """Thực sự chạy điều khiển Streamlit để xác minh các giá trị Boolean, cấu hình không hợp lệ và tính bền vững của lần chuyển đổi đầu tiên."""
     values = dict(config.app, upload_post_platforms=["youtube"],
                   upload_post_youtube_made_for_kids=saved)
     with patch.object(config, "app", values), patch.object(config, "try_save_config", return_value=True):
@@ -114,7 +114,7 @@ def test_youtube_audience_selection_persists_on_first_change(saved):
 
 
 def test_youtube_audience_hidden_for_other_platforms():
-    """不选择 YouTube 时不显示受众项，也不覆写已保存的声明。"""
+    """Các mục đối tượng sẽ không được hiển thị khi YouTube không được chọn và các xác nhận quyền sở hữu đã lưu sẽ không bị ghi đè."""
     values = dict(config.app, upload_post_platforms=["tiktok", "instagram"],
                   upload_post_youtube_made_for_kids=True)
     with patch.object(config, "app", values), patch.object(config, "try_save_config", return_value=True):

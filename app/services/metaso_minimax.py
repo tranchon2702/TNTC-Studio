@@ -1,8 +1,8 @@
-"""秘塔 MiniMax H3 文生视频客户端。
+"""Máy khách video MiTa MiniMax H3 Vincent.
 
-该模块只负责秘塔代理的 MiniMax V2 协议：提交付费任务、轮询同一个任务、
-解析生成结果。素材按需生成、文件下载和成片拼接仍由 ``material`` 服务负责，
-避免供应商协议与本地视频工作流相互耦合。
+Mô-đun này chỉ chịu trách nhiệm về giao thức MiniMax V2 của đặc vụ tháp bí mật: gửi các nhiệm vụ đã thanh toán, bỏ phiếu cho cùng một nhiệm vụ,
+Phân tích kết quả tạo ra. Việc tạo tài liệu, tải tập tin và ghép phim theo yêu cầu vẫn được xử lý bởi dịch vụ ``material``.
+Tránh kết hợp các thỏa thuận của nhà cung cấp với quy trình làm việc video địa phương.
 """
 
 from __future__ import annotations
@@ -39,30 +39,30 @@ SUPPORTED_RESOLUTIONS = frozenset({"768P", "2K"})
 
 
 class MetasoMiniMaxError(RuntimeError):
-    """秘塔 MiniMax 的确定性配置、请求或响应错误。"""
+    """Lỗi cấu hình, yêu cầu hoặc phản hồi xác định cho MiniMax."""
 
     def __init__(self, message: str, task_id: str = ""):
         super().__init__(message)
-        # 远端任务一旦创建，所有后续异常都携带同一个 ID。任务服务可以统一
-        # 保存恢复线索，不需要了解轮询、结果解析或下载分别在哪一步失败。
+        # Khi một tác vụ từ xa được tạo, tất cả các ngoại lệ tiếp theo đều mang cùng một ID. Dịch vụ nhiệm vụ có thể được thống nhất
+        # Lưu manh mối khôi phục mà không biết bước bỏ phiếu, phân tích kết quả hoặc tải xuống không thành công.
         self.task_id = task_id
 
 
 class MetasoMiniMaxUnconfirmedTaskError(MetasoMiniMaxError):
-    """远端可能已创建付费任务，但本机无法确认其最终状态。"""
+    """Đầu từ xa có thể đã tạo một tác vụ phải trả phí nhưng máy cục bộ không thể xác nhận trạng thái cuối cùng của tác vụ đó."""
 
 
 class MetasoMiniMaxDownloadError(MetasoMiniMaxError):
-    """远端付费任务已成功，但成片未能下载到本机。"""
+    """Nhiệm vụ thanh toán từ xa đã thành công nhưng phim đã hoàn thành không thể tải xuống máy cục bộ."""
 
 
 def get_api_key(settings: Mapping[str, Any] | None = None) -> str:
     """
-    按固定优先级读取秘塔凭据。
+    Đọc thông tin đăng nhập tháp bí mật với mức độ ưu tiên cố định.
 
-    秘塔 ``mk-`` Key 与 MiniMax 官方 Key 属于不同账户体系，因此不能复用
-    项目已有的 ``minimax_api_key``。独立配置和独立环境变量也能防止用户在
-    切换 LLM Provider 时意外改变视频生成凭据。
+    Secret Tower ``mk-`` Key và MiniMax chính thức thuộc các hệ thống tài khoản khác nhau nên không thể sử dụng lại.
+    Dự án đã có ``minimax_api_key``. Cấu hình độc lập và các biến môi trường độc lập cũng có thể ngăn người dùng
+    Thông tin đăng nhập tạo video bất ngờ thay đổi khi chuyển đổi Nhà cung cấp LLM.
     """
     settings = config.app if settings is None else settings
     configured = str(settings.get("metaso_minimax_api_key", "") or "").strip()
@@ -71,7 +71,7 @@ def get_api_key(settings: Mapping[str, Any] | None = None) -> str:
 
 
 def is_enabled(settings: Mapping[str, Any] | None = None) -> bool:
-    """返回当前配置是否具备调用秘塔视频接口的凭据。"""
+    """Trả về xem cấu hình hiện tại có thông tin xác thực để gọi giao diện video của tháp bí mật hay không."""
     return bool(get_api_key(settings))
 
 
@@ -97,8 +97,8 @@ def _resolution() -> str:
     value = str(configured).strip().upper()
     if value not in SUPPORTED_RESOLUTIONS:
         supported = ", ".join(sorted(SUPPORTED_RESOLUTIONS))
-        # 分辨率直接影响生成费用，用户显式写错时不能静默退回 2K。只有配置项
-        # 完全缺失时才使用默认值，避免无意间创建比预期更贵的任务。
+        # Độ phân giải ảnh hưởng trực tiếp đến chi phí sản xuất và người dùng không thể âm thầm trả lại 2K khi mắc lỗi rõ ràng. Chỉ các mục cấu hình
+        # Chỉ sử dụng các giá trị mặc định khi thiếu hoàn toàn để tránh vô tình tạo ra một tác vụ tốn kém hơn dự kiến.
         raise MetasoMiniMaxError(
             f"Unsupported Metaso MiniMax resolution {value!r}; "
             f"expected one of: {supported}"
@@ -114,7 +114,7 @@ def _tls_verify() -> bool:
 
 
 def _bounded_float(key: str, default: float, minimum: float, maximum: float) -> float:
-    """读取有限浮点配置，并限制在不会压垮远端或本机的安全范围内。"""
+    """Đọc cấu hình dấu phẩy động giới hạn, được giới hạn ở phạm vi an toàn sẽ không làm quá tải máy từ xa hoặc máy cục bộ."""
     try:
         value = float(config.app.get(key, default))
     except (TypeError, ValueError):
@@ -132,7 +132,7 @@ def _status_code(response: Any) -> int:
 
 
 def _redact_secret(value: Any, api_key: str) -> str:
-    """保留可排障文本，同时移除 API Key、URL 编码 Key 和代理凭据。"""
+    """Giữ lại văn bản có thể khắc phục sự cố trong khi xóa khóa API, khóa mã hóa URL và thông tin xác thực proxy."""
     text = str(value or "")
     if api_key:
         text = text.replace(api_key, "***")
@@ -147,7 +147,7 @@ def _redact_secret(value: Any, api_key: str) -> str:
 
 
 def _response_error(response: Any, api_key: str) -> str:
-    """兼容 MiniMax V2 的嵌套错误结构，并限制日志中的响应长度。"""
+    """Tương thích với cấu trúc lỗi lồng nhau của MiniMax V2 và giới hạn độ dài phản hồi trong nhật ký."""
     try:
         payload = response.json()
     except Exception:
@@ -185,7 +185,7 @@ def _is_retryable_error(error: Exception) -> bool:
 
 
 def _normalize_duration(minimum_duration: int) -> tuple[int, int]:
-    """返回“用户请求时长、实际提交时长”，用于日志解释最短 4 秒约束。"""
+    """Trả về "thời lượng yêu cầu của người dùng, thời lượng gửi thực tế", được sử dụng cho ràng buộc giải thích nhật ký tối thiểu 4 giây."""
     try:
         requested = int(minimum_duration)
     except (TypeError, ValueError, OverflowError) as exc:
@@ -208,15 +208,15 @@ def generate_videos(
     minimum_duration: int,
     video_aspect: VideoAspect = VideoAspect.portrait,
 ) -> list[MaterialInfo]:
-    """提交一个秘塔 MiniMax H3 文生视频任务并等待可下载的结果。"""
+    """Gửi bài tập video Secret Tower MiniMax H3 Vincent và chờ kết quả có thể tải xuống."""
     api_key = get_api_key()
     if not api_key:
         raise MetasoMiniMaxError("Metaso MiniMax requires an API key")
 
     term = str(search_term or "").strip()
     if not term:
-        # 空提示词通常表示上游脚本拆分失败。付费接口不能用无效输入试探，
-        # 否则即使远端接受也只会产生无法使用的计费素材。
+        # Một từ nhắc trống thường chỉ ra rằng việc phân chia tập lệnh ngược dòng không thành công. Không thể kiểm tra giao diện thanh toán với đầu vào không hợp lệ.
+        # Nếu không, ngay cả khi thiết bị đầu cuối từ xa chấp nhận nó, nó sẽ chỉ tạo ra các tài liệu thanh toán không thể sử dụng được.
         raise MetasoMiniMaxError("Metaso MiniMax search term must not be empty")
     if len(term) > MAX_PROMPT_LENGTH:
         raise MetasoMiniMaxError(
@@ -251,8 +251,8 @@ def generate_videos(
         f"prompt_length={len(term)}"
     )
 
-    # POST 超时或 5xx 发生时，远端可能已经创建并计费。接口没有提供客户端
-    # 幂等键，因此这里绝不自动重发；上层会停止后续关键词，避免重复扣费。
+    # Khi xảy ra thời gian chờ POST hoặc 5xx, thiết bị đầu cuối từ xa có thể đã được tạo và tính phí. Giao diện không cung cấp ứng dụng khách
+    # Khóa này không có giá trị nên nó sẽ không bao giờ được truyền lại tự động; lớp trên sẽ dừng các từ khóa tiếp theo để tránh bị khấu trừ nhiều lần.
     try:
         response = requests.post(
             create_url,
@@ -328,8 +328,8 @@ def generate_videos(
                 "provider": "metaso_minimax",
                 "search_term": term,
                 "asset_id": task_id,
-                # MiniMax 的 2K/768P 是规格名称，接口没有承诺固定像素尺寸。
-                # 不猜测 width/height，后续若需要精确尺寸应以下载文件探测值为准。
+                # 2K/768P của MiniMax là tên thông số kỹ thuật và giao diện không hứa hẹn kích thước pixel cố định.
+                # Đừng đoán chiều rộng/chiều cao. Nếu sau này cần kích thước chính xác thì giá trị phát hiện của tệp đã tải xuống sẽ chiếm ưu thế.
                 "rendition": {"id": task_id},
             },
         )
@@ -343,7 +343,7 @@ def _wait_for_task(
     headers: dict[str, str],
     api_key: str,
 ) -> dict[str, Any]:
-    """轮询同一个付费任务，直到成功、明确失败或本地无法确认状态。"""
+    """Thăm dò nhiệm vụ được trả phí tương tự cho đến khi nó thành công, thất bại rõ ràng hoặc trạng thái không thể được xác nhận cục bộ."""
     deadline = time.monotonic() + _bounded_float(
         "metaso_minimax_run_timeout",
         DEFAULT_RUN_TIMEOUT_SECONDS,
@@ -368,8 +368,8 @@ def _wait_for_task(
                 task_id=task_id,
             )
 
-        # connect/read timeout 分别计时，均使用剩余时间的一半，保证一次 GET
-        # 不会有意越过任务总截止时间。到期后不会再发起下一次轮询。
+        # Thời gian chờ kết nối/đọc được tính thời gian riêng và một nửa thời gian còn lại được sử dụng để đảm bảo một GET.
+        # Sẽ không cố ý vượt quá tổng thời hạn nhiệm vụ. Sau khi hết hạn, cuộc bỏ phiếu tiếp theo sẽ không được bắt đầu.
         phase_timeout = max(min(remaining / 2.0, 30.0), 0.001)
         try:
             response = requests.get(

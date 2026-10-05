@@ -25,10 +25,10 @@ TASK_HISTORY_CONSTANTS = {
 
 def _load_task_history_helpers():
     """
-    从 WebUI 入口中隔离加载不依赖 Streamlit 的任务历史纯函数。
+    Cô lập và tải các hàm thuần túy trong lịch sử tác vụ không dựa vào Streamlit khỏi mục nhập WebUI.
 
-    直接导入 Main.py 会执行整套页面渲染。测试只编译目标常量和函数，既验证
-    合并后的真实实现，也避免为了单元测试重新拆出一个只有少量函数的生产模块。
+    Việc nhập trực tiếp Main.py sẽ thực hiện một bộ kết xuất trang hoàn chỉnh. Bài kiểm tra chỉ biên dịch các hằng số và hàm mục tiêu, cả hai đều xác minh
+    Việc triển khai thực tế sau khi hợp nhất cũng tránh được việc phải tháo rời lại một mô-đun sản xuất chỉ có một số chức năng để kiểm thử đơn vị.
     """
     tree = ast.parse(WEBUI_MAIN.read_text(encoding="utf-8"))
     selected_nodes = []
@@ -60,7 +60,7 @@ get_unmet_restore_upload_requirements = TASK_HISTORY_NAMESPACE[
 
 
 def test_find_final_task_video_ignores_intermediate_files(tmp_path):
-    """任务历史只能把 final 成片识别为完成，不能使用合成中间文件。"""
+    """Lịch sử tác vụ chỉ có thể nhận dạng các phần cuối cùng đã hoàn thành và không thể sử dụng các tệp trung gian tổng hợp."""
     for file_name in (
         "combined-1.mp4",
         "temp-clip-1.mp4",
@@ -72,7 +72,7 @@ def test_find_final_task_video_ignores_intermediate_files(tmp_path):
 
 
 def test_find_final_task_video_returns_first_numbered_output(tmp_path):
-    """多成片任务与运行时结果保持一致，默认播放序号最小的最终视频。"""
+    """Tác vụ nhiều phim nhất quán với kết quả thời gian chạy và video cuối cùng có số thứ tự nhỏ nhất sẽ được phát theo mặc định."""
     (tmp_path / "final-10.mp4").touch()
     (tmp_path / "final-2.mp4").touch()
     (tmp_path / "final-1.mp4").touch()
@@ -93,8 +93,8 @@ def test_build_video_download_name_handles_empty_and_long_subjects():
 
 
 def test_build_video_download_name_avoids_windows_reserved_names():
-    # 使用官方规则的显式清单，避免测试复制生产代码的 range/comprehension；
-    # 如果实现误写范围，集合相等断言会立即失败，而不是与实现一起漏测。
+    # Sử dụng danh sách rõ ràng các quy tắc chính thức để tránh phạm vi kiểm tra/mức độ hiểu sao chép mã sản xuất;
+    # Nếu quá trình triển khai ghi sai phạm vi thì xác nhận đẳng thức đã đặt sẽ thất bại ngay lập tức thay vì bị bỏ sót trong quá trình triển khai.
     reserved_names = {
         "CON",
         "PRN",
@@ -141,7 +141,7 @@ def test_build_video_download_name_avoids_windows_reserved_names():
 
 
 def test_build_video_download_name_does_not_overmatch_similar_names():
-    """只处理 Windows 真实保留名，不能误伤相邻但合法的普通主题。"""
+    """Chỉ xử lý các tên dành riêng thực sự của Windows và không vô tình làm hỏng các chủ đề thông thường liền kề nhưng hợp pháp."""
 
     for safe_name in ("COM0", "COM10", "LPT0", "LPT10", "COM⁴", "LPT⁴"):
         assert build_video_download_name(safe_name, 1, 1) == f"{safe_name}.mp4"
@@ -183,7 +183,7 @@ def test_restore_requirements_allow_explicit_replacements():
 
 
 def test_restore_requirements_require_file_in_upload_voice_mode():
-    """恢复上传配音任务时，继续使用上传模式必须重新选择音频文件。"""
+    """Khi tiếp tục tải lên các tác vụ lồng tiếng, bạn phải chọn lại các tệp âm thanh để tiếp tục sử dụng chế độ tải lên."""
     requirements = build_restore_upload_requirements(
         {
             "video_source": "pexels",
@@ -203,7 +203,7 @@ def test_restore_requirements_require_file_in_upload_voice_mode():
 
 
 def test_restore_requirements_allow_replacing_upload_with_other_voice_modes():
-    """用户主动切换到自动配音或无配音时，不再强制恢复历史上传文件。"""
+    """Khi người dùng chủ động chuyển sang lồng tiếng tự động hoặc không lồng tiếng, các tệp lịch sử đã tải lên sẽ không còn bị buộc phải khôi phục nữa."""
     requirements = build_restore_upload_requirements(
         {
             "video_source": "pexels",

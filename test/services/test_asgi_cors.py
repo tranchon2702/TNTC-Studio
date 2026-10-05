@@ -8,11 +8,11 @@ from app import asgi
 
 
 class TestASGICORS(unittest.TestCase):
-    """验证浏览器跨域默认值和显式兼容配置，避免重新引入开放 CORS。"""
+    """Xác minh giá trị mặc định cross-origin của trình duyệt và cấu hình tương thích rõ ràng, tránh mở lại CORS bừa bãi."""
 
     @staticmethod
     def _create_client(allowed_origins: list[str]) -> TestClient:
-        """构造只包含探针路由的应用，隔离业务任务和外部 API 调用。"""
+        """Xây dựng ứng dụng chỉ chứa các route probe để cô lập tác vụ nghiệp vụ và các cuộc gọi API bên ngoài."""
 
         application = FastAPI()
 
@@ -24,7 +24,7 @@ class TestASGICORS(unittest.TestCase):
         return TestClient(application)
 
     def test_origin_parser_trims_values_and_ignores_empty_items(self):
-        """环境变量中的空格和尾随逗号不应破坏合法来源匹配。"""
+        """Khoảng trắng và dấu phẩy ở cuối trong biến môi trường không được làm hỏng việc so khớp nguồn gốc hợp lệ."""
 
         origins = asgi.parse_cors_allowed_origins(
             " https://a.example,https://b.example, ,"
@@ -38,7 +38,7 @@ class TestASGICORS(unittest.TestCase):
         self.assertEqual(asgi.parse_cors_allowed_origins(None), [])
 
     def test_empty_configuration_keeps_browser_same_origin_policy(self):
-        """未配置白名单时，第三方网页不能读取响应或通过预检。"""
+        """Khi chưa cấu hình danh sách trắng, trang web bên thứ ba không thể đọc phản hồi hoặc vượt qua preflight."""
 
         client = self._create_client([])
         origin = "https://evil.attacker.example"
@@ -59,7 +59,7 @@ class TestASGICORS(unittest.TestCase):
         self.assertNotIn("access-control-allow-origin", preflight.headers)
 
     def test_same_origin_and_server_clients_remain_compatible(self):
-        """同源浏览器和不发送 Origin 的服务端客户端必须继续正常访问。"""
+        """Trình duyệt cùng nguồn gốc và client máy chủ không gửi Origin phải tiếp tục truy cập bình thường."""
 
         client = self._create_client([])
 
@@ -73,7 +73,7 @@ class TestASGICORS(unittest.TestCase):
         self.assertEqual(server_client.status_code, 200)
 
     def test_explicit_origin_allows_only_the_trusted_frontend(self):
-        """独立网页前端显式配置后可以访问，其他来源仍必须被拒绝。"""
+        """Frontend web độc lập sau khi cấu hình rõ ràng có thể truy cập, các nguồn gốc khác vẫn phải bị từ chối."""
 
         trusted_origin = "https://frontend.example"
         untrusted_origin = "https://evil.attacker.example"
@@ -103,7 +103,7 @@ class TestASGICORS(unittest.TestCase):
         self.assertEqual(untrusted_preflight.status_code, 400)
 
     def test_trusted_origin_can_request_private_network_access(self):
-        """精确白名单应支持远程网页访问本机或局域网 API 的额外预检。"""
+        """Danh sách trắng chính xác phải hỗ trợ preflight bổ sung khi trang web từ xa truy cập API máy cục bộ hoặc mạng LAN."""
 
         trusted_origin = "https://frontend.example"
         client = self._create_client([trusted_origin])
@@ -124,7 +124,7 @@ class TestASGICORS(unittest.TestCase):
         )
 
     def test_explicit_wildcard_does_not_enable_credentials(self):
-        """显式通配符保留兼容能力，但不得再次形成反射 Origin 的组合。"""
+        """Ký tự đại diện rõ ràng giữ lại khả năng tương thích, nhưng không được tạo lại tổ hợp Origin phản xạ."""
 
         client = self._create_client(["*"])
         origin = "https://frontend.example"
@@ -145,7 +145,7 @@ class TestASGICORS(unittest.TestCase):
         self.assertNotIn("access-control-allow-credentials", preflight.headers)
 
     def test_untrusted_multipart_request_is_rejected_before_side_effect(self):
-        """无需预检的 multipart 请求也必须在进入上传处理函数前返回 403。"""
+        """Yêu cầu multipart không cần preflight cũng phải trả về 403 trước khi vào hàm xử lý tải lên."""
 
         application = FastAPI()
         save_upload = Mock(return_value="stored.mp3")

@@ -20,7 +20,7 @@ from app.utils import utils
 
 @asynccontextmanager
 async def application_lifespan(_: FastAPI):
-    """集中处理 API 进程启动恢复和关闭日志。"""
+    """Xử lý tập trung các nhật ký tắt và khôi phục quá trình khởi động quy trình API."""
     logger.info("startup event")
 
     configured_api_key = config.app.get("api_key", "")
@@ -29,15 +29,15 @@ async def application_lifespan(_: FastAPI):
             "API key authentication is disabled; keep the API on a trusted network"
         )
     elif isinstance(configured_api_key, str):
-        # 只记录保护范围，不得输出 Key、长度或摘要，避免凭据进入日志系统。
+        # Chỉ phạm vi bảo vệ được ghi lại và Khóa, độ dài hoặc tóm tắt không được xuất ra để ngăn thông tin đăng nhập vào hệ thống nhật ký.
         logger.info("API key authentication is enabled for /api/v1 and /tasks")
     else:
         logger.error(
             "API key authentication is misconfigured: app.api_key must be a string"
         )
 
-    # 跨平台发布由当前进程线程池执行，不会在服务重启后恢复。启动时把 Redis
-    # 中确认已失去执行进程的活动状态收敛为失败，避免任务永久无法删除。
+    # Việc xuất bản đa nền tảng được thực hiện bởi nhóm luồng quy trình hiện tại và sẽ không tiếp tục sau khi khởi động lại dịch vụ. Đặt Redis khi khởi động
+    # Xác nhận rằng trạng thái hoạt động của quá trình thực thi bị mất đã chuyển thành lỗi để ngăn tác vụ bị xóa vĩnh viễn.
     from app.services import task as task_service
 
     task_service.recover_interrupted_cross_posts()
@@ -64,23 +64,23 @@ def validation_exception_handler(request: Request, e: RequestValidationError):
 
 
 def parse_cors_allowed_origins(raw_origins: str | None) -> list[str]:
-    """解析浏览器跨域来源白名单。
+    """Phân tích danh sách trắng nguồn tên miền chéo của trình duyệt.
 
-    CORS 只约束浏览器中的跨域 JavaScript，不影响 curl、Postman、n8n
-    或服务端 SDK。未配置时返回空列表，表示默认不开放跨域访问；用户确实
-    部署了独立网页前端时，再通过 ``CORS_ALLOWED_ORIGINS`` 显式开启。
+    CORS chỉ hạn chế JavaScript tên miền chéo trong trình duyệt và không ảnh hưởng đến Curl, Postman và n8n.
+    Hoặc SDK máy chủ. Khi không được định cấu hình, một danh sách trống sẽ được trả về, cho biết rằng quyền truy cập tên miền chéo không được phép theo mặc định; người dùng làm
+    Khi triển khai một giao diện người dùng web độc lập, hãy kích hoạt nó một cách rõ ràng thông qua ``CORS_ALLOWED_ORIGINS``.
     """
 
     if not raw_origins:
         return []
 
-    # 去除逗号分隔项两侧的空白，并忽略空项，避免常见的环境变量格式
-    # ``https://a.example, https://b.example,`` 产生永远无法匹配的来源。
+    # Xóa khoảng trắng xung quanh các mục được phân tách bằng dấu phẩy và bỏ qua các mục trống, tránh các định dạng biến môi trường phổ biến
+    # ``https://a.example, https://b.example,`` tạo ra nguồn gốc không bao giờ có thể khớp được.
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 
 def configure_cors(instance: FastAPI, allowed_origins: list[str]) -> None:
-    """按显式白名单配置 CORS；空白名单保持默认同源策略。"""
+    """Định cấu hình CORS với danh sách trắng rõ ràng; giữ chính sách cùng nguồn gốc mặc định cho danh sách trống."""
 
     if not allowed_origins:
         logger.info(
@@ -92,8 +92,8 @@ def configure_cors(instance: FastAPI, allowed_origins: list[str]) -> None:
     allow_all_origins = "*" in allowed_origins
     configured_api_key = config.app.get("api_key", "")
     if allow_all_origins and configured_api_key in (None, ""):
-        # ``*`` 是用户显式选择的兼容模式，因此不强制拒绝启动；但在免认证
-        # 状态下它会允许任意网页读取和调用 API，必须留下可定位的安全告警。
+        # ``*`` là chế độ tương thích được người dùng lựa chọn rõ ràng, do đó việc khởi động không bị buộc phải từ chối; tuy nhiên, nó không yêu cầu xác thực
+        # Ở trạng thái này, nó sẽ cho phép bất kỳ trang web nào đọc và gọi API và phải để lại cảnh báo bảo mật có thể định vị được.
         logger.warning(
             "CORS allows every browser origin while API key authentication is "
             "disabled; configure app.api_key or restrict CORS_ALLOWED_ORIGINS"
@@ -102,15 +102,15 @@ def configure_cors(instance: FastAPI, allowed_origins: list[str]) -> None:
     instance.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
-        # Starlette 在 ``*`` 与 credentials 同时启用时会反射任意 Origin。
-        # 通配符模式不需要 Cookie 认证，因此主动关闭 credentials；显式来源
-        # 仍保留旧行为，避免影响已有独立网页前端的 credentials 请求模式。
+        # Starlette sẽ phản ánh bất kỳ Nguồn gốc nào khi ``*`` được bật cùng lúc với thông tin xác thực.
+        # Chế độ ký tự đại diện không yêu cầu xác thực cookie nên thông tin đăng nhập sẽ chủ động bị tắt; nguồn rõ ràng
+        # Hành vi cũ vẫn được giữ lại để tránh ảnh hưởng đến chế độ yêu cầu thông tin xác thực của giao diện người dùng web độc lập hiện có.
         allow_credentials=not allow_all_origins,
         allow_methods=["*"],
         allow_headers=["*"],
-        # 远程 HTTPS 前端访问本机或局域网 API 时，现代浏览器会额外发送
-        # Private Network Access 预检。只有精确白名单来源可以获得许可；
-        # 通配符模式继续拒绝，避免任意网站探测用户的私有网络服务。
+        # Khi giao diện người dùng HTTPS từ xa truy cập API cục bộ hoặc API LAN, các trình duyệt hiện đại cũng sẽ gửi thêm
+        # Truy cập mạng riêng tư trước. Chỉ những nguồn được đưa vào danh sách trắng chính xác mới có thể được cấp phép;
+        # Chế độ ký tự đại diện tiếp tục từ chối, ngăn chặn các trang web tùy tiện thăm dò dịch vụ mạng riêng của người dùng.
         allow_private_network=not allow_all_origins,
     )
 
@@ -118,30 +118,30 @@ def configure_cors(instance: FastAPI, allowed_origins: list[str]) -> None:
 def is_browser_origin_allowed(
     request: Request, allowed_origins: list[str]
 ) -> bool:
-    """判断浏览器请求来源是否为同源或显式白名单来源。"""
+    """Xác định xem nguồn yêu cầu của trình duyệt có cùng nguồn gốc hay nguồn thuộc danh sách trắng rõ ràng."""
 
     origin = request.headers.get("origin")
     if not origin:
-        # curl、Postman、n8n 和服务端 SDK 通常不发送 Origin。保留这类请求，
-        # 避免安全修复错误地改变现有 API 客户端的调用契约。
+        # Curl, Postman, n8n và SDK phía máy chủ thường không gửi Origin. Bảo lưu loại yêu cầu này,
+        # Tránh các bản sửa lỗi bảo mật làm thay đổi nhầm hợp đồng gọi của các ứng dụng khách API hiện có.
         return True
     if "*" in allowed_origins or origin in allowed_origins:
         return True
 
-    # 浏览器对同源 POST 也可能发送 Origin。仅比较 scheme + authority，忽略
-    # 路径和查询参数；反向代理部署若未正确转发公网 scheme/host，可通过显式
-    # CORS_ALLOWED_ORIGINS 声明外部来源，避免依赖不可信的转发 Header。
+    # Trình duyệt cũng có thể gửi Origin cho POST có cùng nguồn gốc. Chỉ so sánh sơ đồ + thẩm quyền, bỏ qua
+    # Các tham số đường dẫn và truy vấn; nếu việc triển khai proxy ngược không chuyển tiếp chính xác lược đồ/máy chủ mạng công cộng, bạn có thể rõ ràng
+    # CORS_ALLOWED_ORIGINS khai báo các nguồn bên ngoài để tránh dựa vào các tiêu đề chuyển tiếp không đáng tin cậy.
     request_url = urlsplit(str(request.url))
     request_origin = f"{request_url.scheme}://{request_url.netloc}"
     return origin == request_origin
 
 
 def configure_browser_access(instance: FastAPI, allowed_origins: list[str]) -> None:
-    """同时配置服务端 Origin 防护与浏览器 CORS 响应策略。"""
+    """Định cấu hình đồng thời chính sách phản hồi CORS của trình duyệt và bảo vệ nguồn gốc phía máy chủ."""
 
     @instance.middleware("http")
     async def reject_untrusted_browser_origin(request: Request, call_next):
-        """主动拒绝不可信浏览器来源，覆盖无需 CORS 预检的简单请求。"""
+        """Chủ động từ chối các nguồn trình duyệt không đáng tin cậy, đáp ứng các yêu cầu đơn giản mà không cần kiểm tra trước CORS."""
 
         if not is_browser_origin_allowed(request, allowed_origins):
             origin = request.headers.get("origin", "")
@@ -159,8 +159,8 @@ def configure_browser_access(instance: FastAPI, allowed_origins: list[str]) -> N
 
         return await call_next(request)
 
-    # CORS 中间件最后注册后位于 Origin 防护外层：可信预检可直接成功，
-    # 非可信预检由 CORS 拒绝；无需预检的实际请求仍会进入上面的 403 防护。
+    # Phần mềm trung gian CORS cuối cùng đã được đăng ký và nằm ở lớp bảo vệ Origin bên ngoài: việc kiểm tra trước đáng tin cậy có thể trực tiếp thành công.
+    # Các lượt xem trước không đáng tin cậy sẽ bị CORS từ chối; các yêu cầu thực tế không có kiểm tra trước (preflight) sẽ vẫn được đưa vào bộ phận bảo vệ 403 ở trên.
     configure_cors(instance, allowed_origins)
 
 
@@ -189,11 +189,11 @@ app = get_application()
 
 @app.middleware("http")
 async def protect_generated_task_files(request: Request, call_next):
-    """保护任务产物静态路由，防止绕过 API 鉴权直接下载。
+    """Bảo vệ định tuyến tĩnh của các sản phẩm tác vụ để ngăn tải xuống trực tiếp bỏ qua xác thực API.
 
-    ``/tasks`` 由 StaticFiles 独立挂载，无法复用 APIRouter 的依赖，
-    因此在中间件中调用同一个 verify_token。鉴权函数会在未配置
-    api_key 时放行；OPTIONS 预检请求也保留给 CORS 中间件处理。
+    ``/tasks`` được StaticFiles gắn độc lập và không thể sử dụng lại các phần phụ thuộc APIRouter.
+    Vì vậy, verify_token tương tự được gọi trong phần mềm trung gian. Chức năng xác thực sẽ được sử dụng nếu nó không được cấu hình
+    api_key; Các yêu cầu chiếu trước TÙY CHỌN cũng được dành riêng cho việc xử lý phần mềm trung gian CORS.
     """
 
     request_path = request.url.path
@@ -207,7 +207,7 @@ async def protect_generated_task_files(request: Request, call_next):
     return await call_next(request)
 
 
-# 默认遵循浏览器同源策略；仅在用户显式配置可信网页来源时开放跨域。
+# Theo mặc định, chính sách cùng nguồn gốc của trình duyệt được tuân thủ; tên miền chéo chỉ được bật khi người dùng định cấu hình rõ ràng nguồn trang web đáng tin cậy.
 cors_allowed_origins = parse_cors_allowed_origins(
     os.getenv("CORS_ALLOWED_ORIGINS", "")
 )

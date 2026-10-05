@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-# 测试文件直接运行时，也能从仓库根目录导入 app 包。
+# Khi tệp thử nghiệm được chạy trực tiếp, gói ứng dụng cũng có thể được nhập từ thư mục gốc của kho.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.services import subtitle
@@ -13,7 +13,7 @@ from app.services import subtitle
 
 class TestSubtitleService(unittest.TestCase):
     def test_file_to_subtitles_returns_empty_for_missing_input(self):
-        """空路径和不存在的文件都应安全返回空列表。"""
+        """Cả đường dẫn trống và tệp không tồn tại đều phải trả về danh sách trống một cách an toàn."""
         self.assertEqual(subtitle.file_to_subtitles(""), [])
         with tempfile.TemporaryDirectory() as tmp_dir:
             missing_file = Path(tmp_dir) / "missing.srt"
@@ -21,8 +21,8 @@ class TestSubtitleService(unittest.TestCase):
 
     def test_levenshtein_distance_and_similarity_cover_common_boundaries(self):
         """
-        字幕校正依赖编辑距离选择是否继续合并相邻字幕，因此覆盖空字符串、
-        参数交换、大小写忽略和明显不相似四种边界，防止算法调整后误合并。
+        Việc chỉnh sửa phụ đề phụ thuộc vào khoảng cách chỉnh sửa để chọn có tiếp tục ghép các phụ đề liền kề hay không, sao cho che mất chuỗi trống,
+        Có bốn ranh giới: trao đổi tham số, bỏ qua trường hợp và sự khác biệt rõ ràng, để ngăn chặn việc hợp nhất nhầm sau khi điều chỉnh thuật toán.
         """
         self.assertEqual(subtitle.levenshtein_distance("kitten", "sitting"), 3)
         self.assertEqual(subtitle.levenshtein_distance("a", "longer"), 6)
@@ -31,12 +31,12 @@ class TestSubtitleService(unittest.TestCase):
         self.assertLess(subtitle.similarity("hello", "world"), 0.5)
 
     def test_create_returns_empty_when_whisper_is_unavailable(self):
-        """可选 Whisper 依赖未安装时应跳过，而不是在任务线程中抛异常。"""
+        """Nên bỏ qua các phần phụ thuộc Whisper tùy chọn nếu chưa được cài đặt, thay vì ném một ngoại lệ vào chuỗi tác vụ."""
         with patch.object(subtitle, "WhisperModel", None):
             self.assertEqual(subtitle.create("audio.mp3"), "")
 
     def test_create_returns_none_when_whisper_model_cannot_load(self):
-        """模型下载或初始化失败时必须返回失败结果，并允许任务层更新状态。"""
+        """Khi quá trình tải xuống hoặc khởi tạo mô hình không thành công, kết quả lỗi phải được trả về và lớp tác vụ được phép cập nhật trạng thái."""
         with patch.object(subtitle, "model", None), patch.object(
             subtitle,
             "WhisperModel",
@@ -46,8 +46,8 @@ class TestSubtitleService(unittest.TestCase):
 
     def test_create_writes_punctuated_and_trailing_segments(self):
         """
-        使用假的 Whisper 模型覆盖逐词时间戳处理，不访问网络也不加载真实模型。
-        一个 segment 同时包含标点断句和末尾无标点文本，可验证两条关键写入路径。
+        Sử dụng mô hình Whisper giả để ghi đè quá trình xử lý dấu thời gian từng từ mà không cần truy cập mạng hoặc tải mô hình thật.
+        Một đoạn chứa cả dấu ngắt câu và văn bản không có dấu câu ở cuối, có thể xác minh hai đường dẫn viết quan trọng.
         """
 
         class _FakeWhisperModel:
@@ -82,7 +82,7 @@ class TestSubtitleService(unittest.TestCase):
         self.assertEqual([item[2] for item in items], ["Hello world", "Again"])
 
     def test_create_word_level_writes_each_whisper_word_with_its_timing(self):
-        """逐词模式应保留 Whisper 的每个词及其独立起止时间。"""
+        """Chế độ từng từ sẽ giữ nguyên từng từ của Whisper cũng như thời gian bắt đầu và kết thúc độc lập của nó."""
         transcribe_kwargs = {}
 
         class _FakeWhisperModel:
@@ -122,11 +122,11 @@ class TestSubtitleService(unittest.TestCase):
 
     def test_correct_ignores_markdown_separator_lines(self):
         """
-        Whisper fallback 校正阶段也必须忽略 `---` 这类不可发声脚本行。
+        Giai đoạn chỉnh sửa dự phòng Whisper cũng phải bỏ qua các dòng script không được lồng tiếng như `---`.
 
-        如果这里继续保留 Markdown 分隔符，`correct()` 会认为脚本行数多于
-        字幕行数，并补出 `00:00:00,000 --> 00:00:00,000`，剪辑软件会把
-        生成的 SRT 判定为不可导入。
+        Nếu dấu phân cách Markdown được để lại ở đây, `true()` sẽ cho rằng tập lệnh có nhiều dòng hơn
+        số dòng phụ đề và thêm `00:00:00,000 --> 00:00:00,000`. Phần mềm chỉnh sửa sẽ
+        SRT được tạo được xác định là không được nhập.
         """
         original_srt = (
             "1\n"
@@ -155,8 +155,8 @@ class TestSubtitleService(unittest.TestCase):
 
     def test_correct_merges_adjacent_subtitles_for_one_script_sentence(self):
         """
-        Whisper 可能把一句文案拆成多个时间块。校正逻辑应合并时间范围并恢复
-        原始脚本文本，避免最终字幕出现不必要的碎片。
+        Whisper có thể chia một câu văn thành nhiều đoạn thời gian. Logic hiệu chỉnh sẽ hợp nhất các phạm vi thời gian và khôi phục
+        Văn bản script gốc để tránh sự phân mảnh không cần thiết của phụ đề cuối cùng.
         """
         original_srt = (
             "1\n00:00:00,100 --> 00:00:01,000\nHello\n\n"
@@ -176,8 +176,8 @@ class TestSubtitleService(unittest.TestCase):
 
     def test_correct_replaces_mismatch_and_appends_missing_script_line(self):
         """
-        转写结果与脚本完全不一致时仍应以脚本为准；脚本多出的句子没有可复用
-        时间轴时使用明确的零时间占位，避免丢失文本且保持现有兼容行为。
+        Nếu kết quả phiên âm hoàn toàn không nhất quán với chữ viết thì chữ viết đó vẫn chiếm ưu thế; không có câu thừa nào trong kịch bản có thể được sử dụng lại.
+        Sử dụng trình giữ chỗ có thời gian bằng 0 rõ ràng khi sử dụng dòng thời gian để tránh mất văn bản và duy trì hành vi tương thích hiện có.
         """
         original_srt = "1\n00:00:00,100 --> 00:00:01,000\nWrong text\n\n"
 

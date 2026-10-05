@@ -6,7 +6,7 @@ DEFAULT_LLM_PROVIDER_ID = "moonshot"
 
 @dataclass(frozen=True, slots=True)
 class LLMProviderField:
-    """描述 Provider 除 API Key、Base URL、模型名之外的额外配置字段。"""
+    """Mô tả Các trường cấu hình bổ sung của Nhà cung cấp ngoài Khóa API, URL cơ sở và tên mẫu."""
 
     config_suffix: str
     label_key: str
@@ -17,7 +17,7 @@ class LLMProviderField:
 
 @dataclass(frozen=True, slots=True)
 class LLMProviderEndpoint:
-    """描述同一 Provider 在不同服务区域使用的配套入口和 API 地址。"""
+    """Mô tả các cổng hỗ trợ và địa chỉ API được sử dụng bởi cùng một Nhà cung cấp ở các khu vực dịch vụ khác nhau."""
 
     endpoint_id: str
     default_label: str
@@ -29,11 +29,11 @@ class LLMProviderEndpoint:
 @dataclass(frozen=True, slots=True)
 class LLMProviderSpec:
     """
-    LLM Provider 的集中声明。
+    Tuyên bố tập trung của Nhà cung cấp LLM.
 
-    这里集中保存跨 WebUI、配置加载和服务调用都会使用的稳定元数据，包括默认
-    展示名称和 locale key，但不保存具体翻译文案，也不实现 API 请求。这样
-    Provider 的“是什么”由 Registry 维护，“怎么调用”仍由服务层适配器负责。
+    Điều này lưu trữ tập trung siêu dữ liệu ổn định được sử dụng trên WebUI, tải cấu hình và lệnh gọi dịch vụ, bao gồm cả mặc định
+    Hiển thị tên và khóa ngôn ngữ nhưng không lưu bản dịch cụ thể và không triển khai các yêu cầu API. Vì thế
+    "Cái gì" của Nhà cung cấp được Cơ quan đăng ký duy trì và "cách gọi" vẫn là trách nhiệm của bộ điều hợp lớp dịch vụ.
     """
 
     provider_id: str
@@ -81,14 +81,14 @@ class LLMProviderSpec:
         return f"{self.provider_id}_{suffix}"
 
     def resolve_model_name(self, configured_model: str | None) -> str:
-        """将空值或已废弃的历史默认值统一解析为当前默认模型。"""
+        """Hợp nhất các giá trị null hoặc giá trị mặc định lịch sử lỗi thời vào mô hình mặc định hiện tại."""
         model_name = (configured_model or "").strip()
         if not model_name or model_name in self.deprecated_models:
             return self.default_model
         return model_name
 
     def resolve_base_url(self, configured_base_url: str | None) -> str:
-        """解析 Base URL，并将已经停用的历史地址迁移到当前默认值。"""
+        """Giải quyết các URL cơ sở và di chuyển các địa chỉ lịch sử đã ngừng hoạt động sang các địa chỉ mặc định hiện tại."""
         base_url = (configured_base_url or "").strip()
         deprecated_urls = {url.rstrip("/") for url in self.deprecated_base_urls}
         if not base_url or base_url.rstrip("/") in deprecated_urls:
@@ -96,7 +96,7 @@ class LLMProviderSpec:
         return base_url
 
     def get_service_endpoint(self, endpoint_id: str) -> LLMProviderEndpoint | None:
-        """按稳定 ID 获取服务区域，避免业务逻辑依赖可变化的推广链接。"""
+        """Có được khu vực dịch vụ bằng ID ổn định để tránh logic kinh doanh dựa vào các liên kết quảng cáo có thể thay đổi."""
         return next(
             (
                 endpoint
@@ -108,30 +108,30 @@ class LLMProviderSpec:
 
     @property
     def default_service_endpoint(self) -> LLMProviderEndpoint | None:
-        """返回 Provider 声明的默认服务区域。"""
+        """Trả về vùng dịch vụ mặc định do Nhà cung cấp khai báo."""
         return self.get_service_endpoint(self.default_service_endpoint_id)
 
     @property
     def international_service_endpoint(self) -> LLMProviderEndpoint | None:
-        """返回 Provider 声明的国际服务区域。"""
+        """Trả về vùng dịch vụ quốc tế do Nhà cung cấp khai báo."""
         return self.get_service_endpoint(self.international_service_endpoint_id)
 
     @property
     def effective_default_base_url(self) -> str:
-        """优先从默认服务区域读取 Base URL，普通 Provider 仍使用原字段。"""
+        """URL cơ sở được đọc từ khu vực dịch vụ mặc định trước tiên và Nhà cung cấp thông thường vẫn sử dụng các trường gốc."""
         endpoint = self.default_service_endpoint
         return endpoint.base_url if endpoint else self.default_base_url
 
     def preferred_service_endpoint(
         self, *, prefer_international: bool
     ) -> LLMProviderEndpoint | None:
-        """根据界面区域返回首选入口，缺少国际入口时安全回退默认入口。"""
+        """Trả về lối vào ưa thích theo khu vực giao diện và quay trở lại lối vào mặc định một cách an toàn khi thiếu lối vào quốc tế."""
         if prefer_international and self.international_service_endpoint:
             return self.international_service_endpoint
         return self.default_service_endpoint
 
     def effective_api_key_url(self, *, prefer_international: bool = False) -> str:
-        """统一解析 API Key 申请入口，避免 Endpoint Provider 重复维护链接。"""
+        """Phân tích cú pháp thống nhất các mục nhập ứng dụng Khóa API ngăn Nhà cung cấp điểm cuối liên tục duy trì liên kết."""
         endpoint = self.preferred_service_endpoint(
             prefer_international=prefer_international
         )
@@ -140,7 +140,7 @@ class LLMProviderSpec:
     def find_service_endpoint(
         self, configured_base_url: str | None
     ) -> LLMProviderEndpoint | None:
-        """根据已保存的 Base URL 识别 Provider 的标准服务区域。"""
+        """Xác định khu vực dịch vụ tiêu chuẩn của Nhà cung cấp dựa trên URL cơ sở đã lưu."""
         normalized_url = (configured_base_url or "").strip().rstrip("/")
         if not normalized_url:
             return None
@@ -161,12 +161,12 @@ class LLMProviderSpec:
         prefer_international: bool,
     ) -> LLMProviderEndpoint | None:
         """
-        选择 WebUI 应展示的标准服务区域。
+        Chọn khu vực dịch vụ tiêu chuẩn mà WebUI sẽ hiển thị.
 
-        已明确保存的标准地址优先；未知地址保留为自定义。历史配置可能只有
-        API Key 而没有 Base URL，这类用户继续使用 Registry 默认区域，避免
-        升级后因界面语言不同而切换服务。只有全新配置才根据界面语言选择
-        国际入口。
+        Địa chỉ tiêu chuẩn được lưu rõ ràng sẽ được ưu tiên; địa chỉ không xác định được dành riêng như tùy chỉnh. Cấu hình lịch sử chỉ có thể
+        Khóa API không có URL cơ sở, những người dùng như vậy tiếp tục sử dụng vùng mặc định của Sổ đăng ký để tránh
+        Sau khi nâng cấp, các dịch vụ sẽ được chuyển đổi do ngôn ngữ giao diện khác nhau. Chỉ những cấu hình mới được chọn dựa trên ngôn ngữ giao diện
+        Lối vào quốc tế.
         """
         configured_url = (configured_base_url or "").strip()
         if configured_url:
@@ -181,11 +181,11 @@ class LLMProviderSpec:
         )
 
 
-# 元组顺序就是 WebUI 下拉框顺序。新增普通 OpenAI-compatible Provider 时，
-# 通常只需要在这里增加一项并补充 locale；只有协议不同的 Provider 才需要在
-# app/services/llm.py 中增加对应 adapter 实现。
+# Thứ tự bộ dữ liệu là thứ tự hộp thả xuống WebUI. Khi thêm Nhà cung cấp tương thích OpenAI phổ biến,
+# Thông thường bạn chỉ cần thêm một mục ở đây và bổ sung ngôn ngữ; chỉ những Nhà cung cấp có giao thức khác nhau mới cần thêm
+# Thêm triển khai bộ điều hợp tương ứng trong app/services/llm.py.
 LLM_PROVIDER_REGISTRY = (
-    # 推荐 Provider
+    # Nhà cung cấp được đề xuất
     LLMProviderSpec(
         "moonshot",
         "Kimi / Moonshot AI",
@@ -225,7 +225,7 @@ LLM_PROVIDER_REGISTRY = (
         default_service_endpoint_id="china",
         international_service_endpoint_id="global",
     ),
-    # 主流模型原厂与云厂商
+    # Nhà sản xuất gốc mô hình chính thống và nhà sản xuất đám mây
     LLMProviderSpec(
         "openai",
         "OpenAI",
@@ -310,7 +310,7 @@ LLM_PROVIDER_REGISTRY = (
         default_model="mimo-v2.5-pro",
         default_base_url="https://api.xiaomimimo.com/v1",
     ),
-    # 聚合与统一接入平台
+    # Nền tảng tổng hợp và truy cập thống nhất
     LLMProviderSpec(
         "shengsuanyun",
         "Shengsuan Cloud",
@@ -318,9 +318,9 @@ LLM_PROVIDER_REGISTRY = (
         default_model="deepseek/deepseek-v4-flash",
         default_base_url="https://router.shengsuanyun.com/api/v1",
     ),
-    # APIMart 同时提供 `/api/v1` 业务接口和 `/v1` OpenAI 兼容接口。
-    # 当前 LLM 服务层依赖 OpenAI SDK 直接读取 choices，因此必须使用不带
-    # code/data 外层包装的 `/v1` 入口，不能照搬异步业务接口的地址。
+    # APIMart cung cấp cả giao diện doanh nghiệp `/api/v1` và giao diện tương thích `/v1` OpenAI.
+    # Lớp dịch vụ LLM hiện tại dựa trên OpenAI SDK để đọc trực tiếp các lựa chọn, do đó, nó phải được sử dụng mà không cần
+    # Mục nhập `/v1` trong gói mã/dữ liệu bên ngoài không thể sao chép địa chỉ của giao diện doanh nghiệp không đồng bộ.
     LLMProviderSpec(
         "apimart",
         "APIMart",
@@ -382,16 +382,16 @@ LLM_PROVIDER_REGISTRY = (
         default_model="minimax/minimax-m3:free",
         default_base_url="https://openrouter.ai/api/v1",
     ),
-    # 本地部署与通用网关
+    # Triển khai cục bộ và cổng phổ quát
     LLMProviderSpec(
         "ollama",
         "Ollama",
         requires_api_key=False,
         show_api_key=False,
     ),
-    # Claude 订阅（Pro / Max / Team）不签发 API Key，凭证只能由 Claude Code
-    # 官方客户端使用，因此这个 Provider 不走 HTTP 接口，而是调用本机已登录
-    # 的 claude CLI。模型名留空即沿用 CLI 当前的默认模型。
+    # Đăng ký Claude (Pro/Max/Team) không cấp API Key, chứng chỉ chỉ có thể được cấp bởi Claude Code
+    # Client chính thức sử dụng nên Provider này không sử dụng giao diện HTTP mà gọi tới máy cục bộ để đăng nhập.
+    # Claude CLI. Để trống tên mẫu để sử dụng mẫu mặc định hiện tại của CLI.
     LLMProviderSpec(
         "claude_code",
         "Claude Code (Claude subscription)",
@@ -421,7 +421,7 @@ LLM_PROVIDER_REGISTRY = (
         show_api_key=False,
         show_base_url=False,
     ),
-    # 其它推理与公共服务
+    # Lý luận và dịch vụ công cộng khác
     LLMProviderSpec(
         "groq",
         "Groq",
@@ -452,10 +452,10 @@ def get_llm_provider(provider_id: str) -> LLMProviderSpec | None:
 
 def normalize_provider_override(value: str | None, default_value: str | None) -> str:
     """
-    只保留与 Registry 默认值不同的用户覆盖值。
+    Chỉ những giá trị ghi đè của người dùng khác với giá trị mặc định của Sổ đăng ký mới được giữ lại.
 
-    WebUI 需要把默认值展示在输入框中，但不能因此把默认值固化到 config.toml；
-    否则后续升级 Registry 默认模型或地址时，旧配置会继续覆盖新默认值。
+    WebUI cần hiển thị giá trị mặc định trong hộp nhập liệu, nhưng nó không thể củng cố giá trị mặc định thành config.toml;
+    Ngược lại, khi mô hình hoặc địa chỉ mặc định của Sổ đăng ký được nâng cấp sau đó, cấu hình cũ sẽ tiếp tục ghi đè giá trị mặc định mới.
     """
     normalized_value = (value or "").strip()
     normalized_default = (default_value or "").strip()

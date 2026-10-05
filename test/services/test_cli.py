@@ -18,10 +18,10 @@ from app.config import config as app_config
 
 class TestCli(unittest.TestCase):
     def setUp(self):
-        # ``build_video_params`` 会读取本地 config.toml 的 [ui] 段作为默认值。
-        # 不做隔离时，这些测试就依赖开发机的状态：配置里保存的字体一旦已被
-        # 删除，``prepare_cli_files`` 的字体校验就会触发，让与此无关的测试以
-        # 误导性的报错失败。
+        # ``build_video_params`` sẽ đọc phần [ui] của config.toml cục bộ làm giá trị mặc định.
+        # Không tách biệt, các thử nghiệm này dựa vào trạng thái của máy phát triển: sau khi các phông chữ được lưu trong cấu hình đã được
+        # Xóa, việc xác minh phông chữ của ``prepare_cli_files`` sẽ được kích hoạt, cho phép các bài kiểm tra không liên quan đến điều này được thực hiện
+        # Báo cáo lỗi gây hiểu lầm không thành công.
         ui_patch = patch.dict(app_config.ui, {}, clear=True)
         ui_patch.start()
         self.addCleanup(ui_patch.stop)
@@ -102,11 +102,11 @@ class TestCli(unittest.TestCase):
         print_mock.assert_called_once()
 
     def test_force_utf8_console_keeps_unicode_result_printable(self):
-        """旧版 Windows 代码页下，成功结果中的 Unicode 字符不应让 CLI 失败。"""
+        """Các ký tự Unicode trong kết quả thành công sẽ không khiến CLI bị lỗi trong các trang mã Windows cũ hơn."""
         stdout_buffer = io.BytesIO()
         stderr_buffer = io.BytesIO()
-        # 使用 errors="strict" 还原问题现场：如果入口没有先切换到 UTF-8，
-        # U+202F 窄不换行空格和带圈数字都会在 cp1252 编码阶段直接抛异常。
+        # Sử dụng error="strict" để khôi phục trang web có vấn đề: nếu mục nhập không được chuyển sang UTF-8 trước,
+        # U+202F thu hẹp các khoảng trắng không ngắt và các số được khoanh tròn sẽ trực tiếp đưa ra các ngoại lệ trong giai đoạn mã hóa cp1252.
         legacy_stdout = io.TextIOWrapper(
             stdout_buffer,
             encoding="cp1252",
@@ -148,7 +148,7 @@ class TestCli(unittest.TestCase):
         log_error.assert_called_once()
 
     def test_run_cli_returns_error_for_structured_task_failure(self):
-        """任务服务返回结构化失败信息时，CLI 仍必须以非零状态退出。"""
+        """Khi dịch vụ tác vụ trả về thông tin lỗi có cấu trúc, CLI vẫn phải thoát với trạng thái khác 0."""
         failure = {
             "task_id": "task-structured-failure",
             "state": -1,
@@ -628,7 +628,7 @@ class TestCli(unittest.TestCase):
         self.assertEqual(cm.exception.code, 2)
 
     def test_positive_volume_custom_bgm_requires_file_before_task_start(self):
-        """启用自定义 BGM 时仍必须在任务启动前报告缺少文件。"""
+        """Khi bật BGM tùy chỉnh, các tệp bị thiếu vẫn phải được báo cáo trước khi tác vụ bắt đầu."""
         with (
             patch("app.services.task.start") as start,
             patch.object(cli.logger, "error") as log_error,
@@ -658,7 +658,7 @@ class TestCli(unittest.TestCase):
         self.assertEqual(args.bgm_type, "custom")
 
     def test_zero_volume_custom_bgm_skips_file_requirement_and_resolution(self):
-        """0 音量应忽略缺失或无效文件，与 WebUI 和视频服务保持一致。"""
+        """0 sẽ bỏ qua các tệp bị thiếu hoặc không hợp lệ, phù hợp với các dịch vụ WebUI và video."""
         file_arguments = [[], ["--bgm-file", "missing-background.mp3"]]
         for extra_arguments in file_arguments:
             with self.subTest(extra_arguments=extra_arguments):
@@ -686,7 +686,7 @@ class TestCli(unittest.TestCase):
                 self.assertEqual(params.bgm_file, "")
 
     def test_custom_bgm_reuses_service_formats_and_managed_path_resolution(self):
-        """CLI 必须跟随 BGM 服务的格式白名单，不能继续单独限制为 MP3。"""
+        """CLI phải tuân theo danh sách trắng định dạng của dịch vụ BGM và không thể tiếp tục bị giới hạn chỉ ở MP3."""
         from app.services import bgm as bgm_service
 
         for extension in bgm_service.SUPPORTED_BGM_EXTENSIONS:
@@ -715,7 +715,7 @@ class TestCli(unittest.TestCase):
                 self.assertEqual(params.bgm_file, resolved_path)
 
     def test_custom_bgm_reports_service_resolution_failure_before_task_start(self):
-        """非法格式或越界路径应转换为包含统一格式范围的 CLI 错误。"""
+        """Các định dạng không hợp lệ hoặc đường dẫn ngoài giới hạn phải được chuyển đổi thành lỗi CLI chứa phạm vi định dạng thống nhất."""
         from app.services import bgm as bgm_service
 
         args = cli.parse_args(
@@ -948,7 +948,7 @@ class TestCli(unittest.TestCase):
         )
 
     def test_batch_accepts_openai_image_source(self):
-        """批量入口必须接受单任务 CLI 已支持的 OpenAI 文生图素材源。"""
+        """Cổng hàng loạt phải chấp nhận nguồn hình ảnh OpenAI đã được CLI tác vụ đơn hỗ trợ."""
         with tempfile.TemporaryDirectory() as temp_dir:
             manifest = Path(temp_dir) / "tasks.json"
             manifest.write_text(
@@ -1478,7 +1478,7 @@ class TestCli(unittest.TestCase):
         self.assertIn("exit with 2", help_text)
 
     def test_help_does_not_initialize_application_or_write_logs(self):
-        """帮助命令应独立于业务配置加载，便于用户查看和脚本采集。"""
+        """Lệnh trợ giúp phải được tải độc lập với cấu hình doanh nghiệp để hỗ trợ người dùng xem và thu thập tập lệnh."""
         project_root = Path(__file__).parent.parent.parent
         result = subprocess.run(
             [sys.executable, str(project_root / "cli.py"), "--help"],
@@ -1495,8 +1495,8 @@ class TestCli(unittest.TestCase):
 
 class TestCliUiDefaults(unittest.TestCase):
     """
-    CLI 默认值应跟随 WebUI：显式命令行参数优先，其次是 config.toml 的 [ui]
-    保存值，最后才是内置默认值。
+    Các giá trị mặc định của CLI phải tuân theo WebUI: các đối số dòng lệnh rõ ràng được ưu tiên, theo sau là [ui] của config.toml
+    Lưu giá trị và cuối cùng là giá trị mặc định tích hợp.
     """
 
     UI_CONFIG = {
@@ -1569,9 +1569,9 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_ui_config_can_disable_subtitle_background(self):
         """
-        自相矛盾的 [ui] 配置不应让 CLI 中断：
-        `--no-subtitle-background-enabled` 加上颜色作为命令行组合是参数错误，
-        但作为保存的设置只表示背景被禁用。
+        Cấu hình [ui] mâu thuẫn không được phá vỡ CLI:
+        `--no-subtitle-background-enabled` cộng với màu sắc khi kết hợp dòng lệnh là một lỗi tham số,
+        Nhưng vì cài đặt đã lưu, điều đó chỉ có nghĩa là nền bị tắt.
         """
         ui_config = dict(self.UI_CONFIG)
         ui_config["subtitle_background_enabled"] = False
@@ -1585,7 +1585,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertFalse(params.rounded_subtitle_background)
 
     def test_unusable_ui_config_values_fall_back_to_builtin_defaults(self):
-        """损坏的 config.toml 不应触发 traceback。"""
+        """config.toml bị hỏng sẽ không kích hoạt truy nguyên."""
         ui_config = {
             "font_size": "sechzig",
             "text_fore_color": 42,
@@ -1605,9 +1605,9 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_saved_no_voice_mode_disables_tts(self):
         """
-        WebUI 把无配音作为独立的 voice_mode 保存，同时保留用户上一次真正选择
-        的音色，以便切回自动配音。CLI 必须遵循该模式，否则会重新启用 TTS 并
-        可能触发付费供应商请求。
+        WebUI không lưu lồng tiếng dưới dạng voice_mode riêng biệt trong khi vẫn giữ lại lựa chọn thực sự cuối cùng của người dùng
+        âm để chuyển về chế độ lồng tiếng tự động. CLI phải tuân theo mẫu này, nếu không TTS sẽ được kích hoạt lại và
+        Có thể kích hoạt các yêu cầu trả phí của nhà cung cấp.
         """
         ui_config = {"voice_mode": "none", "voice_name": "gemini:Puck-Male"}
 
@@ -1619,7 +1619,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertEqual(params.voice_name, "no-voice")
 
     def test_explicit_voice_name_overrides_saved_no_voice_mode(self):
-        """命令行显式指定的音色优先级最高，保存的无配音模式不得覆盖它。"""
+        """Bản vá được chỉ định rõ ràng trên dòng lệnh có mức độ ưu tiên cao nhất và không thể bị ghi đè bằng chế độ chưa được lưu đã lưu."""
         ui_config = {"voice_mode": "none", "voice_name": "gemini:Puck-Male"}
 
         args = cli.parse_args(
@@ -1632,7 +1632,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertEqual(params.voice_name, "zh-CN-XiaoxiaoNeural-Female")
 
     def test_saved_tts_mode_keeps_saved_voice(self):
-        """voice_mode 为自动配音时，保存的音色仍然生效。"""
+        """Khi voice_mode được lồng tiếng tự động, âm sắc đã lưu vẫn có hiệu lực."""
         ui_config = {"voice_mode": "tts", "voice_name": "gemini:Puck-Male"}
 
         args = cli.parse_args(["--video-subject", "test"])
@@ -1644,8 +1644,8 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_enabling_background_without_color_keeps_saved_color(self):
         """
-        只传 --subtitle-background-enabled 时用户并未覆盖颜色，应沿用 WebUI
-        保存的颜色，而不是回退成黑色背景。
+        Khi chỉ chuyển --subtitle-background-enabled, người dùng không ghi đè màu, vì vậy nên sử dụng WebUI thay thế.
+        Đã lưu màu thay vì quay lại nền đen.
         """
         ui_config = {"subtitle_background_color": "#654321"}
 
@@ -1659,7 +1659,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertEqual(params.text_background_color, "#654321")
 
     def test_enabling_background_falls_back_to_default_without_saved_color(self):
-        """没有可用的保存颜色时，仅开启背景应回退为默认背景。"""
+        """Chỉ bật nền sẽ quay về nền mặc định khi không có màu nào được lưu."""
         args = cli.parse_args(
             ["--video-subject", "test", "--subtitle-background-enabled"]
         )
@@ -1670,7 +1670,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertIs(params.text_background_color, True)
 
     def test_explicit_background_color_overrides_saved_color(self):
-        """命令行显式指定的背景颜色优先于保存值。"""
+        """Màu nền được chỉ định rõ ràng trên dòng lệnh được ưu tiên hơn các giá trị đã lưu."""
         ui_config = {"subtitle_background_color": "#654321"}
 
         args = cli.parse_args(
@@ -1690,9 +1690,9 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_saved_upload_mode_disables_tts(self):
         """
-        上传自备音频的模式同样表示“不要自动配音”，而 [ui] 不保存文件路径，
-        CLI 无法复现该上传。此时沿用保存的音色会静默触发付费 TTS 请求，
-        因此与无配音一样映射为 no-voice；需要配音时显式传 --voice-name。
+        Chế độ tải lên âm thanh của riêng bạn cũng có nghĩa là "không tự động lồng tiếng" và [ui] không lưu đường dẫn tệp.
+        CLI không thể sao chép nội dung tải lên. Tại thời điểm này, việc sử dụng âm đã lưu sẽ âm thầm kích hoạt yêu cầu TTS trả phí.
+        Do đó, nó được ánh xạ sang không có giọng nói giống như không lồng tiếng; khi cần lồng tiếng, hãy chuyển --voice-name một cách rõ ràng.
         """
         ui_config = {"voice_mode": "upload", "voice_name": "gemini:Puck-Male"}
 
@@ -1704,7 +1704,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertEqual(params.voice_name, "no-voice")
 
     def test_explicit_voice_name_overrides_saved_upload_mode(self):
-        """命令行显式指定的音色同样优先于保存的上传模式。"""
+        """Các bản vá được chỉ định rõ ràng trên dòng lệnh cũng được ưu tiên hơn các chế độ tải lên đã lưu."""
         ui_config = {"voice_mode": "upload", "voice_name": "gemini:Puck-Male"}
 
         args = cli.parse_args(
@@ -1718,8 +1718,8 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_saved_color_alone_enables_background(self):
         """
-        WebUI 总是同时写入开关和颜色，只保存颜色属于手工编辑的配置。
-        此时保存的颜色本身就表明用户想要背景，因此按开启处理。
+        WebUI luôn ghi cả công tắc và màu sắc, đồng thời chỉ lưu các màu thuộc cấu hình được chỉnh sửa thủ công.
+        Bản thân màu đã lưu tại thời điểm này cho biết người dùng muốn có nền nên hãy nhấn Bật để xử lý.
         """
         ui_config = {"subtitle_background_color": "#654321"}
 
@@ -1731,7 +1731,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertEqual(params.text_background_color, "#654321")
 
     def test_ui_config_supplies_voice_and_stroke_defaults(self):
-        """配音音量、语速、描边和字幕开关同样保存在 [ui] 中，需要一并沿用。"""
+        """Các công tắc âm lượng lồng tiếng, tốc độ giọng nói, nét chữ và phụ đề cũng được lưu trong [ui] và cần được kế thừa."""
         ui_config = {
             "voice_volume": 0.5,
             "voice_rate": 1.3,
@@ -1752,7 +1752,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertFalse(params.subtitle_enabled)
 
     def test_cli_flags_take_precedence_over_saved_voice_and_stroke(self):
-        """命令行显式传入的值优先于这些保存值。"""
+        """Các giá trị được truyền rõ ràng từ dòng lệnh sẽ được ưu tiên hơn các giá trị đã lưu này."""
         ui_config = {
             "voice_volume": 0.5,
             "voice_rate": 1.3,
@@ -1787,7 +1787,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertTrue(params.subtitle_enabled)
 
     def test_saved_integers_are_accepted_for_float_fields(self):
-        """TOML 中的整数同样是合法音量和语速，应转换后使用而不是丢弃。"""
+        """Các số nguyên trong TOML cũng là âm lượng và tốc độ nói hợp pháp, đồng thời phải được chuyển đổi và sử dụng thay vì loại bỏ."""
         ui_config = {"voice_volume": 1, "voice_rate": 2, "stroke_width": 3}
 
         args = cli.parse_args(["--video-subject", "test"])
@@ -1801,8 +1801,8 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_saved_values_out_of_range_fall_back_to_builtin_defaults(self):
         """
-        保存值按与命令行相同的规则校验：音量不可为负、语速必须为正、
-        颜色必须是 #RRGGBB。不合法的值回退到内置默认值。
+        Giá trị đã lưu được xác minh theo quy tắc tương tự như dòng lệnh: âm lượng không được âm, tốc độ nói phải dương,
+        Màu phải là #RRGGBB. Các giá trị không hợp lệ sẽ quay trở lại các giá trị mặc định được tích hợp sẵn.
         """
         ui_config = {
             "voice_volume": -1.0,
@@ -1825,8 +1825,8 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_stop_at_subtitle_overrides_saved_subtitle_disabled(self):
         """
-        `--stop-at subtitle` 明确要求生成字幕。保存的关闭状态不应让该阶段
-        变成空操作，也不应像显式 --no-subtitle-enabled 那样报参数错误。
+        `--stop-at subtitle` Yêu cầu tạo phụ đề một cách rõ ràng. Trạng thái đóng đã lưu không nên để sân khấu
+        Nó trở thành trạng thái không hoạt động và không được báo cáo các lỗi tham số như --no-subtitle-enabled rõ ràng.
         """
         ui_config = {"subtitle_enabled": False}
 
@@ -1840,7 +1840,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertTrue(params.subtitle_enabled)
 
     def test_explicit_no_subtitle_still_rejects_stop_at_subtitle(self):
-        """显式关闭字幕与 `--stop-at subtitle` 组合仍然是参数错误。"""
+        """Việc đóng phụ đề một cách rõ ràng kết hợp với `--stop-at subtitle` vẫn là một lỗi đối số."""
         with self.assertRaises(SystemExit) as cm:
             cli.parse_args(
                 [
@@ -1856,8 +1856,8 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_saved_subtitle_position_is_validated_and_applied(self):
         """
-        字幕位置此前只依赖 VideoParams 的字段默认值，该默认值在模块导入时
-        求值一次，既无法校验也无法在测试中替换。现在与其它字段一样显式解析。
+        Vị trí phụ đề trước đây chỉ dựa vào giá trị mặc định của trường VideoParams, được chỉ định khi mô-đun được nhập.
+        Đánh giá một lần, nó không thể được xác minh hay thay thế trong thử nghiệm. Bây giờ được phân tích cú pháp rõ ràng như các trường khác.
         """
         ui_config = {"subtitle_position": "custom", "custom_position": 42.5}
 
@@ -1870,7 +1870,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertEqual(params.custom_position, 42.5)
 
     def test_unusable_saved_subtitle_position_falls_back(self):
-        """超出取值范围的保存位置回退到内置默认值。"""
+        """Lưu các vị trí bên ngoài phạm vi giá trị sẽ quay trở lại giá trị mặc định tích hợp."""
         ui_config = {"subtitle_position": "diagonal", "custom_position": 150.0}
 
         args = cli.parse_args(["--video-subject", "test"])
@@ -1883,9 +1883,9 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_invalid_saved_background_color_with_saved_enable_flag(self):
         """
-        保存的背景颜色同样要按 #RRGGBB 校验。非法值若留在 VideoParams 中，
-        渲染时会变成黑色，而同色检测比较的仍是原始非法字符串，导致黑底黑字
-        无法被发现。
+        Màu nền đã lưu cũng phải được xác minh theo #RRGGBB. Nếu các giá trị không hợp lệ được để lại trong VideoParams,
+        Nó sẽ chuyển sang màu đen khi hiển thị, nhưng việc phát hiện màu tương tự vẫn so sánh chuỗi bất hợp pháp ban đầu, dẫn đến văn bản màu đen trên nền đen.
+        Không thể phát hiện được.
         """
         ui_config = {
             "subtitle_background_enabled": True,
@@ -1900,7 +1900,7 @@ class TestCliUiDefaults(unittest.TestCase):
         self.assertIs(params.text_background_color, True)
 
     def test_invalid_saved_background_color_with_explicit_enable_flag(self):
-        """显式开启背景时，非法的保存颜色同样回退到默认背景。"""
+        """Khi nền được bật rõ ràng, các màu đã lưu bất hợp pháp cũng sẽ quay trở lại nền mặc định."""
         ui_config = {"subtitle_background_color": "not-a-color"}
 
         args = cli.parse_args(
@@ -1914,8 +1914,8 @@ class TestCliUiDefaults(unittest.TestCase):
 
     def test_invalid_saved_background_color_without_enable_flag(self):
         """
-        只保存了非法颜色且没有开关时，不应据此推断出需要背景，
-        因此保持 VideoParams 的默认关闭状态。
+        Khi chỉ lưu các màu không hợp lệ và không có công tắc, không nên suy ra rằng cần phải có nền,
+        Vì vậy, hãy giữ VideoParams ở trạng thái tắt mặc định.
         """
         ui_config = {"subtitle_background_color": "not-a-color"}
 

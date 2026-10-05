@@ -40,9 +40,9 @@ class UploadPostService:
 
     @property
     def youtube_made_for_kids(self) -> bool:
-        # 未配置时，后续 YouTube 上传显式声明为非面向儿童；儿童内容需设置为 true。
-        # 这与旧版省略声明字段不同，但不会修改已上传的视频。
-        # 上传前严格校验类型，避免将 TOML 字符串 "false" 当作真值而误报受众。
+        # Khi không được định cấu hình, các video tải lên YouTube tiếp theo được tuyên bố rõ ràng là không dành cho trẻ em; nội dung dành cho trẻ em cần phải được đặt thành true.
+        # Điều này khác với phiên bản cũ là bỏ qua trường xác nhận nhưng không sửa đổi video đã tải lên.
+        # Hãy xác minh nghiêm ngặt loại trước khi tải lên để tránh báo cáo sai đối tượng bằng cách coi chuỗi TOML là "false" làm giá trị thực.
         return config.app.get("upload_post_youtube_made_for_kids", False)
 
     def is_configured(self) -> bool:
@@ -69,7 +69,7 @@ class UploadPostService:
 
         has_youtube = any(p.startswith("youtube") for p in platforms)
         if has_youtube:
-            # 后台任务传入排队时的声明快照；直接调用服务时才读取当前配置。
+            # Ảnh chụp nhanh khai báo khi tác vụ nền được chuyển vào hàng đợi; cấu hình hiện tại chỉ được đọc khi dịch vụ được gọi trực tiếp.
             made_for_kids = (youtube_extra or {}).get(
                 "selfDeclaredMadeForKids", self.youtube_made_for_kids
             )
@@ -94,8 +94,8 @@ class UploadPostService:
                     data.append(('platform[]', platform))
 
                 if has_youtube:
-                    # multipart 表单使用小写布尔字符串，且不能依赖 LLM 元数据
-                    # 是否存在；只要发布到 YouTube，就显式传递用户的受众声明。
+                    # biểu mẫu nhiều phần sử dụng chuỗi boolean chữ thường và không thể dựa vào siêu dữ liệu LLM
+                    # tồn tại; vượt qua tuyên bố về đối tượng của người dùng một cách rõ ràng bất cứ khi nào đăng lên YouTube.
                     data.append(('selfDeclaredMadeForKids', str(made_for_kids).lower()))
                     logger.info(f"YouTube audience declaration: made_for_kids={made_for_kids}")
 

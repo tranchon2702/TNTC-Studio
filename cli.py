@@ -18,25 +18,25 @@ if TYPE_CHECKING:
 
 
 DEFAULT_VOICE_NAME = "zh-CN-XiaoxiaoNeural-Female"
-# 对应 webui/Main.py 的 VOICE_MODE_NONE 和 VOICE_MODE_UPLOAD。两端目前没有
-# 共享这些常量，因此在这里保留字面值并注明来源。
+# Tương ứng với VOICE_MODE_NONE và VOICE_MODE_UPLOAD của webui/Main.py. Hiện tại không có
+# Các hằng số này được chia sẻ, vì vậy hãy giữ nguyên nghĩa của chúng ở đây và trích dẫn nguồn.
 UI_VOICE_MODE_NONE = "none"
-# 字幕位置的内置默认值。VideoParams 也有同名默认值，但它是 Pydantic 字段
-# 默认，只在模块导入时读取一次 config.ui：此时 config.toml 里的非法值会被
-# 直接冻结进模型，既不会校验也无法在测试中替换。CLI 因此自己保存一份，
-# 保证“非法保存值回退到默认值”对命令行始终成立。
+# Tích hợp mặc định cho vị trí phụ đề. VideoParams cũng có giá trị mặc định cùng tên, nhưng đó là trường Pydantic
+# Theo mặc định, config.ui chỉ được đọc một lần khi mô-đun được nhập: lúc này, các giá trị không hợp lệ trong config.toml sẽ là
+# Được cố định trực tiếp vào mô hình, nó sẽ không được xác minh hay thay thế trong quá trình thử nghiệm. Do đó CLI giữ một bản sao cho chính nó,
+# Đảm bảo rằng "các giá trị được lưu bất hợp pháp rơi về giá trị mặc định" luôn đúng cho dòng lệnh.
 DEFAULT_SUBTITLE_POSITION = "bottom"
 DEFAULT_CUSTOM_POSITION = 70.0
 UI_VOICE_MODE_UPLOAD = "upload"
-# 这两种保存的配音方式都表示不要自动配音。
+# Cả hai phương pháp lồng tiếng đã lưu này đều không có nghĩa là tự động lồng tiếng.
 UI_VOICE_MODES_WITHOUT_TTS = frozenset({UI_VOICE_MODE_NONE, UI_VOICE_MODE_UPLOAD})
 _PIPELINE_STAGES = ("script", "terms", "audio", "subtitle", "materials", "video")
 _CUSTOM_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 _BATCH_FILE_MAX_BYTES = 1024 * 1024
 _BATCH_TASK_MAX_COUNT = 100
-# 单任务 argparse 和批量清单必须共享同一来源集合。此前两处手工维护导致
-# openai_image 只在单任务入口可用；集中定义后，新增 Provider 不会再次遗漏
-# 批量校验。这里仅包含 CLI 已公开支持的来源，不强行暴露 WebUI 专属流程。
+# Tệp kê khai argparse tác vụ đơn và tệp kê khai hàng loạt phải chia sẻ cùng một bộ sưu tập nguồn. Hai lần bảo trì thủ công trước đó đã dẫn đến
+# openai_image chỉ khả dụng ở lối vào một nhiệm vụ; sau khi xác định tập trung, Nhà cung cấp mới sẽ không bị bỏ lỡ nữa
+# Xác minh hàng loạt. Chỉ những nguồn đã được CLI hỗ trợ công khai mới được đưa vào đây và các quy trình dành riêng cho WebUI không bị buộc phải tiết lộ.
 _CLI_VIDEO_SOURCES = (
     "pexels",
     "pixabay",
@@ -53,7 +53,7 @@ class _CliHelpFormatter(
     argparse.ArgumentDefaultsHelpFormatter,
     argparse.RawDescriptionHelpFormatter,
 ):
-    """在保留多行示例排版的同时，自动展示有意义的默认值。"""
+    """Tự động hiển thị các giá trị mặc định có ý nghĩa trong khi vẫn giữ nguyên bố cục của các ví dụ nhiều dòng."""
 
     def _get_help_string(self, action):
         help_text = action.help or ""
@@ -115,7 +115,7 @@ def _hex_color(value: str) -> str:
 
 
 def _subtitle_position(value: str) -> str:
-    """校验保存的字幕位置，取值范围与命令行参数保持一致。"""
+    """Xác minh vị trí của phụ đề đã lưu và phạm vi giá trị phù hợp với tham số dòng lệnh."""
     if value not in ("top", "center", "bottom", "custom"):
         raise argparse.ArgumentTypeError(
             f"subtitle-position must be one of: top, center, bottom, custom, got {value!r}"
@@ -124,7 +124,7 @@ def _subtitle_position(value: str) -> str:
 
 
 def _task_id(value: str) -> str:
-    """CLI 自定义任务标识只接受 UUID，避免该值被解释为文件系统路径。"""
+    """Mã nhận dạng tác vụ tùy chỉnh CLI chỉ chấp nhận UUID để tránh giá trị được hiểu là đường dẫn hệ thống tệp."""
     try:
         return str(UUID(value.strip()))
     except (AttributeError, ValueError) as exc:
@@ -657,8 +657,8 @@ Batch manifests:
         and args.subtitle_position != "custom"
     ):
         parser.error("--custom-position requires --subtitle-position custom")
-    # 只有显式的 --no-subtitle-enabled 才算冲突。默认值现在是 None，
-    # 保存的关闭状态在 build_video_params 中处理，不应在这里报参数错误。
+    # Chỉ --no-subtitle-enabled rõ ràng mới được tính là xung đột. Giá trị mặc định bây giờ là Không có,
+    # Trạng thái đóng đã lưu được xử lý trong build_video_params và không nên báo cáo lỗi tham số tại đây.
     if (
         not args.batch_file
         and args.stop_at == "subtitle"
@@ -679,23 +679,23 @@ Batch manifests:
 
 def _ui_config_value(ui_config, key: str, expected_type, checker=None):
     """
-    读取 ``[ui]`` 中保存的 WebUI 设置，取不到可用值时返回 ``None``。
+    Đọc cài đặt WebUI được lưu trong ``[ui]`` và trả về ``None`` nếu không có giá trị khả dụng.
 
-    该配置段也可能被手工编辑，因此这里直接丢弃不可用的条目，让调用方回退到
-    内置默认值，而不是把脏数据继续传下去，触发 traceback 或 ``VideoParams``
-    的校验错误。
+    Phần cấu hình này cũng có thể được chỉnh sửa thủ công, do đó, các mục không khả dụng sẽ bị loại bỏ trực tiếp tại đây, cho phép người gọi quay lại
+    Các giá trị mặc định được tích hợp sẵn, thay vì truyền dữ liệu bẩn, kích hoạt truy nguyên hoặc ``VideoParams``
+    lỗi xác minh.
 
-    ``checker`` 复用命令行使用的同一批类型函数（如 ``_hex_color``），因此保存
-    值和命令行参数遵循完全相同的取值规则，例如音量不能为负、颜色必须是
+    ``checker`` sử dụng lại cùng một loạt các hàm loại được sử dụng trên dòng lệnh (chẳng hạn như ``_hex_color``), vì vậy hãy lưu lại
+    Các giá trị và tham số dòng lệnh tuân theo chính xác các quy tắc giá trị giống nhau, ví dụ: âm lượng không được âm và màu phải là
     ``#RRGGBB``。
     """
     value = ui_config.get(key)
     if value is None:
         return None
-    # ``isinstance(True, int)`` 为真，所以在期望数字时必须显式排除 bool。
+    # ``isinstance(True, int)`` là đúng, vì vậy bạn phải loại trừ rõ ràng bool khi mong đợi một số.
     if isinstance(value, bool) != (expected_type is bool):
         return None
-    # TOML 中的 ``1`` 是整数，但对音量、语速这类字段同样是合法取值。
+    # ``1`` trong TOML là một số nguyên, nhưng nó cũng là một giá trị pháp lý cho các trường như âm lượng và tốc độ nói.
     if expected_type is float and isinstance(value, int):
         value = float(value)
     if not isinstance(value, expected_type):
@@ -712,11 +712,11 @@ def _ui_config_value(ui_config, key: str, expected_type, checker=None):
 
 def _resolve_subtitle_enabled(args: argparse.Namespace, ui_config) -> bool:
     """
-    按优先级解析字幕开关：命令行 > WebUI 保存值 > 默认开启。
+    Phân tích phụ đề theo mức độ ưu tiên: Dòng lệnh > Giá trị đã lưu WebUI > Được bật theo mặc định.
 
-    ``--stop-at subtitle`` 明确要求生成字幕，因此保存的关闭状态不能让该阶段
-    变成空操作；显式的 --no-subtitle-enabled 与该阶段的组合在参数校验中已被
-    拒绝，所以这里只需处理保存值。
+    ``--stop-at subtitle`` yêu cầu tạo phụ đề một cách rõ ràng, vì vậy trạng thái đóng đã lưu không cho phép giai đoạn này
+    Trở thành không hoạt động; sự kết hợp rõ ràng --no-subtitle-enabled với giai đoạn này đã bị vô hiệu hóa trong quá trình xác thực tham số
+    Bị từ chối, vì vậy ở đây chúng ta chỉ phải giải quyết việc lưu giá trị.
     """
     if args.subtitle_enabled is not None:
         return args.subtitle_enabled
@@ -728,27 +728,27 @@ def _resolve_subtitle_enabled(args: argparse.Namespace, ui_config) -> bool:
 
 def _resolve_voice_name(args: argparse.Namespace, ui_config) -> str:
     """
-    按优先级解析音色：命令行 > WebUI 保存的配音方式和音色 > 内置默认值。
+    Phân tích âm thanh theo mức độ ưu tiên: Dòng lệnh > Phương pháp và âm thanh lồng tiếng đã lưu trên WebUI > Giá trị mặc định tích hợp.
 
-    WebUI 把“无配音”保存为独立的 voice_mode，同时保留用户上一次真正选择的
-    音色，以便切回自动配音后恢复。所以这里不能只读 voice_name，否则保存的
-    无配音状态会被忽略，并可能重新触发付费供应商请求。
+    WebUI lưu "không có giọng nói" dưới dạng voice_mode riêng biệt, trong khi vẫn giữ lại lựa chọn thực sự cuối cùng của người dùng.
+    Âm sắc có thể được khôi phục sau khi chuyển về chế độ lồng tiếng tự động. Vì vậy bạn không thể chỉ đọc voice_name ở đây, nếu không nó sẽ được lưu lại
+    Không có trạng thái lồng tiếng nào bị bỏ qua và có thể kích hoạt lại yêu cầu của nhà cung cấp dịch vụ trả phí.
     """
     from app.services.voice import NO_VOICE_NAME
 
     if args.voice_name:
         return args.voice_name
-    # 无配音和上传自备音频都表示用户不想要自动配音。上传模式的文件路径不会
-    # 写入 [ui]，CLI 无法复现该上传；此时沿用保存的音色会静默触发付费 TTS
-    # 请求，因此两种模式都映射为 no-voice，需要配音时显式传 --voice-name。
+    # Không lồng tiếng và tải lên âm thanh của riêng bạn đều cho thấy rằng người dùng không muốn lồng tiếng tự động. Đường dẫn tệp cho chế độ tải lên sẽ không
+    # Viết [ui], CLI không thể sao chép nội dung tải lên; sử dụng âm đã lưu vào thời điểm này sẽ âm thầm kích hoạt TTS trả phí
+    # yêu cầu, vì vậy cả hai chế độ đều được ánh xạ thành không có giọng nói và --voice-name được chuyển rõ ràng khi cần lồng tiếng.
     if _ui_config_value(ui_config, "voice_mode", str) in UI_VOICE_MODES_WITHOUT_TTS:
         return NO_VOICE_NAME
     return _ui_config_value(ui_config, "voice_name", str) or DEFAULT_VOICE_NAME
 
 
 def build_video_params(args: argparse.Namespace) -> VideoParams:
-    # 参数帮助和校验不需要加载应用配置。仅在真正构建任务参数时导入模型，
-    # 避免执行 ``cli.py -h`` 时产生配置初始化日志。
+    # Trợ giúp và xác minh thông số không yêu cầu tải cấu hình ứng dụng. Chỉ nhập mô hình khi thực sự xây dựng các tham số tác vụ,
+    # Tránh tạo nhật ký khởi tạo cấu hình khi thực thi ``cli.py -h``.
     from app.config import config
     from app.models.schema import MaterialInfo, VideoParams
 
@@ -814,8 +814,8 @@ def build_video_params(args: argparse.Namespace) -> VideoParams:
         if value is not None:
             params_kwargs[name] = value
 
-    # 没有显式传入命令行参数时，使用 WebUI 保存的值。只补充上面尚未由命令行
-    # 设置的字段；若保存值缺失，则继续沿用 VideoParams 的默认值。
+    # Khi không có tham số dòng lệnh nào được truyền vào một cách rõ ràng, giá trị được lưu bởi WebUI sẽ được sử dụng. Chỉ cần thêm vào những điều trên mà dòng lệnh chưa thực hiện được
+    # Trường cần thiết lập; nếu thiếu giá trị đã lưu, giá trị mặc định của VideoParams sẽ tiếp tục được sử dụng.
     ui_defaults = (
         ("video_fit_mode", str, _video_fit_mode),
         ("font_name", str, None),
@@ -834,7 +834,7 @@ def build_video_params(args: argparse.Namespace) -> VideoParams:
         if value is not None:
             params_kwargs[name] = value
 
-    # 字幕位置必须由 CLI 给出确定值，不能交给上面说明的导入期字段默认值。
+    # Vị trí phụ đề phải được CLI xác định và không thể để mặc định trường thời gian nhập được mô tả ở trên.
     if "subtitle_position" not in params_kwargs:
         params_kwargs["subtitle_position"] = (
             _ui_config_value(ui_config, "subtitle_position", str, _subtitle_position)
@@ -856,8 +856,8 @@ def build_video_params(args: argparse.Namespace) -> VideoParams:
     elif args.subtitle_background_color is not None:
         params_kwargs["text_background_color"] = args.subtitle_background_color
     elif args.subtitle_background_enabled is True:
-        # 用户只开启了背景而没有覆盖颜色，因此优先沿用 WebUI 保存的颜色，
-        # 只有在没有可用保存值时才回退到默认背景。
+        # Người dùng chỉ bật nền chứ không ghi đè lên màu nên màu được lưu bởi WebUI sẽ được sử dụng trước tiên.
+        # Chỉ dự phòng về nền mặc định nếu không có giá trị đã lưu.
         params_kwargs["text_background_color"] = (
             _ui_config_value(
                 ui_config, "subtitle_background_color", str, _hex_color
@@ -865,8 +865,8 @@ def build_video_params(args: argparse.Namespace) -> VideoParams:
             or True
         )
     else:
-        # “关闭背景”加上颜色作为命令行组合是参数错误；但作为保存的设置，
-        # 同样的组合不应中断运行，只表示禁用背景。
+        # "Tắt nền" cộng với màu sắc khi kết hợp dòng lệnh là lỗi tham số; nhưng là một cài đặt đã lưu,
+        # Sự kết hợp tương tự sẽ không làm gián đoạn quá trình chạy, nó chỉ có nghĩa là vô hiệu hóa nền.
         ui_enabled = _ui_config_value(
             ui_config, "subtitle_background_enabled", bool
         )
@@ -1212,12 +1212,12 @@ def _resolve_cli_file(
     fallback_dir: str | None = None,
 ) -> str:
     """
-    将 CLI 文件参数按当前工作目录解析为绝对路径，
-    并在任务开始前确认存在。
+    Giải quyết các tham số tệp CLI thành các đường dẫn tuyệt đối dựa trên thư mục làm việc hiện tại,
+    và xác nhận sự tồn tại của nó trước khi nhiệm vụ bắt đầu.
 
-    本地素材旧版本始终相对 ``storage/local_videos`` 解析。为兼容已有脚本，
-    当前目录找不到相对路径时允许回退该目录；绝对路径始终按用户输入
-    直接解析。
+    Các phiên bản cũ hơn của cảnh quay cục bộ luôn được giải quyết liên quan đến ``storage/local_videos``. Để tương thích với các tập lệnh hiện có,
+    Cho phép bạn quay lại thư mục hiện tại khi không tìm thấy đường dẫn tương đối; đường dẫn tuyệt đối luôn được người dùng nhập vào.
+    Phân tích trực tiếp.
     """
     expanded_path = os.path.expanduser(raw_path.strip())
     if not expanded_path:
@@ -1243,7 +1243,7 @@ def _path_is_within_directory(file_path: str, directory: str) -> bool:
             [os.path.realpath(directory), os.path.realpath(file_path)]
         ) == os.path.realpath(directory)
     except ValueError:
-        # Windows 不同盘符无法计算 commonpath，此时文件显然不在目标目录内。
+        # Không thể tính toán đường dẫn chung cho các ký tự ổ đĩa Windows khác nhau và tệp này rõ ràng không có trong thư mục đích vào thời điểm này.
         return False
 
 
@@ -1253,7 +1253,7 @@ def _resolve_managed_resource_file(
     resource_dir: str,
     description: str,
 ) -> str:
-    """解析项目资源文件，并确保绝对路径仍位于对应资源目录内。"""
+    """Phân tích các tệp tài nguyên dự án và đảm bảo rằng các đường dẫn tuyệt đối vẫn nằm trong các thư mục tài nguyên tương ứng."""
     from app.utils import utils
 
     expanded_path = os.path.expanduser(raw_path.strip())
@@ -1280,20 +1280,20 @@ def _validate_cli_files(
     params: VideoParams, stop_at: str
 ) -> tuple[str, list[tuple[MaterialInfo, str, str]]]:
     """
-    无副作用地解析并校验 CLI 文件，避免批量预检留下素材副本。
+    Phân tích cú pháp và xác minh các tệp CLI mà không có tác dụng phụ, tránh việc để lại bản sao tài liệu hàng loạt.
 
-    自定义音频、BGM 和字体会被规范化为服务层可使用的路径或名称；本地素材
-    仅解析来源和扩展名，实际复制由 ``_prepare_cli_materials`` 在所有批量条目
-    校验通过后统一完成。
+    Âm thanh, BGM và phông chữ tùy chỉnh được chuẩn hóa thành đường dẫn hoặc tên mà lớp dịch vụ có thể sử dụng; tài sản địa phương
+    Chỉ các nguồn và tiện ích mở rộng mới được phân tích cú pháp, thực sự được sao chép bởi ``_prepare_cli_materials`` trong tất cả các mục nhập hàng loạt
+    Sau khi vượt qua xác minh, nó sẽ được hoàn thành thống nhất.
     """
     from app.models import const
     from app.services import bgm as bgm_service
     from app.utils import utils
 
-    # FFmpeg 探测已经移到 app/services/task.py 的共享任务流水线（task.start）
-    # 里统一做硬性检查：探测失败会让任务以 preflight 阶段失败结束，run_cli()
-    # 会据此返回非零退出码。这里不再重复一次不阻断流程的检查，避免与流水线
-    # 里的判断结果不一致。
+    # FFmpeg phát hiện đường dẫn tác vụ được chia sẻ (task.start) đã được chuyển đến app/services/task.py
+    # Thực hiện kiểm tra cứng thống nhất tại đây: lỗi phát hiện sẽ khiến tác vụ kết thúc với lỗi ở giai đoạn trước, run_cli()
+    # Mã thoát khác 0 sẽ được trả về tương ứng. Ở đây chúng tôi sẽ không lặp lại kiểm tra không chặn quy trình để tránh xung đột với đường ống.
+    # Kết quả xét xử không nhất quán.
 
     local_material_extensions = {
         *(f".{extension}" for extension in const.FILE_TYPE_VIDEOS),
@@ -1317,20 +1317,20 @@ def _validate_cli_files(
 
     if params.bgm_type == "custom":
         if not bgm_service.should_use_bgm(params.bgm_type, params.bgm_volume):
-            # 0 音量时下游会统一跳过所有 BGM。这里同时清空文件参数，避免
-            # CLI 为一个不会被读取的文件执行路径解析、存在性检查或格式
-            # 校验。
+            # Ở mức âm lượng 0, luồng xuống sẽ bỏ qua tất cả BGM một cách đồng đều. Xóa tham số file ở đây cùng lúc để tránh
+            # CLI thực hiện phân giải đường dẫn, kiểm tra sự tồn tại hoặc định dạng cho một tệp sẽ không được đọc
+            # kiểm tra.
             params.bgm_file = ""
         elif not params.bgm_file:
-            # 缺少文件是否构成错误取决于通用 BGM 开关，不能在 argparse 阶段
-            # 无条件拦截，否则 ``custom + 0%`` 会和 WebUI、服务层行为不一致。
+            # Việc thiếu tệp có cấu thành lỗi hay không tùy thuộc vào công tắc BGM chung và không thể sử dụng trong giai đoạn argparse
+            # Chặn vô điều kiện, nếu không ``custom + 0%`` sẽ không nhất quán với hành vi của WebUI và lớp dịch vụ.
             raise ValueError("--bgm-file is required when --bgm-type is custom")
         else:
             try:
-                # CLI、WebUI 和任务服务必须共用同一个 BGM 文件边界。这里直接
-                # 复用服务层解析，既支持用户上传目录和内置歌曲目录，也
-                # 自动继承新增音频格式及路径安全规则，避免多个入口分别
-                # 维护白名单。
+                # CLI, WebUI và các dịch vụ tác vụ phải có chung ranh giới tệp BGM. Trực tiếp tại đây
+                # Tái sử dụng phân tích lớp dịch vụ, hỗ trợ cả thư mục tải lên của người dùng và thư mục bài hát tích hợp, cũng như
+                # Tự động kế thừa các định dạng âm thanh mới và quy tắc bảo mật đường dẫn để tránh nhiều lối vào.
+                # Duy trì danh sách trắng.
                 params.bgm_file = bgm_service.resolve_bgm_file(params.bgm_file)
             except ValueError as exc:
                 supported_extensions = ", ".join(
@@ -1350,7 +1350,7 @@ def _validate_cli_files(
         )
         if not font_path.lower().endswith((".ttf", ".ttc")):
             raise ValueError("subtitle font must use the .ttf or .ttc extension")
-        # 下游根据 resource/fonts 内的文件名拼接路径，因此仍保留纯文件名。
+        # Hạ lưu nối đường dẫn dựa trên tên tệp trong tài nguyên/phông chữ, do đó tên tệp đơn giản vẫn được giữ lại.
         params.font_name = os.path.basename(font_path)
 
     if params.video_source != "local" or stop_at not in {"materials", "video"}:
@@ -1544,8 +1544,8 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         logger.error(f"invalid CLI input: {exc}")
         return 2
 
-    # 帮助参数会在 parse_args 中直接退出。把业务服务延迟到这里导入，
-    # 保证 -h/--help 输出干净，同时不改变实际任务的初始化流程。
+    # Các đối số trợ giúp được thoát trực tiếp trong pars_args. Trì hoãn việc nhập khẩu dịch vụ kinh doanh tại đây,
+    # Đảm bảo rằng đầu ra -h/--help sạch mà không thay đổi quá trình khởi tạo của tác vụ thực tế.
     from app.services import task as tm
     from app.utils import utils
 

@@ -23,8 +23,8 @@ DEFAULT_RESULT_PORT_NAME = "output"
 DEFAULT_BASE_URL = "https://loomloom.shengsuanyun.com/loom/v1"
 DEFAULT_SCRIPT_MARKET_LISTING_ID = "019fd618-9baa-73d9-94f4-c9270b6f3025"
 VIDEO_CAPABILITY_PROFILE_ID = "video.text-to-video.aspect-ratio.v1"
-# 文案与视频是两个输入、产物结构完全不同的已上架 SkillBot。两个 ID 都是
-# MoneyPrinterTurbo 集成的内部常量，用户只需提供 API Key，不应接触 Listing ID。
+# Copywriting và video là hai đầu vào và cấu trúc sản phẩm hoàn toàn khác nhau đã được đưa lên kệ của SkillBot. Cả hai ID đều
+# Là hằng số nội bộ của tích hợp MoneyPrinterTurbo, người dùng chỉ cần cung cấp Khóa API và không được chạm vào ID danh sách.
 DEFAULT_VIDEO_MARKET_LISTING_ID = "01a06563-7331-773a-b9b2-25989a0dd70e"
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
 DEFAULT_POLL_INTERVAL_SECONDS = 2.0
@@ -67,10 +67,10 @@ class LoomLoomRunError(LoomLoomError):
 
 def resolve_api_token(values: Mapping[str, Any]) -> str:
     """
-    解析当前功能应使用的胜算云 API Key。
+    Phân tích Khóa API WinCloud mà chức năng hiện tại sẽ sử dụng.
 
-    当大模型 Provider 已选择胜算云时，文案和视频必须复用设置页中的 Key；
-    其它 Provider 则继续使用 LoomLoom 独立 Key，避免改变既有用户配置。
+    Khi nhà cung cấp mô hình ngôn ngữ lớn (LLM) đã chọn Winning Cloud thì bản sao và video phải sử dụng lại Key trong trang cài đặt;
+    Các Nhà cung cấp khác tiếp tục sử dụng các khóa độc lập của LoomLoom để tránh thay đổi cấu hình người dùng hiện có.
     """
     if str(values.get("llm_provider", "") or "").strip().lower() == "shengsuanyun":
         return str(values.get("shengsuanyun_api_key", "") or "").strip()
@@ -98,8 +98,8 @@ class LoomLoomSettings:
             .strip()
             .rstrip("/"),
             api_token=resolve_api_token(values),
-            # MoneyPrinterTurbo 固定调用项目已经上架的默认 SkillBot。Listing ID
-            # 属于集成实现细节，不能要求普通用户在 config.toml 中重复配置。
+            # MoneyPrinterTurbo Đã sửa lỗi gọi SkillBot mặc định mà dự án đã liệt kê. ID danh sách
+            # Đây là một chi tiết triển khai tích hợp và người dùng thông thường không thể bắt buộc phải định cấu hình nó nhiều lần trong config.toml.
             market_listing_id=DEFAULT_SCRIPT_MARKET_LISTING_ID,
             listing_version_id="",
             result_port_name=DEFAULT_RESULT_PORT_NAME,
@@ -158,7 +158,7 @@ class LoomLoomScriptBatch:
 
 @dataclass(frozen=True)
 class LoomLoomVideoBatch:
-    """默认 SkillBot 一次视频素材报价所包含的输入行。"""
+    """Các dòng đầu vào có trong trích dẫn cảnh quay video SkillBot mặc định."""
 
     input_rows: tuple[dict[str, str], ...]
 
@@ -171,7 +171,7 @@ class LoomLoomVideoModel:
 
 @dataclass(frozen=True)
 class LoomLoomVideoCapability:
-    """当前账号可用于文本生成视频 Profile 的公开候选。"""
+    """Tài khoản hiện tại có thể được sử dụng làm ứng cử viên công khai cho hồ sơ video tạo văn bản."""
 
     models: tuple[LoomLoomVideoModel, ...]
     default_model_id: str
@@ -230,11 +230,11 @@ class LoomLoomScriptBatchResult:
 @dataclass(frozen=True)
 class LoomLoomConfirmedVideoRequest:
     """
-    已由用户确认过报价的视频请求快照。
+    Ảnh chụp nhanh về yêu cầu video mà người dùng đã xác nhận ưu đãi.
 
-    API Key 通过 `LoomLoomSettings` 的隐藏字段仅在当前进程内传递，不进入
-    VideoParams、任务状态或日志；报价版本和幂等请求 ID 确保后台执行与用户
-    看到的报价一致，并避免网络重试造成重复扣费。
+    Khóa API chỉ được truyền trong quy trình hiện tại thông qua trường ẩn của `LoomLoomSettings` và không nhập
+    VideoParams, trạng thái nhiệm vụ hoặc nhật ký; phiên bản báo giá và ID yêu cầu bình thường đảm bảo việc thực thi nền phù hợp với người dùng
+    Báo giá bạn nhìn thấy nhất quán và tránh bị khấu trừ nhiều lần do thử lại mạng.
     """
 
     settings: LoomLoomSettings
@@ -253,13 +253,13 @@ class LoomLoomConfirmedVideoRequest:
 
 
 def video_settings_from_mapping(values: Mapping[str, Any]) -> LoomLoomSettings:
-    """使用项目内置的视频 SkillBot 创建客户端，并放宽视频任务等待时间。"""
+    """Tạo khách hàng bằng cách sử dụng SkillBot video tích hợp của dự án và giảm thời gian chờ đợi nhiệm vụ video."""
     settings = LoomLoomSettings.from_mapping(values)
     return LoomLoomSettings(
         base_url=settings.base_url,
         api_token=settings.api_token,
-        # 视频 Listing 接收 prompt/modelChoice/aspectRatio 并返回 MP4；不能
-        # 复用文案 Listing，否则报价阶段就会因输入 schema 不匹配而失败。
+        # Danh sách Video nhận được dấu nhắc/modelChoice/tỷ lệ khung hình và trả về MP4; không thể
+        # Sử dụng lại Danh sách copywriting, nếu không giai đoạn trích dẫn sẽ không thành công do lược đồ đầu vào không khớp.
         market_listing_id=DEFAULT_VIDEO_MARKET_LISTING_ID,
         listing_version_id=settings.listing_version_id,
         result_port_name=settings.result_port_name,
@@ -390,9 +390,9 @@ class LoomLoomScriptBackend:
             except LoomLoomAPIError as exc:
                 if not exc.retryable or attempt >= MAX_EXECUTE_ATTEMPTS:
                     raise
-                # execute 是付费操作，不能生成新的请求 ID 后盲目重试。服务端以
-                # clientRequestId 保证幂等，因此这里只复用完全相同的载荷做有限
-                # 重试，用于恢复“服务端已接受、客户端未收到响应”的网络故障。
+                # thực thi là một hoạt động phải trả phí và không thể thử lại một cách mù quáng sau khi tạo ID yêu cầu mới. Máy chủ kết thúc bằng
+                # clientRequestId được đảm bảo là bình thường, vì vậy chỉ có tải trọng chính xác tương tự mới được sử dụng lại ở đây cho giới hạn
+                # Thử lại được sử dụng để khôi phục sau lỗi mạng "máy chủ đã chấp nhận nhưng máy khách chưa nhận được phản hồi".
                 retry_delay = min(float(attempt), MAX_POLL_RETRY_DELAY_SECONDS)
                 logger.warning(
                     "retry LoomLoom execute with the same client request id: "
@@ -401,7 +401,7 @@ class LoomLoomScriptBackend:
                 )
                 self._sleep(retry_delay)
 
-        if response is None:  # pragma: no cover - 循环的成功或异常分支已覆盖
+        if response is None:  # pragma: no cover - nhánh thành công hoặc nhánh ngoại lệ của vòng lặp bị che phủ
             raise LoomLoomAPIError("LoomLoom execute returned no response")
         return LoomLoomExecution(
             run_id=self._required_string(response, "runId"),
@@ -463,8 +463,8 @@ class LoomLoomScriptBackend:
                 continue
             now = self._clock()
             progress = run.completed_tasks + run.failed_tasks + run.cancelled_tasks
-            # 远端视频任务可能持续数分钟。状态变化时立即记录，状态不变时每
-            # 30 秒记录一次心跳，既能帮助定位卡住位置，也避免两秒一次刷屏。
+            # Tác vụ video từ xa có thể kéo dài vài phút. Ghi lại ngay khi trạng thái thay đổi và mỗi khi trạng thái không thay đổi
+            # Ghi lại nhịp tim sau mỗi 30 giây không chỉ giúp xác định vị trí bị kẹt mà còn tránh làm mới màn hình sau mỗi hai giây.
             if run.status != last_logged_status or now - last_progress_log_at >= 30:
                 logger.info(
                     "LoomLoom run progress: "
@@ -650,8 +650,8 @@ class LoomLoomScriptBackend:
             if isinstance(error_payload, dict):
                 server_error = str(error_payload.get("error", "")).strip()
                 if server_error:
-                    # 服务端错误偶尔会回显请求上下文。即使出现异常响应，也不能
-                    # 让 Bearer Token 进入页面错误、日志或任务状态。
+                    # Lỗi phía máy chủ đôi khi lặp lại ngữ cảnh yêu cầu. Ngay cả khi xảy ra phản ứng bất thường, nó cũng không thể
+                    # Đặt Mã thông báo Bearer vào trạng thái lỗi trang, nhật ký hoặc tác vụ.
                     message = server_error.replace(api_token, "[redacted]")
             raise LoomLoomAPIError(
                 f"LoomLoom API returned HTTP {response.status_code}: {message}",
@@ -697,10 +697,10 @@ class LoomLoomScriptBackend:
 
 
 class LoomLoomVideoBackend(LoomLoomScriptBackend):
-    """通过默认 SkillBot 生成视频素材，并将 MP4 产物安全下载到任务目录。"""
+    """Tạo cảnh quay video thông qua SkillBot mặc định và tải sản phẩm MP4 xuống thư mục tác vụ một cách an toàn."""
 
     def resolve_video_capability(self) -> LoomLoomVideoCapability:
-        """读取当前账号在固定视频 Profile 下的实时模型与比例候选。"""
+        """Đọc mô hình thời gian thực và các ứng cử viên tỷ lệ của tài khoản hiện tại theo cấu hình video cố định."""
         response = self._request(
             "GET",
             "/authoringCapabilities:resolve",
@@ -735,7 +735,7 @@ class LoomLoomVideoBackend(LoomLoomScriptBackend):
         for candidate in eligible_models:
             if not isinstance(candidate, dict):
                 raise LoomLoomAPIError("LoomLoom eligible model must be an object")
-            # null/数值不能转成看似有效的 ID，否则会把坏目录继续传给付费接口。
+            # Không thể chuyển đổi giá trị null/giá trị thành ID có vẻ hợp lệ, nếu không thư mục xấu sẽ tiếp tục được chuyển sang giao diện thanh toán.
             model_id = candidate.get("modelId")
             display_name = candidate.get("displayName")
             if not isinstance(model_id, str) or not isinstance(display_name, str):
@@ -938,9 +938,9 @@ class LoomLoomVideoBackend(LoomLoomScriptBackend):
         finally:
             if response is not None:
                 try:
-                    # stream=True 在大小校验失败或写盘异常时不会保证消费完整响应体。
-                    # 显式关闭可以立即归还或释放底层连接，避免连续失败逐步耗尽
-                    # Session 连接池；关闭失败只记录告警，不能覆盖原始下载异常。
+                    # Stream=True không đảm bảo mức tiêu thụ toàn bộ nội dung phản hồi khi xác minh kích thước không thành công hoặc việc ghi đĩa không bình thường.
+                    # Việc đóng rõ ràng có thể trả lại hoặc giải phóng ngay lập tức kết nối cơ bản để tránh tình trạng cạn kiệt dần dần do các lỗi liên tục.
+                    # Nhóm kết nối phiên; chỉ có cảnh báo sẽ được ghi lại nếu tắt máy không thành công và không thể ghi đè ngoại lệ tải xuống ban đầu.
                     response.close()
                 except Exception as exc:
                     logger.warning(

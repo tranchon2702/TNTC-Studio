@@ -32,9 +32,9 @@ class RedisTaskManager(TaskManager):
 
     def enqueue(self, task: Dict):
         task_with_serializable_params = task.copy()
-        # task.copy() 只复制最外层字典；如果直接改写嵌套 kwargs，会把调用方
-        # 持有的 VideoParams 同步替换成 dict。后续日志或重试仍可能读取原任务，
-        # 因此这里单独复制 kwargs，确保序列化过程没有意外副作用。
+        # task.copy() chỉ sao chép từ điển ngoài cùng; nếu bạn trực tiếp viết lại các kwargs lồng nhau, người gọi sẽ
+        # VideoParams được giữ lại được thay thế đồng bộ bằng dict. Nhật ký tiếp theo hoặc lần thử lại vẫn có thể đọc tác vụ ban đầu.
+        # Do đó, các kwargs được sao chép riêng ở đây để đảm bảo không có tác dụng phụ ngoài ý muốn trong quá trình xê-ri hóa.
         task_kwargs = task.get("kwargs", {})
         task_with_serializable_params["kwargs"] = task_kwargs.copy()
 
@@ -43,24 +43,24 @@ class RedisTaskManager(TaskManager):
                 "params"
             ].model_dump(warnings=False)
 
-        # 将函数对象转换为其名称
+        # Chuyển đổi một đối tượng hàm thành tên của nó
         task_with_serializable_params["func"] = task["func"].__name__
         self.redis_client.rpush(self.queue, json.dumps(task_with_serializable_params))
 
     def dequeue(self):
-        # 循环而非单次弹出：某个任务在入队时可能满足当时的 VideoParams 校验规则，
-        # 但校验规则本身在两次部署之间收紧了（例如新增 ge=1 约束）。lpop 是破坏性
-        # 操作，一旦弹出就不能放回原位；如果重建 VideoParams 时才发现校验失败，
-        # 这条任务已经从队列中永久移除了，不能再假装它还在。与其让异常从这里往上
-        # 抛、把这条已经丢失的任务的 lock 持有者带崩，不如原地丢弃并继续尝试队列
-        # 里的下一条，把"拿到一条可用任务或者队列确实空了"这个约定维持住。
+        # Vòng lặp thay vì một cửa sổ bật lên duy nhất: một tác vụ có thể đáp ứng các quy tắc xác minh VideoParams hiện tại khi nó được đưa vào hàng đợi.
+        # Nhưng bản thân các quy tắc xác thực đã được thắt chặt giữa các lần triển khai (ví dụ: ràng buộc ge=1 mới đã được thêm vào). lpop có tính hủy diệt
+        # Hoạt động, một khi nó bật lên thì không thể đặt lại vào vị trí cũ; nếu bạn thấy rằng quá trình xác minh không thành công khi bạn xây dựng lại VideoParams,
+        # Tác vụ này đã bị xóa vĩnh viễn khỏi hàng đợi và không thể giả vờ ở đó được nữa. Thay vì để ngoại lệ đi lên từ đây
+        # Ném và phá hủy người giữ khóa của nhiệm vụ bị mất này. Tốt hơn hết bạn nên vứt nó tại chỗ và tiếp tục thử xếp hàng.
+        # Mục tiếp theo ở đây là duy trì thỏa thuận "nhận một nhiệm vụ có sẵn hoặc hàng đợi thực sự trống".
         while True:
             task_json = self.redis_client.lpop(self.queue)
             if not task_json:
                 return None
 
             task_info = json.loads(task_json)
-            # 将函数名称转换回函数对象
+            # Chuyển đổi tên hàm trở lại đối tượng hàm
             task_info["func"] = FUNC_MAP[task_info["func"]]
 
             if "params" in task_info["kwargs"] and isinstance(
@@ -76,10 +76,10 @@ class RedisTaskManager(TaskManager):
                         f"VideoParams validation (queued under an older, more "
                         f"permissive schema, or corrupted): {e}"
                     )
-                    # 任务状态记录在入队前就已创建，且默认是 processing；如果只是
-                    # 丢弃这条队列项而不动状态记录，API/WebUI 会一直显示任务在
-                    # 运行，永远不会变成失败。用 patch_task 而不是 update_task，
-                    # 这样如果用户已经删除了这个任务，我们不会又把它建回来。
+                    # Bản ghi trạng thái nhiệm vụ được tạo trước khi xếp hàng đợi và mặc định là đang xử lý; giá như
+                    # Loại bỏ mục hàng đợi này mà không chạm vào bản ghi trạng thái. API/WebUI sẽ luôn hiển thị rằng tác vụ đang được thực hiện.
+                    # Chạy, không bao giờ biến thành thất bại. Sử dụng patch_task thay vì update_task,
+                    # Bằng cách này, nếu người dùng đã xóa tác vụ, chúng tôi sẽ không tạo lại tác vụ đó.
                     task_id = task_info["kwargs"].get("task_id")
                     if task_id:
                         sm.state.patch_task(
